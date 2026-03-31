@@ -112,12 +112,21 @@ export default function AnalyzeEstimate() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ fileData: base64, fileName: file.name, mimeType: file.type }),
-          })
-          if (res.ok) {
-            items = await res.json()
-          } else {
-            throw new Error(`API error: ${res.status}`)
+          }).catch(() => null)
+
+          if (!res) {
+            throw new Error(
+              'Could not reach the AI server. Make sure the API server is running:\n' +
+              '1. Add your ANTHROPIC_API_KEY to a .env file\n' +
+              '2. Run: node api/server.js\n' +
+              'Then try again. You can also paste the estimate text directly.'
+            )
           }
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}))
+            throw new Error(body.error || `API returned ${res.status}. Check that ANTHROPIC_API_KEY is set.`)
+          }
+          items = await res.json()
         } else if (['txt', 'csv'].includes(ext)) {
           // Try API first, fallback to local parse
           const res = await fetch('/api/analyze', {
@@ -282,7 +291,7 @@ export default function AnalyzeEstimate() {
       {error && (
         <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-700">
           <AlertCircle size={16} className="mt-0.5 shrink-0" />
-          {error}
+          <div className="whitespace-pre-line">{error}</div>
         </div>
       )}
 
