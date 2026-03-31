@@ -1,24 +1,16 @@
 /**
  * Local development server for /api/analyze
  * Run: node api/server.js
- * Requires: npm install express @anthropic-ai/sdk pdf-parse
- *
- * Set ANTHROPIC_API_KEY in your environment or a .env file.
+ * Requires: ANTHROPIC_API_KEY in .env file
  */
 
-// Load .env before anything else (must use sync readFileSync before imports settle)
-import { readFileSync } from 'fs'
-try {
-  const env = readFileSync(new URL('../.env', import.meta.url), 'utf8')
-  env.split('\n').forEach(line => {
-    const eq = line.indexOf('=')
-    if (eq > 0) {
-      const k = line.slice(0, eq).trim()
-      const v = line.slice(eq + 1).trim()
-      if (k && !process.env[k]) process.env[k] = v
-    }
-  })
-} catch {}
+import { fileURLToPath } from 'url'
+import { dirname, resolve } from 'path'
+import dotenv from 'dotenv'
+
+// Load .env from project root regardless of cwd
+const __dirname = dirname(fileURLToPath(import.meta.url))
+dotenv.config({ path: resolve(__dirname, '../.env') })
 
 import express from 'express'
 import handler from './analyze.js'
