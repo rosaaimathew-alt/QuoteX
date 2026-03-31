@@ -13,6 +13,13 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 import { createRequire } from 'module'
+import { fileURLToPath } from 'url'
+import { dirname, resolve } from 'path'
+import dotenv from 'dotenv'
+
+// Load .env from project root — works whether called via server.js or directly
+dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../.env') })
+
 const require = createRequire(import.meta.url)
 const pdfParse = require('pdf-parse')
 
