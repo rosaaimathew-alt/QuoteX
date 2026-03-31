@@ -17,7 +17,7 @@ import { fileURLToPath } from 'url'
 import { dirname, resolve } from 'path'
 import dotenv from 'dotenv'
 
-// Load .env from project root — works whether called via server.js or directly
+// Load .env for local dev (no-op on Vercel where env vars are set in the dashboard)
 dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../.env') })
 
 const require = createRequire(import.meta.url)
