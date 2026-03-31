@@ -5,21 +5,19 @@
  *   { text: string }                          — plain text estimate
  *   { fileData: base64, fileName, mimeType }  — PDF, JPEG, PNG, GIF, WEBP
  *
- * Returns: array of line items
- * {
- *   name, qty, unit, unitPrice, category, confidence, source
- * }
+ * PDFs: text is extracted server-side via pdf-parse, then sent to Claude as text.
+ * Images: sent to Claude via the vision API (base64).
  *
  * Requires env var: ANTHROPIC_API_KEY
- *
- * Deploy as a Vercel/Netlify serverless function, or run the
- * companion express-server.js for local development.
  */
 
 import Anthropic from '@anthropic-ai/sdk'
+import { createRequire } from 'module'
+const require = createRequire(import.meta.url)
+const pdfParse = require('pdf-parse')
 
 const SYSTEM_PROMPT = `You are an expert construction cost estimator AI.
-Analyze the provided estimate (text or image) and extract every line item.
+Analyze the provided estimate and extract every line item.
 
 Return ONLY a valid JSON array (no markdown, no explanation) like:
 [
@@ -46,9 +44,6 @@ Rules:
 
 const CATEGORIES = ['Fencing','Gates','Demo','Materials','Labor','Framing','Concrete','Electrical','Plumbing','General']
 const UNITS = ['LF','SF','EA','HR','LS','LOAD','TON','DAY']
-
-// PDF mime types — Claude supports PDF natively
-const PDF_TYPES = ['application/pdf']
 const IMAGE_TYPES = ['image/jpeg','image/jpg','image/png','image/gif','image/webp']
 
 export default async function handler(req, res) {
@@ -64,7 +59,7 @@ export default async function handler(req, res) {
 
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
-    return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' })
+    return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured. Add it to your .env file.' })
   }
 
   const client = new Anthropic({ apiKey })
@@ -73,24 +68,27 @@ export default async function handler(req, res) {
     let messageContent = []
 
     if (fileData) {
-      const ext = fileName?.split('.').pop().toLowerCase() || ''
+      const ext = (fileName?.split('.').pop() || '').toLowerCase()
       const detectedMime = mimeType || guessMime(ext)
 
-      if (PDF_TYPES.includes(detectedMime)) {
-        // Native PDF support in Claude
+      if (detectedMime === 'application/pdf') {
+        // Extract text from PDF using pdf-parse, then send as text prompt
+        const buffer = Buffer.from(fileData, 'base64')
+        let pdfText = ''
+        try {
+          const result = await pdfParse(buffer)
+          pdfText = result.text?.trim()
+        } catch (pdfErr) {
+          console.error('pdf-parse error:', pdfErr.message)
+          return res.status(400).json({ error: 'Could not read PDF. Make sure it is not password-protected and contains text (not just scanned images).' })
+        }
+
+        if (!pdfText) {
+          return res.status(400).json({ error: 'PDF appears to be a scanned image with no text layer. Please upload a JPEG or PNG of the estimate instead.' })
+        }
+
         messageContent = [
-          {
-            type: 'document',
-            source: {
-              type: 'base64',
-              media_type: 'application/pdf',
-              data: fileData,
-            },
-          },
-          {
-            type: 'text',
-            text: 'Extract all line items from this estimate document.',
-          },
+          { type: 'text', text: `Extract all line items from this estimate:\n\n${pdfText}` },
         ]
       } else if (IMAGE_TYPES.includes(detectedMime)) {
         // Vision — JPEG/PNG/GIF/WEBP
@@ -103,13 +101,10 @@ export default async function handler(req, res) {
               data: fileData,
             },
           },
-          {
-            type: 'text',
-            text: 'Extract all line items from this estimate image.',
-          },
+          { type: 'text', text: 'Extract all line items from this estimate image.' },
         ]
       } else {
-        return res.status(400).json({ error: `Unsupported file type: ${detectedMime}. Use PDF, JPEG, or PNG.` })
+        return res.status(400).json({ error: `Unsupported file type: ${ext || detectedMime}. Use PDF, JPEG, or PNG.` })
       }
     } else {
       messageContent = [{ type: 'text', text: `Extract line items from this estimate:\n\n${text}` }]
@@ -123,11 +118,9 @@ export default async function handler(req, res) {
     })
 
     const raw = response.content[0]?.text || '[]'
-    // Strip any accidental markdown fences
     const clean = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
     let items = JSON.parse(clean)
 
-    // Sanitize
     items = items
       .filter(i => i.name && i.unitPrice > 0)
       .map(i => ({
@@ -143,7 +136,8 @@ export default async function handler(req, res) {
     return res.status(200).json(items)
   } catch (err) {
     console.error('analyze error:', err)
-    return res.status(500).json({ error: err.message || 'Analysis failed' })
+    const msg = err?.error?.error?.message || err?.message || 'Analysis failed'
+    return res.status(500).json({ error: msg })
   }
 }
 
