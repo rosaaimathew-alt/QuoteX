@@ -1,18 +1,28 @@
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom'
-import { FileText, BookOpen, ClipboardList, FileCheck } from 'lucide-react'
+import { FileText, BookOpen, ClipboardList, FileCheck, BarChart2 } from 'lucide-react'
 import AnalyzeEstimate from './pages/AnalyzeEstimate'
 import ItemCatalog from './pages/ItemCatalog'
 import BuildQuote from './pages/BuildQuote'
 import ProposalView from './pages/ProposalView'
+import ProposalTracker from './pages/ProposalTracker'
+import { useStore } from './store'
 
 const NAV = [
   { to: '/', label: 'Analyze Estimate', icon: FileText },
   { to: '/catalog', label: 'Item Catalog', icon: BookOpen },
   { to: '/quote', label: 'Build Quote', icon: ClipboardList },
   { to: '/proposal', label: 'Proposal', icon: FileCheck },
+  { to: '/tracker', label: 'Proposal Tracker', icon: BarChart2 },
 ]
 
 export default function App() {
+  const proposals = useStore(s => s.proposals)
+  const dueCount = proposals.reduce((count, p) => {
+    const today = new Date(); today.setHours(0,0,0,0)
+    const due = (p.reminders || []).filter(r => !r.dismissed && new Date(r.date + 'T00:00:00') <= today)
+    return count + due.length
+  }, 0)
+
   return (
     <BrowserRouter>
       <div className="min-h-screen bg-gray-50 flex">
@@ -37,7 +47,12 @@ export default function App() {
                 }
               >
                 <Icon size={16} />
-                {label}
+                <span className="flex-1">{label}</span>
+                {to === '/tracker' && dueCount > 0 && (
+                  <span className="ml-auto bg-amber-500 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                    {dueCount}
+                  </span>
+                )}
               </NavLink>
             ))}
           </nav>
@@ -53,6 +68,7 @@ export default function App() {
             <Route path="/catalog" element={<ItemCatalog />} />
             <Route path="/quote" element={<BuildQuote />} />
             <Route path="/proposal" element={<ProposalView />} />
+            <Route path="/tracker" element={<ProposalTracker />} />
           </Routes>
         </main>
       </div>

@@ -14,9 +14,12 @@ const SEED_CATALOG = [
   { id: 10, name: 'Concrete Footing (per post)', description: 'Pour concrete footing for fence post, including excavation.', unit: 'EA', unitPrice: 28, minPrice: 22, maxPrice: 35, count: 20, category: 'Materials', confidence: 96 },
 ]
 
+export const PROPOSAL_STATUSES = ['Draft', 'Sent', 'Followed Up', 'Won', 'Lost']
+
 export const useStore = create(
   persist(
     (set, get) => ({
+      // ── Catalog ──────────────────────────────────────────────────────────
       catalog: SEED_CATALOG,
       nextCatalogId: SEED_CATALOG.length + 1,
 
@@ -70,11 +73,86 @@ export const useStore = create(
 
       deleteCatalogItem: (id) =>
         set((s) => ({ catalog: s.catalog.filter((c) => c.id !== id) })),
+
+      // ── Proposals (CRM log) ───────────────────────────────────────────────
+      proposals: [],
+      nextProposalId: 1,
+
+      saveProposal: (proposalData) => {
+        const { proposals, nextProposalId } = get()
+        const existing = proposals.find((p) => p.id === proposalData.id)
+        if (existing) {
+          // update existing
+          set({
+            proposals: proposals.map((p) =>
+              p.id === proposalData.id ? { ...p, ...proposalData } : p
+            ),
+          })
+          return proposalData.id
+        }
+        const id = nextProposalId
+        const newProposal = {
+          id,
+          ...proposalData,
+          status: proposalData.status || 'Draft',
+          createdAt: new Date().toISOString(),
+          sentAt: null,
+          reminders: [],
+        }
+        set({ proposals: [newProposal, ...proposals], nextProposalId: id + 1 })
+        return id
+      },
+
+      markProposalSent: (id) =>
+        set((s) => ({
+          proposals: s.proposals.map((p) =>
+            p.id === id ? { ...p, status: 'Sent', sentAt: new Date().toISOString() } : p
+          ),
+        })),
+
+      updateProposalStatus: (id, status) =>
+        set((s) => ({
+          proposals: s.proposals.map((p) =>
+            p.id === id ? { ...p, status } : p
+          ),
+        })),
+
+      addReminder: (proposalId, reminder) =>
+        set((s) => ({
+          proposals: s.proposals.map((p) =>
+            p.id === proposalId
+              ? {
+                  ...p,
+                  reminders: [
+                    ...p.reminders,
+                    { id: Date.now(), ...reminder, dismissed: false },
+                  ],
+                }
+              : p
+          ),
+        })),
+
+      dismissReminder: (proposalId, reminderId) =>
+        set((s) => ({
+          proposals: s.proposals.map((p) =>
+            p.id === proposalId
+              ? {
+                  ...p,
+                  reminders: p.reminders.map((r) =>
+                    r.id === reminderId ? { ...r, dismissed: true } : r
+                  ),
+                }
+              : p
+          ),
+        })),
+
+      deleteProposal: (id) =>
+        set((s) => ({ proposals: s.proposals.filter((p) => p.id !== id) })),
     }),
     {
       name: 'estimateiq-store',
       storage: createJSONStorage(() => localStorage),
-      version: 1,
+      version: 2,
     }
   )
 )

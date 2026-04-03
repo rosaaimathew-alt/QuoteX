@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Printer, Copy, ArrowLeft, CheckCircle } from 'lucide-react'
+import { Printer, Copy, ArrowLeft, CheckCircle, Send, X, Loader } from 'lucide-react'
+import { useStore } from '../store'
 
 const fmt = (n) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -9,9 +10,41 @@ export default function ProposalView() {
   const [data, setData] = useState(null)
   const [copied, setCopied] = useState(false)
 
+  // Send modal state
+  const [showSend, setShowSend] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [sendSuccess, setSendSuccess] = useState(false)
+  const [sendError, setSendError] = useState('')
+  const [fromName, setFromName] = useState('')
+  const [fromEmail, setFromEmail] = useState('')
+
+  const proposalIdRef = useRef(null)
+  const { saveProposal, markProposalSent } = useStore()
+
   useEffect(() => {
     const raw = sessionStorage.getItem('proposal')
-    if (raw) setData(JSON.parse(raw))
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      setData(parsed)
+      // Auto-save as Draft to the proposals log (idempotent — uses existing id if set)
+      if (!parsed.proposalId) {
+        const id = saveProposal({
+          client: parsed.client,
+          email: parsed.email,
+          phone: parsed.phone,
+          address: parsed.address,
+          expiration: parsed.expiration,
+          total: parsed.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0),
+          lines: parsed.lines,
+          status: 'Draft',
+        })
+        proposalIdRef.current = id
+        // Persist id back into sessionStorage so repeated views don't duplicate
+        sessionStorage.setItem('proposal', JSON.stringify({ ...parsed, proposalId: id }))
+      } else {
+        proposalIdRef.current = parsed.proposalId
+      }
+    }
   }, [])
 
   if (!data) {
@@ -30,7 +63,7 @@ export default function ProposalView() {
     ? new Date(expiration + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     : null
 
-  // Group lines by section (exact heading from estimate), preserving order of first appearance
+  // Group lines by section
   const sectionOrder = []
   const sections = {}
   lines.forEach(line => {
@@ -81,6 +114,31 @@ export default function ProposalView() {
     })
   }
 
+  const handleSend = async () => {
+    setSending(true)
+    setSendError('')
+    try {
+      const res = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          proposal: { ...data },
+          fromName,
+          fromEmail,
+        }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Failed to send.')
+      // Log as Sent in the CRM
+      if (proposalIdRef.current) markProposalSent(proposalIdRef.current)
+      setSendSuccess(true)
+    } catch (err) {
+      setSendError(err.message)
+    } finally {
+      setSending(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Toolbar */}
@@ -97,12 +155,94 @@ export default function ProposalView() {
           {copied ? 'Copied!' : 'Copy text'}
         </button>
         <button
+          onClick={() => { setShowSend(true); setSendSuccess(false); setSendError('') }}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700"
+        >
+          <Send size={14} /> Send to Client
+        </button>
+        <button
           onClick={() => window.print()}
           className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
         >
           <Printer size={14} /> Print / Save PDF
         </button>
       </div>
+
+      {/* Send Email Modal */}
+      {showSend && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center no-print">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-gray-900">Send Proposal to Client</h3>
+              <button onClick={() => setShowSend(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+            </div>
+
+            {sendSuccess ? (
+              <div className="text-center py-6">
+                <CheckCircle size={40} className="text-green-500 mx-auto mb-3" />
+                <p className="font-semibold text-gray-900 mb-1">Proposal Sent!</p>
+                <p className="text-sm text-gray-500 mb-1">Email delivered to <strong>{email}</strong></p>
+                <p className="text-xs text-gray-400 mb-4">This proposal has been logged as <span className="font-medium text-blue-600">Sent</span> in your tracker.</p>
+                <button
+                  onClick={() => { setShowSend(false); navigate('/tracker') }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+                >
+                  View in Tracker →
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-3 mb-4">
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 block mb-1">Sending to</label>
+                    <div className="px-3 py-2 bg-gray-50 rounded-lg text-sm text-gray-700 font-medium">
+                      {email || <span className="text-red-500 italic">No email on this proposal — go back and add one.</span>}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 block mb-1">Your Name (optional — shows as sender)</label>
+                    <input
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                      placeholder="e.g. Mike's Construction"
+                      value={fromName}
+                      onChange={e => setFromName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 block mb-1">Reply-to Email (optional)</label>
+                    <input
+                      type="email"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                      placeholder="you@yourcompany.com"
+                      value={fromEmail}
+                      onChange={e => setFromEmail(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {sendError && (
+                  <div className="mb-3 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                    {sendError}
+                  </div>
+                )}
+
+                <div className="flex gap-2 justify-end">
+                  <button onClick={() => setShowSend(false)} className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSend}
+                    disabled={sending || !email}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {sending ? <><Loader size={14} className="animate-spin" /> Sending...</> : <><Send size={14} /> Send Proposal</>}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Proposal document */}
       <div className="max-w-3xl mx-auto my-8 bg-white shadow-lg rounded-xl overflow-hidden print:shadow-none print:rounded-none print:my-0">
@@ -143,21 +283,18 @@ export default function ProposalView() {
           </div>
         )}
 
-        {/* ── SCOPE OF WORK — sections from the estimate, each item on its own ── */}
+        {/* Scope of Work */}
         <div className="px-10 py-7 border-b border-gray-100">
           <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-5">Scope of Work</p>
-
           <div className="space-y-7">
             {sectionOrder.map(key => {
               const items = sections[key]
               return (
                 <div key={key}>
-                  {/* Section heading — exact name from the estimate */}
                   <div className="flex items-center gap-3 mb-3">
                     <span className="text-xs font-bold uppercase tracking-widest text-blue-700">{key}</span>
                     <div className="flex-1 h-px bg-blue-100" />
                   </div>
-                  {/* Each line item as its own clean entry — no bullets */}
                   <div className="space-y-2 pl-0">
                     {items.map(line => (
                       <div key={line.id} className="border-l-2 border-gray-100 pl-3">
@@ -174,7 +311,7 @@ export default function ProposalView() {
           </div>
         </div>
 
-        {/* ── PRICING TABLE — at the bottom ── */}
+        {/* Pricing Table */}
         <div className="px-10 py-7">
           <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-4">Pricing</p>
           <table className="w-full text-sm">

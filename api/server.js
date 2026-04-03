@@ -14,15 +14,19 @@ dotenv.config({ path: resolve(__dirname, '../.env') })
 
 import express from 'express'
 import handler from './analyze.js'
+import emailHandler from './send-email.js'
 
 const app = express()
 app.use(express.json({ limit: '25mb' }))
 
 app.post('/api/analyze', (req, res) => handler(req, res))
+app.post('/api/send-email', (req, res) => emailHandler(req, res))
 
 const PORT = process.env.API_PORT || 3001
 app.listen(PORT, () => {
   const hasKey = !!process.env.ANTHROPIC_API_KEY
+  const hasResend = !!process.env.RESEND_API_KEY
   console.log(`API server running on http://localhost:${PORT}`)
   console.log(`ANTHROPIC_API_KEY: ${hasKey ? 'loaded ✓' : 'MISSING ✗ — check your .env file'}`)
+  console.log(`RESEND_API_KEY:     ${hasResend ? 'loaded ✓' : 'MISSING ✗ — add to .env to enable email sending'}`)
 })
