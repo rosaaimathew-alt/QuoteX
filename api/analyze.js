@@ -119,14 +119,22 @@ export default async function handler(req, res) {
 
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 2048,
+      max_tokens: 8192,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: messageContent }],
     })
 
     const raw = response.content[0]?.text || '[]'
     const clean = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-    let items = JSON.parse(clean)
+
+    // If response was cut off, trim to last complete object so JSON.parse succeeds
+    let jsonStr = clean
+    if (!jsonStr.endsWith(']')) {
+      const lastClose = jsonStr.lastIndexOf('}')
+      jsonStr = lastClose > 0 ? jsonStr.slice(0, lastClose + 1) + ']' : '[]'
+    }
+
+    let items = JSON.parse(jsonStr)
 
     items = items
       .filter(i => i.name && i.unitPrice > 0)
