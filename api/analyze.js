@@ -23,39 +23,40 @@ dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../.env'
 const require = createRequire(import.meta.url)
 const pdfParse = require('pdf-parse')
 
-const SYSTEM_PROMPT = `You are a construction estimating assistant. Your ONLY job is to read this estimate and extract each line item EXACTLY as the contractor wrote it — preserving their structure, their groupings, and their pricing method completely.
+const SYSTEM_PROMPT = `You are a construction estimating assistant. Your job is simple: extract only the line items that have a dollar amount in this estimate. Nothing else becomes a line item.
 
 Return ONLY a valid JSON array (no markdown, no explanation):
 [
   {
-    "name": "LVL Ridge Beam",
+    "name": "Gable Roof",
     "section": "Gable Roof",
-    "description": "Supply and install LVL ridge beam per engineered plans, including all hardware and connections.",
+    "description": "Deck, columns, ceiling, rafters, LVL ridge beam, headers, sheathing, felt, shingles, drip edge — all materials and labor included.",
     "qty": 1,
     "unit": "LS",
-    "unitPrice": 1200,
-    "category": "Framing",
-    "confidence": 90
+    "unitPrice": 12500,
+    "category": "Roofing",
+    "confidence": 95
   }
 ]
 
-RULES — do not deviate:
+RULES:
 
-1. PRESERVE THE CONTRACTOR'S STRUCTURE — if they have 10 separate line items under "Gable Roof", extract 10 separate items. Do NOT collapse, merge, or combine items. Do NOT regroup them differently. The contractor's breakdown is correct and must be replicated.
+1. ONE LINE ITEM PER PRICED ENTRY — only create a JSON object if that item has a dollar amount in the estimate. If "Gable Roof" is priced at $12,500, that is ONE item. Do not split it into deck, rafters, shingles, etc. as separate items.
 
-2. SECTION = the exact heading from the estimate document, copied word-for-word. If there is no section heading, use the trade type the item belongs to.
+2. ALL MATERIALS BELONG IN THE DESCRIPTION — every material, component, or task mentioned anywhere under a priced section goes into that section's description field. Use your construction knowledge to identify what belongs to each priced section. Examples:
+   - Deck boards, columns, ceiling boards, rafters, LVL ridge beam, headers, sheathing, underlayment, shingles, drip edge → all belong in the "Gable Roof" description if Gable Roof is the priced line
+   - Sub-items with no price → fold into the nearest priced parent's description
+   - Materials listed without a price anywhere in the document → use trade knowledge to place them in the correct priced section's description
 
-3. ONE LINE ITEM = ONE JSON OBJECT — every separately priced or listed item in the estimate gets its own object. Never put two separate items into one object.
+3. NEVER CREATE A NEW LINE ITEM for something that is not separately priced in the original document. If it doesn't have its own dollar amount, it belongs in a description — not as its own item.
 
-4. DESCRIPTION — for each item, write a scope sentence using what the estimate says plus your trade knowledge to fill in any specs, materials, or methods that are implied but not stated. Do not invent scope that contradicts the estimate. Max 400 chars. No bullet points or line breaks inside the description.
+4. DESCRIPTION — write as one clean professional sentence or two. No bullet points, no dashes, no line breaks. List all materials and scope that belong to this priced item. Max 500 chars.
 
-5. USE TRADE KNOWLEDGE TO FILL GAPS ONLY — if an item is listed but has no price, estimate a realistic market price using your knowledge and set confidence to 45. If a material is mentioned in the document but has no separate line (e.g. "felt paper" listed under a roofing section that already has a shingles line), add it to the description of the closest matching item — do not create a duplicate separate item for it.
+5. SECTION — copy the exact name of the priced line from the estimate as the section value.
 
-6. PRICING — if a line shows a total with qty > 1, compute unitPrice = total / qty. If only a unit price is shown, use it. Never set unitPrice to 0.
+6. PRICING — use the price exactly as written. If total given with qty > 1, compute unitPrice = total / qty. Never set unitPrice to 0.
 
-7. CATEGORY — assign the best matching trade: Fencing, Gates, Demo, Materials, Labor, Framing, Concrete, Electrical, Plumbing, Roofing, Flooring, Drywall, Painting, HVAC, Windows, Doors, Tile, Insulation, Siding, General
-
-8. NEVER SKIP any line item, allowance, permit fee, mobilization charge, or dumpster cost — they all get extracted as their own items.`
+7. CATEGORY — assign best matching trade: Fencing, Gates, Demo, Materials, Labor, Framing, Concrete, Electrical, Plumbing, Roofing, Flooring, Drywall, Painting, HVAC, Windows, Doors, Tile, Insulation, Siding, General`
 
 const CATEGORIES = ['Fencing','Gates','Demo','Materials','Labor','Framing','Concrete','Electrical','Plumbing','Roofing','Flooring','Drywall','Painting','HVAC','Windows','Doors','Tile','Insulation','Siding','General']
 const UNITS = ['LF','SF','EA','LS']
