@@ -220,11 +220,21 @@ export const useStore = create(
 
       deleteProposal: (id) =>
         set((s) => ({ proposals: s.proposals.filter((p) => p.id !== id) })),
+
+      // ── Read message tracking (IDs of messages the user has opened) ───────
+      readMessageIds: [],
+
+      markMessageRead: (id) =>
+        set((s) => ({
+          readMessageIds: s.readMessageIds.includes(id)
+            ? s.readMessageIds
+            : [...s.readMessageIds, id],
+        })),
     }),
     {
       name: 'estimateiq-store',
       storage: createJSONStorage(() => localStorage),
-      version: 3,
+      version: 4,
     }
   )
 )

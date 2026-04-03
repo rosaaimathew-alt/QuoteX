@@ -1,10 +1,12 @@
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom'
-import { FileText, BookOpen, ClipboardList, FileCheck, BarChart2 } from 'lucide-react'
+import { FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import AnalyzeEstimate from './pages/AnalyzeEstimate'
 import ItemCatalog from './pages/ItemCatalog'
 import BuildQuote from './pages/BuildQuote'
 import ProposalView from './pages/ProposalView'
 import ProposalTracker from './pages/ProposalTracker'
+import InboxPage from './pages/Inbox'
 import { useStore } from './store'
 
 const NAV = [
@@ -13,15 +15,37 @@ const NAV = [
   { to: '/quote', label: 'Build Quote', icon: ClipboardList },
   { to: '/proposal', label: 'Proposal', icon: FileCheck },
   { to: '/tracker', label: 'Proposal Tracker', icon: BarChart2 },
+  { to: '/inbox', label: 'Inbox', icon: Inbox },
 ]
+
+const UNREAD_POLL = 60_000
 
 export default function App() {
   const proposals = useStore(s => s.proposals)
+  const readMessageIds = useStore(s => s.readMessageIds)
+  const [inboxUnread, setInboxUnread] = useState(0)
+
   const dueCount = proposals.reduce((count, p) => {
-    const today = new Date(); today.setHours(0,0,0,0)
+    const today = new Date(); today.setHours(0, 0, 0, 0)
     const due = (p.reminders || []).filter(r => !r.dismissed && new Date(r.date + 'T00:00:00') <= today)
     return count + due.length
   }, 0)
+
+  // Poll for unread count (lightweight — just message IDs against read set)
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const res = await fetch('/api/messages')
+        if (!res.ok) return
+        const { messages } = await res.json()
+        const readSet = new Set(readMessageIds || [])
+        setInboxUnread(messages.filter(m => m.direction === 'inbound' && !readSet.has(m.id)).length)
+      } catch {}
+    }
+    check()
+    const timer = setInterval(check, UNREAD_POLL)
+    return () => clearInterval(timer)
+  }, [readMessageIds])
 
   return (
     <BrowserRouter>
@@ -49,8 +73,13 @@ export default function App() {
                 <Icon size={16} />
                 <span className="flex-1">{label}</span>
                 {to === '/tracker' && dueCount > 0 && (
-                  <span className="ml-auto bg-amber-500 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                  <span className="bg-amber-500 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
                     {dueCount}
+                  </span>
+                )}
+                {to === '/inbox' && inboxUnread > 0 && (
+                  <span className="bg-blue-500 text-white text-xs font-bold rounded-full min-w-4 h-4 px-1 flex items-center justify-center leading-none">
+                    {inboxUnread}
                   </span>
                 )}
               </NavLink>
@@ -69,6 +98,7 @@ export default function App() {
             <Route path="/quote" element={<BuildQuote />} />
             <Route path="/proposal" element={<ProposalView />} />
             <Route path="/tracker" element={<ProposalTracker />} />
+            <Route path="/inbox" element={<InboxPage />} />
           </Routes>
         </main>
       </div>

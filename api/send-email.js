@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'url'
 import { dirname, resolve } from 'path'
 import dotenv from 'dotenv'
+import { saveMessage } from './_store.js'
 
 dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../.env') })
 
@@ -146,35 +147,68 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'RESEND_API_KEY not configured. Add it to your environment variables.' })
   }
 
-  const { proposal, fromName, fromEmail } = req.body
-  if (!proposal?.email) {
+  const { proposal, fromName, fromEmail, replyText, inReplyTo, subject: customSubject } = req.body
+
+  // Support two modes:
+  // 1. Proposal send: { proposal, fromName, fromEmail }
+  // 2. Reply send:    { proposal: { email, client }, fromName, fromEmail, replyText, inReplyTo, subject }
+  const recipientEmail = proposal?.email
+  if (!recipientEmail) {
     return res.status(400).json({ error: 'Recipient email is required.' })
   }
 
-  const html = buildEmailHtml(proposal)
-  const subject = `Proposal for ${proposal.client || 'Your Project'}${proposal.expiration ? ` — Valid Until ${new Date(proposal.expiration + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}`
+  const isReply = !!replyText
+  const html = isReply
+    ? `<div style="font-family:-apple-system,sans-serif;font-size:14px;line-height:1.6;color:#1e293b;max-width:600px;margin:0 auto;padding:24px;">${replyText.replace(/\n/g, '<br>')}</div>`
+    : buildEmailHtml(proposal)
+
+  const subject = customSubject
+    || (isReply ? `Re: Your Proposal` : `Proposal for ${proposal.client || 'Your Project'}${proposal.expiration ? ` — Valid Until ${new Date(proposal.expiration + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}`)
+
+  const fromAddress = fromName && fromEmail
+    ? `${fromName} <${fromEmail}>`
+    : 'EstimateIQ <onboarding@resend.dev>'
 
   try {
+    const payload = {
+      from: fromAddress,
+      to: [recipientEmail],
+      subject,
+      html,
+    }
+    if (inReplyTo) {
+      payload.headers = { 'In-Reply-To': inReplyTo, 'References': inReplyTo }
+    }
+
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        from: fromName && fromEmail
-          ? `${fromName} <${fromEmail}>`
-          : 'EstimateIQ <onboarding@resend.dev>',
-        to: [proposal.email],
-        subject,
-        html,
-      }),
+      body: JSON.stringify(payload),
     })
 
     const result = await response.json()
     if (!response.ok) {
       return res.status(response.status).json({ error: result.message || 'Failed to send email.' })
     }
+
+    // Persist outbound message to KV so it appears in the inbox
+    const msgId = `out_${result.id || Date.now()}`
+    await saveMessage({
+      id: msgId,
+      direction: 'outbound',
+      from: { name: fromName || 'You', email: fromEmail || 'noreply@estimateiq' },
+      to: [recipientEmail],
+      subject,
+      textBody: isReply ? replyText : '',
+      htmlBody: html,
+      messageId: result.id || msgId,
+      inReplyTo: inReplyTo || null,
+      receivedAt: new Date().toISOString(),
+      read: true,
+    })
 
     return res.status(200).json({ success: true, id: result.id })
   } catch (err) {

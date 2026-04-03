@@ -2,6 +2,15 @@
   "functions": {
     "api/analyze.js": {
       "maxDuration": 60
+    },
+    "api/inbound-email.js": {
+      "maxDuration": 10
+    },
+    "api/send-email.js": {
+      "maxDuration": 15
+    },
+    "api/messages.js": {
+      "maxDuration": 10
     }
   }
 }
