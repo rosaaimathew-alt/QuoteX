@@ -14,7 +14,18 @@ const SEED_CATALOG = [
   { id: 10, name: 'Concrete Footing (per post)', description: 'Pour concrete footing for fence post, including excavation.', unit: 'EA', unitPrice: 28, minPrice: 22, maxPrice: 35, count: 20, category: 'Materials', confidence: 96 },
 ]
 
-export const PROPOSAL_STATUSES = ['Draft', 'Sent', 'Followed Up', 'Won', 'Lost']
+export const PROPOSAL_STATUSES = ['Draft', 'Sent', 'Followed Up', 'Negotiating', 'Won', 'Lost']
+
+export const WIN_REASONS = [
+  'Price competitive', 'Strong relationship', 'Fast turnaround',
+  'Client referral', 'Quality reputation', 'Best value', 'Other',
+]
+export const LOSS_REASONS = [
+  'Price too high', 'Went with competitor', 'Project cancelled',
+  'No response', 'Timing not right', 'Scope mismatch', 'Other',
+]
+
+export const ACTIVITY_TYPES = ['Call', 'Email', 'Meeting', 'Follow-up', 'Note']
 
 export const useStore = create(
   persist(
@@ -27,13 +38,11 @@ export const useStore = create(
         const { catalog, nextCatalogId } = get()
         let idCounter = nextCatalogId
         const updated = [...catalog]
-
         items.forEach((item) => {
           const existing = updated.find(
             (c) => c.name.toLowerCase().trim() === item.name.toLowerCase().trim()
           )
           const weight = item.profitable ? 1.3 : 1.0
-
           if (existing) {
             const totalWeight = existing.count + weight
             existing.unitPrice = Math.round(
@@ -62,7 +71,6 @@ export const useStore = create(
             })
           }
         })
-
         set({ catalog: updated, nextCatalogId: idCounter })
       },
 
@@ -74,6 +82,24 @@ export const useStore = create(
       deleteCatalogItem: (id) =>
         set((s) => ({ catalog: s.catalog.filter((c) => c.id !== id) })),
 
+      // ── Templates ────────────────────────────────────────────────────────
+      templates: [],
+      nextTemplateId: 1,
+
+      saveTemplate: ({ name, description, lines }) => {
+        const { templates, nextTemplateId } = get()
+        set({
+          templates: [
+            { id: nextTemplateId, name, description, lines, createdAt: new Date().toISOString() },
+            ...templates,
+          ],
+          nextTemplateId: nextTemplateId + 1,
+        })
+      },
+
+      deleteTemplate: (id) =>
+        set((s) => ({ templates: s.templates.filter((t) => t.id !== id) })),
+
       // ── Proposals (CRM log) ───────────────────────────────────────────────
       proposals: [],
       nextProposalId: 1,
@@ -82,7 +108,6 @@ export const useStore = create(
         const { proposals, nextProposalId } = get()
         const existing = proposals.find((p) => p.id === proposalData.id)
         if (existing) {
-          // update existing
           set({
             proposals: proposals.map((p) =>
               p.id === proposalData.id ? { ...p, ...proposalData } : p
@@ -91,15 +116,23 @@ export const useStore = create(
           return proposalData.id
         }
         const id = nextProposalId
-        const newProposal = {
-          id,
-          ...proposalData,
-          status: proposalData.status || 'Draft',
-          createdAt: new Date().toISOString(),
-          sentAt: null,
-          reminders: [],
-        }
-        set({ proposals: [newProposal, ...proposals], nextProposalId: id + 1 })
+        set({
+          proposals: [
+            {
+              id,
+              ...proposalData,
+              status: 'Draft',
+              createdAt: new Date().toISOString(),
+              sentAt: null,
+              closedAt: null,
+              winLossReason: null,
+              activities: [],
+              reminders: [],
+            },
+            ...proposals,
+          ],
+          nextProposalId: id + 1,
+        })
         return id
       },
 
@@ -112,11 +145,50 @@ export const useStore = create(
 
       updateProposalStatus: (id, status) =>
         set((s) => ({
+          proposals: s.proposals.map((p) => {
+            if (p.id !== id) return p
+            const closed = status === 'Won' || status === 'Lost'
+            return {
+              ...p,
+              status,
+              closedAt: closed ? new Date().toISOString() : p.closedAt,
+            }
+          }),
+        })),
+
+      setWinLossReason: (id, reason) =>
+        set((s) => ({
           proposals: s.proposals.map((p) =>
-            p.id === id ? { ...p, status } : p
+            p.id === id ? { ...p, winLossReason: reason } : p
           ),
         })),
 
+      // ── Activities ───────────────────────────────────────────────────────
+      addActivity: (proposalId, { type, text }) =>
+        set((s) => ({
+          proposals: s.proposals.map((p) =>
+            p.id === proposalId
+              ? {
+                  ...p,
+                  activities: [
+                    { id: Date.now(), type, text, createdAt: new Date().toISOString() },
+                    ...(p.activities || []),
+                  ],
+                }
+              : p
+          ),
+        })),
+
+      deleteActivity: (proposalId, activityId) =>
+        set((s) => ({
+          proposals: s.proposals.map((p) =>
+            p.id === proposalId
+              ? { ...p, activities: (p.activities || []).filter((a) => a.id !== activityId) }
+              : p
+          ),
+        })),
+
+      // ── Reminders ────────────────────────────────────────────────────────
       addReminder: (proposalId, reminder) =>
         set((s) => ({
           proposals: s.proposals.map((p) =>
@@ -152,7 +224,7 @@ export const useStore = create(
     {
       name: 'estimateiq-store',
       storage: createJSONStorage(() => localStorage),
-      version: 2,
+      version: 3,
     }
   )
 )

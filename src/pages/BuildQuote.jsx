@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Plus, Trash2, ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react'
+import { Search, Plus, Trash2, ChevronDown, ChevronUp, Eye, EyeOff, BookTemplate, X, Save } from 'lucide-react'
 import { useStore } from '../store'
 
 const MARGIN_DEFAULT = 30
 
 export default function BuildQuote() {
   const catalog = useStore(s => s.catalog)
+  const templates = useStore(s => s.templates)
+  const { saveTemplate, deleteTemplate } = useStore()
   const navigate = useNavigate()
 
   const [search, setSearch] = useState('')
@@ -20,6 +22,12 @@ export default function BuildQuote() {
   const [margin, setMargin] = useState(MARGIN_DEFAULT)
   const [showMargin, setShowMargin] = useState(false)
 
+  // Template modals
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false)
+  const [showLoadTemplate, setShowLoadTemplate] = useState(false)
+  const [templateName, setTemplateName] = useState('')
+  const [templateDesc, setTemplateDesc] = useState('')
+
   const cats = ['All', ...new Set(catalog.map(c => c.category))]
   const filtered = catalog
     .filter(c => catFilter === 'All' || c.category === catFilter)
@@ -28,9 +36,7 @@ export default function BuildQuote() {
   const addItem = (item) => {
     setLines(prev => {
       const existing = prev.find(l => l.catalogId === item.id)
-      if (existing) {
-        return prev.map(l => l.catalogId === item.id ? { ...l, qty: l.qty + 1 } : l)
-      }
+      if (existing) return prev.map(l => l.catalogId === item.id ? { ...l, qty: l.qty + 1 } : l)
       return [...prev, {
         id: Date.now() + Math.random(),
         catalogId: item.id,
@@ -68,15 +74,11 @@ export default function BuildQuote() {
 
   const moveUp = (idx) => {
     if (idx === 0) return
-    const next = [...lines]
-    ;[next[idx - 1], next[idx]] = [next[idx], next[idx - 1]]
-    setLines(next)
+    const next = [...lines]; [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]]; setLines(next)
   }
   const moveDown = (idx) => {
     if (idx === lines.length - 1) return
-    const next = [...lines]
-    ;[next[idx], next[idx + 1]] = [next[idx + 1], next[idx]]
-    setLines(next)
+    const next = [...lines]; [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]]; setLines(next)
   }
 
   const subtotal = lines.reduce((s, l) => s + l.qty * l.unitPrice, 0)
@@ -85,6 +87,26 @@ export default function BuildQuote() {
   const goToProposal = () => {
     sessionStorage.setItem('proposal', JSON.stringify({ client, email, phone, address, expiration, lines, margin }))
     navigate('/proposal')
+  }
+
+  const handleSaveTemplate = () => {
+    if (!templateName.trim() || !lines.length) return
+    saveTemplate({
+      name: templateName.trim(),
+      description: templateDesc.trim(),
+      lines: lines.map(l => ({
+        name: l.name, section: l.section, description: l.description,
+        unit: l.unit, qty: l.qty, unitPrice: l.unitPrice, category: l.category,
+      })),
+    })
+    setShowSaveTemplate(false)
+    setTemplateName('')
+    setTemplateDesc('')
+  }
+
+  const handleLoadTemplate = (template) => {
+    setLines(template.lines.map(l => ({ ...l, id: Date.now() + Math.random(), catalogId: null })))
+    setShowLoadTemplate(false)
   }
 
   return (
@@ -103,22 +125,16 @@ export default function BuildQuote() {
         </div>
         <div className="flex flex-wrap gap-1">
           {cats.map(c => (
-            <button
-              key={c}
-              onClick={() => setCatFilter(c)}
-              className={`px-2 py-0.5 rounded text-xs font-medium ${catFilter === c ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-            >
+            <button key={c} onClick={() => setCatFilter(c)}
+              className={`px-2 py-0.5 rounded text-xs font-medium ${catFilter === c ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
               {c}
             </button>
           ))}
         </div>
         <div className="flex-1 overflow-y-auto space-y-1 max-h-[calc(100vh-220px)]">
           {filtered.map(item => (
-            <button
-              key={item.id}
-              onClick={() => addItem(item)}
-              className="w-full text-left px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors group"
-            >
+            <button key={item.id} onClick={() => addItem(item)}
+              className="w-full text-left px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors group">
               <p className="text-xs font-medium text-gray-800 group-hover:text-blue-700 leading-tight">{item.name}</p>
               <p className="text-xs text-gray-400 mt-0.5">${item.unitPrice}/{item.unit}</p>
             </button>
@@ -128,15 +144,34 @@ export default function BuildQuote() {
 
       {/* Right: Quote builder */}
       <div className="flex-1 flex flex-col gap-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <h2 className="text-2xl font-bold text-gray-900">Build Quote</h2>
-          <button
-            onClick={goToProposal}
-            disabled={!lines.length}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Preview Proposal →
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Template buttons */}
+            {templates.length > 0 && (
+              <button
+                onClick={() => setShowLoadTemplate(true)}
+                className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+              >
+                <BookTemplate size={14} /> Load Template
+              </button>
+            )}
+            {lines.length > 0 && (
+              <button
+                onClick={() => { setTemplateName(''); setTemplateDesc(''); setShowSaveTemplate(true) }}
+                className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+              >
+                <Save size={14} /> Save as Template
+              </button>
+            )}
+            <button
+              onClick={goToProposal}
+              disabled={!lines.length}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Preview Proposal →
+            </button>
+          </div>
         </div>
 
         {/* Customer info */}
@@ -206,31 +241,23 @@ export default function BuildQuote() {
                       />
                     </td>
                     <td className="px-4 pt-3">
-                      <input
-                        type="number" min="0"
+                      <input type="number" min="0"
                         className="w-full border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none text-sm text-center"
-                        value={line.qty}
-                        onChange={e => updateLine(line.id, 'qty', e.target.value)}
-                      />
+                        value={line.qty} onChange={e => updateLine(line.id, 'qty', e.target.value)} />
                     </td>
                     <td className="px-4 pt-3">
                       <select
                         className="text-sm border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none"
-                        value={line.unit}
-                        onChange={e => updateLine(line.id, 'unit', e.target.value)}
-                      >
+                        value={line.unit} onChange={e => updateLine(line.id, 'unit', e.target.value)}>
                         {['LF','SF','EA','LS'].map(u => <option key={u}>{u}</option>)}
                       </select>
                     </td>
                     <td className="px-4 pt-3">
                       <div className="flex items-center gap-0.5">
                         <span className="text-gray-400 text-sm">$</span>
-                        <input
-                          type="number" min="0"
+                        <input type="number" min="0"
                           className="w-full border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none text-sm"
-                          value={line.unitPrice}
-                          onChange={e => updateLine(line.id, 'unitPrice', e.target.value)}
-                        />
+                          value={line.unitPrice} onChange={e => updateLine(line.id, 'unitPrice', e.target.value)} />
                       </div>
                     </td>
                     <td className="px-4 pt-3 text-right font-medium text-gray-800 whitespace-nowrap">
@@ -250,6 +277,11 @@ export default function BuildQuote() {
           {lines.length === 0 && (
             <div className="text-center py-12 text-gray-400">
               <p className="text-sm">Click items from the catalog on the left to add them.</p>
+              {templates.length > 0 && (
+                <button onClick={() => setShowLoadTemplate(true)} className="mt-2 text-sm text-blue-500 hover:underline">
+                  Or load a saved template →
+                </button>
+              )}
             </div>
           )}
 
@@ -266,7 +298,7 @@ export default function BuildQuote() {
           </div>
         </div>
 
-        {/* Margin overlay — contractor only */}
+        {/* Margin overlay */}
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-amber-800">Margin Overlay (Contractor Only)</span>
@@ -277,12 +309,9 @@ export default function BuildQuote() {
           {showMargin && (
             <div className="flex items-center gap-4 text-sm">
               <label className="text-amber-700">Margin %</label>
-              <input
-                type="number" min="0" max="100"
+              <input type="number" min="0" max="100"
                 className="w-20 border border-amber-300 rounded px-2 py-1 text-center focus:outline-none"
-                value={margin}
-                onChange={e => setMargin(parseFloat(e.target.value) || 0)}
-              />
+                value={margin} onChange={e => setMargin(parseFloat(e.target.value) || 0)} />
               <div className="flex gap-6 ml-auto">
                 <div className="text-center">
                   <p className="text-xs text-amber-600">Est. Cost</p>
@@ -297,6 +326,95 @@ export default function BuildQuote() {
           )}
         </div>
       </div>
+
+      {/* Save Template Modal */}
+      {showSaveTemplate && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                <Save size={16} className="text-blue-500" /> Save as Template
+              </h3>
+              <button onClick={() => setShowSaveTemplate(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+            </div>
+            <div className="space-y-3 mb-4">
+              <div>
+                <label className="text-xs font-medium text-gray-500 block mb-1">Template Name</label>
+                <input
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  placeholder="e.g. Standard 6ft Cedar Fence"
+                  value={templateName}
+                  onChange={e => setTemplateName(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 block mb-1">Description (optional)</label>
+                <input
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  placeholder="e.g. Typical residential privacy fence job"
+                  value={templateDesc}
+                  onChange={e => setTemplateDesc(e.target.value)}
+                />
+              </div>
+              <p className="text-xs text-gray-400">{lines.length} line item{lines.length !== 1 ? 's' : ''} will be saved. Customer info is not included.</p>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setShowSaveTemplate(false)} className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
+              <button
+                onClick={handleSaveTemplate}
+                disabled={!templateName.trim()}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+              >
+                Save Template
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Load Template Modal */}
+      {showLoadTemplate && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                <BookTemplate size={16} className="text-blue-500" /> Load Template
+              </h3>
+              <button onClick={() => setShowLoadTemplate(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">Loading a template will replace your current line items.</p>
+            <div className="space-y-2 max-h-72 overflow-y-auto">
+              {templates.map(t => (
+                <div key={t.id} className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 group transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 group-hover:text-blue-700">{t.name}</p>
+                    {t.description && <p className="text-xs text-gray-400 mt-0.5">{t.description}</p>}
+                    <p className="text-xs text-gray-300 mt-0.5">{t.lines.length} items · saved {new Date(t.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <button
+                      onClick={() => handleLoadTemplate(t)}
+                      className="px-2.5 py-1 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700"
+                    >
+                      Load
+                    </button>
+                    <button
+                      onClick={() => deleteTemplate(t.id)}
+                      className="p-1 text-gray-300 hover:text-red-500 rounded"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end mt-4">
+              <button onClick={() => setShowLoadTemplate(false)} className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
