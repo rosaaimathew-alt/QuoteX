@@ -30,18 +30,20 @@ export default function ProposalView() {
     ? new Date(expiration + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     : null
 
-  // Group lines by category for the scope section
+  // Group lines by section (exact heading from estimate), preserving order of first appearance
+  const sectionOrder = []
   const sections = {}
   lines.forEach(line => {
-    const cat = line.category || 'General'
-    if (!sections[cat]) sections[cat] = []
-    sections[cat].push(line)
+    const key = (line.section || line.category || 'General').trim()
+    if (!sections[key]) { sections[key] = []; sectionOrder.push(key) }
+    sections[key].push(line)
   })
 
   const handleCopy = () => {
-    const scopeText = Object.entries(sections).map(([cat, items]) => {
-      const block = items.map(l => `  • ${l.name}${l.description ? ': ' + l.description : ''}`).join('\n')
-      return `${cat.toUpperCase()}\n${block}`
+    const scopeText = sectionOrder.map(key => {
+      const items = sections[key]
+      const prose = items.map(l => l.description || l.name).filter(Boolean).join(' ')
+      return `${key.toUpperCase()}\n${prose}`
     }).join('\n\n')
 
     const pricingText = lines.map((l, i) =>
@@ -141,31 +143,28 @@ export default function ProposalView() {
           </div>
         )}
 
-        {/* ── SCOPE OF WORK — grouped sections, descriptions first ── */}
+        {/* ── SCOPE OF WORK — one flowing paragraph per section ── */}
         <div className="px-10 py-7 border-b border-gray-100">
           <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-5">Scope of Work</p>
 
-          <div className="space-y-6">
-            {Object.entries(sections).map(([cat, items]) => (
-              <div key={cat}>
-                {/* Section heading */}
-                <div className="flex items-center gap-3 mb-3">
-                  <span className="text-xs font-bold uppercase tracking-widest text-blue-700">{cat}</span>
-                  <div className="flex-1 h-px bg-blue-100" />
+          <div className="space-y-7">
+            {sectionOrder.map(key => {
+              const items = sections[key]
+              // Build one flowing prose string from all descriptions in this section
+              const prose = items
+                .map(l => l.description || l.name)
+                .filter(Boolean)
+                .join(' ')
+              return (
+                <div key={key}>
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="text-xs font-bold uppercase tracking-widest text-blue-700">{key}</span>
+                    <div className="flex-1 h-px bg-blue-100" />
+                  </div>
+                  <p className="text-sm text-gray-700 leading-relaxed">{prose}</p>
                 </div>
-                {/* Items in this section */}
-                <div className="space-y-3 pl-1">
-                  {items.map(line => (
-                    <div key={line.id}>
-                      <p className="text-sm font-semibold text-gray-800">{line.name}</p>
-                      {line.description && (
-                        <p className="text-sm text-gray-500 mt-0.5 leading-relaxed">{line.description}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
 

@@ -23,50 +23,45 @@ dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../.env'
 const require = createRequire(import.meta.url)
 const pdfParse = require('pdf-parse')
 
-const SYSTEM_PROMPT = `You are a senior construction estimator with 20+ years of experience across residential and commercial projects. Your job is to read an estimate and extract EVERY line item with maximum depth and accuracy — leaving nothing behind.
+const SYSTEM_PROMPT = `You are a senior construction estimator with 20+ years of experience. Your job is to read an estimate document and extract every line item with full depth — leaving no material, task, or cost behind.
 
 Return ONLY a valid JSON array (no markdown, no explanation) like:
 [
   {
-    "name": "Install 6ft Cedar Privacy Fence",
-    "description": "Supply and install 6ft cedar privacy fence using #1 grade cedar pickets, 4x4 pressure-treated posts set 2ft deep in concrete, 2x4 top and bottom rails, galvanized screws and hardware throughout.",
-    "qty": 140,
-    "unit": "LF",
-    "unitPrice": 38,
-    "category": "Fencing",
+    "name": "Roofing System",
+    "section": "Roofing",
+    "description": "Remove existing shingles, felt, and damaged decking. Install #30 synthetic underlayment, aluminum drip edge on all eaves and rakes. Install 30-year architectural shingles per manufacturer specs, 6-nail pattern. Install plybead ceiling on porch. Ridge cap and all flashing included.",
+    "qty": 1,
+    "unit": "LS",
+    "unitPrice": 8500,
+    "category": "Roofing",
     "confidence": 92
   }
 ]
 
-EXTRACTION RULES — read every word, miss nothing:
+CRITICAL RULES:
 
-1. CAPTURE EVERY ITEM — even if it has no explicit price. Never skip a material, task, or allowance mentioned anywhere in the document. If a price is missing, use your trade knowledge to estimate a realistic unit price and set confidence to 45.
+1. SECTION NAME — "section" must be the EXACT section heading as it appears in the original estimate document (e.g. "Roofing", "Foundation Work", "Exterior Framing & Sheathing", "Electrical Rough-In"). Do NOT invent sections. Do NOT use our categories. Copy the heading word-for-word from the document. If no sections exist, use the trade type.
 
-2. INFER MATERIAL PLACEMENT — use your construction knowledge to attach materials to the correct parent item. Examples:
-   - "plybead ceiling" → belongs under a Roofing or Framing line item description
-   - "Simpson LUS hangers" → belongs in a Framing item description
-   - "3/4in AdvanTech subfloor" → belongs in a Framing item description
-   - "#15 felt paper" or "synthetic underlayment" → belongs in a Roofing item
-   - "Tyvek housewrap" → belongs in a Framing/Exterior item
-   - "concrete board backer" → belongs in a Tile item
-   - "pressure-treated lumber" → belongs in whichever structural item uses it
-   - "galvanized hardware", "stainless screws", "joist tape" → attach to the relevant trade item
+2. ONE ITEM PER SECTION — unless a section has multiple clearly separate priced line items, collapse everything in that section into ONE item. Every material, spec, and task mentioned anywhere in that section goes into the description of that one item.
 
-3. DESCRIPTION DEPTH — for each item write a description that:
-   - Lists every specific material mentioned (brand, grade, size, spec) for that scope
-   - Describes the installation method if stated or implied
-   - Includes any standards, spacing, or tolerances mentioned
-   - Reads like a professional scope-of-work paragraph a client would understand
-   - Max 300 chars
+3. LEAVE NOTHING OUT OF DESCRIPTIONS — every material mentioned in the document must appear in the description of the item it belongs to. Examples of what cannot be skipped:
+   - Plybead ceiling → goes in the Roofing or Framing item description
+   - Simpson hangers, LUS hangers → Framing item description
+   - AdvanTech subfloor, OSB sheathing → Framing item description
+   - Synthetic underlayment, drip edge, ice & water → Roofing item description
+   - Tyvek housewrap → Framing/Siding item description
+   - Backer board, Schluter strip → Tile item description
+   - Pressure-treated sill plates → Framing item description
+   - Insulation type and R-value → Insulation item description
+   - All fasteners, adhesives, tape specific to a trade → that trade's description
+   - Permits, allowances, dumpsters → their own items
 
-4. CATEGORY ASSIGNMENT — assign the most specific matching category:
-   Fencing, Gates, Demo, Materials, Labor, Framing, Concrete, Electrical, Plumbing, Roofing, Flooring, Drywall, Painting, HVAC, Windows, Doors, Tile, Insulation, Siding, General
+4. DESCRIPTION FORMAT — write as one flowing professional paragraph that a client reads. Do NOT use bullet points, dashes, or line breaks inside the description. Include: specific materials (brand/grade/size if stated), installation method, any specs mentioned. Max 500 chars.
 
-5. GROUPING — if multiple materials clearly belong to the same work item (e.g. roofing felt + drip edge + shingles are all part of one roofing line), group them into one item with all materials listed in the description. Only split into separate items if they have separate prices or are clearly distinct scopes.
+5. PRICING — if a section total is given with no unit breakdown, use qty=1, unit=LS, unitPrice=total. If unit pricing is given, use it. Never leave unitPrice as 0 — estimate from trade knowledge if missing and set confidence to 45.
 
-6. PRICING — if a total is given and qty > 1, divide to get unit price. If only a unit price is given, use it directly. Never leave unitPrice as 0.
-
-7. NEVER SKIP — lump sum items, allowances, mobilization charges, permit fees, dumpster rentals, temporary facilities — all get extracted.`
+6. CATEGORY — assign from: Fencing, Gates, Demo, Materials, Labor, Framing, Concrete, Electrical, Plumbing, Roofing, Flooring, Drywall, Painting, HVAC, Windows, Doors, Tile, Insulation, Siding, General`
 
 const CATEGORIES = ['Fencing','Gates','Demo','Materials','Labor','Framing','Concrete','Electrical','Plumbing','Roofing','Flooring','Drywall','Painting','HVAC','Windows','Doors','Tile','Insulation','Siding','General']
 const UNITS = ['LF','SF','EA','LS']
@@ -159,7 +154,8 @@ export default async function handler(req, res) {
       .filter(i => i.name && i.unitPrice > 0)
       .map(i => ({
         name: String(i.name).slice(0, 80),
-        description: String(i.description || '').slice(0, 200),
+        section: String(i.section || i.category || 'General').slice(0, 80),
+        description: String(i.description || '').slice(0, 600),
         qty: Math.max(0, parseFloat(i.qty) || 1),
         unit: UNITS.includes(i.unit) ? i.unit : 'EA',
         unitPrice: Math.round(parseFloat(i.unitPrice) * 100) / 100,

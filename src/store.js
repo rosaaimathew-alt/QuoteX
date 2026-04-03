@@ -46,6 +46,7 @@ export const useStore = create(
             updated.push({
               id: idCounter++,
               name: item.name,
+              section: item.section || '',
               description: item.description || '',
               unit: item.unit || 'EA',
               unitPrice: item.unitPrice,
