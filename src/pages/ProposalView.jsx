@@ -143,25 +143,31 @@ export default function ProposalView() {
           </div>
         )}
 
-        {/* ── SCOPE OF WORK — one flowing paragraph per section ── */}
+        {/* ── SCOPE OF WORK — sections from the estimate, each item on its own ── */}
         <div className="px-10 py-7 border-b border-gray-100">
           <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-5">Scope of Work</p>
 
           <div className="space-y-7">
             {sectionOrder.map(key => {
               const items = sections[key]
-              // Build one flowing prose string from all descriptions in this section
-              const prose = items
-                .map(l => l.description || l.name)
-                .filter(Boolean)
-                .join(' ')
               return (
                 <div key={key}>
-                  <div className="flex items-center gap-3 mb-2">
+                  {/* Section heading — exact name from the estimate */}
+                  <div className="flex items-center gap-3 mb-3">
                     <span className="text-xs font-bold uppercase tracking-widest text-blue-700">{key}</span>
                     <div className="flex-1 h-px bg-blue-100" />
                   </div>
-                  <p className="text-sm text-gray-700 leading-relaxed">{prose}</p>
+                  {/* Each line item as its own clean entry — no bullets */}
+                  <div className="space-y-2 pl-0">
+                    {items.map(line => (
+                      <div key={line.id} className="border-l-2 border-gray-100 pl-3">
+                        <p className="text-sm font-semibold text-gray-800">{line.name}</p>
+                        {line.description && (
+                          <p className="text-sm text-gray-500 leading-relaxed mt-0.5">{line.description}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )
             })}

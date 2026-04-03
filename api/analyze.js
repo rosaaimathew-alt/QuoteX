@@ -23,45 +23,39 @@ dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../.env'
 const require = createRequire(import.meta.url)
 const pdfParse = require('pdf-parse')
 
-const SYSTEM_PROMPT = `You are a senior construction estimator with 20+ years of experience. Your job is to read an estimate document and extract every line item with full depth — leaving no material, task, or cost behind.
+const SYSTEM_PROMPT = `You are a construction estimating assistant. Your ONLY job is to read this estimate and extract each line item EXACTLY as the contractor wrote it — preserving their structure, their groupings, and their pricing method completely.
 
-Return ONLY a valid JSON array (no markdown, no explanation) like:
+Return ONLY a valid JSON array (no markdown, no explanation):
 [
   {
-    "name": "Roofing System",
-    "section": "Roofing",
-    "description": "Remove existing shingles, felt, and damaged decking. Install #30 synthetic underlayment, aluminum drip edge on all eaves and rakes. Install 30-year architectural shingles per manufacturer specs, 6-nail pattern. Install plybead ceiling on porch. Ridge cap and all flashing included.",
+    "name": "LVL Ridge Beam",
+    "section": "Gable Roof",
+    "description": "Supply and install LVL ridge beam per engineered plans, including all hardware and connections.",
     "qty": 1,
     "unit": "LS",
-    "unitPrice": 8500,
-    "category": "Roofing",
-    "confidence": 92
+    "unitPrice": 1200,
+    "category": "Framing",
+    "confidence": 90
   }
 ]
 
-CRITICAL RULES:
+RULES — do not deviate:
 
-1. SECTION NAME — "section" must be the EXACT section heading as it appears in the original estimate document (e.g. "Roofing", "Foundation Work", "Exterior Framing & Sheathing", "Electrical Rough-In"). Do NOT invent sections. Do NOT use our categories. Copy the heading word-for-word from the document. If no sections exist, use the trade type.
+1. PRESERVE THE CONTRACTOR'S STRUCTURE — if they have 10 separate line items under "Gable Roof", extract 10 separate items. Do NOT collapse, merge, or combine items. Do NOT regroup them differently. The contractor's breakdown is correct and must be replicated.
 
-2. ONE ITEM PER SECTION — unless a section has multiple clearly separate priced line items, collapse everything in that section into ONE item. Every material, spec, and task mentioned anywhere in that section goes into the description of that one item.
+2. SECTION = the exact heading from the estimate document, copied word-for-word. If there is no section heading, use the trade type the item belongs to.
 
-3. LEAVE NOTHING OUT OF DESCRIPTIONS — every material mentioned in the document must appear in the description of the item it belongs to. Examples of what cannot be skipped:
-   - Plybead ceiling → goes in the Roofing or Framing item description
-   - Simpson hangers, LUS hangers → Framing item description
-   - AdvanTech subfloor, OSB sheathing → Framing item description
-   - Synthetic underlayment, drip edge, ice & water → Roofing item description
-   - Tyvek housewrap → Framing/Siding item description
-   - Backer board, Schluter strip → Tile item description
-   - Pressure-treated sill plates → Framing item description
-   - Insulation type and R-value → Insulation item description
-   - All fasteners, adhesives, tape specific to a trade → that trade's description
-   - Permits, allowances, dumpsters → their own items
+3. ONE LINE ITEM = ONE JSON OBJECT — every separately priced or listed item in the estimate gets its own object. Never put two separate items into one object.
 
-4. DESCRIPTION FORMAT — write as one flowing professional paragraph that a client reads. Do NOT use bullet points, dashes, or line breaks inside the description. Include: specific materials (brand/grade/size if stated), installation method, any specs mentioned. Max 500 chars.
+4. DESCRIPTION — for each item, write a scope sentence using what the estimate says plus your trade knowledge to fill in any specs, materials, or methods that are implied but not stated. Do not invent scope that contradicts the estimate. Max 400 chars. No bullet points or line breaks inside the description.
 
-5. PRICING — if a section total is given with no unit breakdown, use qty=1, unit=LS, unitPrice=total. If unit pricing is given, use it. Never leave unitPrice as 0 — estimate from trade knowledge if missing and set confidence to 45.
+5. USE TRADE KNOWLEDGE TO FILL GAPS ONLY — if an item is listed but has no price, estimate a realistic market price using your knowledge and set confidence to 45. If a material is mentioned in the document but has no separate line (e.g. "felt paper" listed under a roofing section that already has a shingles line), add it to the description of the closest matching item — do not create a duplicate separate item for it.
 
-6. CATEGORY — assign from: Fencing, Gates, Demo, Materials, Labor, Framing, Concrete, Electrical, Plumbing, Roofing, Flooring, Drywall, Painting, HVAC, Windows, Doors, Tile, Insulation, Siding, General`
+6. PRICING — if a line shows a total with qty > 1, compute unitPrice = total / qty. If only a unit price is shown, use it. Never set unitPrice to 0.
+
+7. CATEGORY — assign the best matching trade: Fencing, Gates, Demo, Materials, Labor, Framing, Concrete, Electrical, Plumbing, Roofing, Flooring, Drywall, Painting, HVAC, Windows, Doors, Tile, Insulation, Siding, General
+
+8. NEVER SKIP any line item, allowance, permit fee, mobilization charge, or dumpster cost — they all get extracted as their own items.`
 
 const CATEGORIES = ['Fencing','Gates','Demo','Materials','Labor','Framing','Concrete','Electrical','Plumbing','Roofing','Flooring','Drywall','Painting','HVAC','Windows','Doors','Tile','Insulation','Siding','General']
 const UNITS = ['LF','SF','EA','LS']
