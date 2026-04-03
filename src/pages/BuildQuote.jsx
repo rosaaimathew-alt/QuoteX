@@ -190,7 +190,7 @@ export default function BuildQuote() {
                         value={line.unit}
                         onChange={e => updateLine(line.id, 'unit', e.target.value)}
                       >
-                        {['LF','SF','EA','HR','LS','LOAD','TON','DAY'].map(u => <option key={u}>{u}</option>)}
+                        {['LF','SF','EA','LS'].map(u => <option key={u}>{u}</option>)}
                       </select>
                     </td>
                     <td className="px-4 py-2">

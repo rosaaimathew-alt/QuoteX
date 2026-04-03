@@ -12,11 +12,7 @@ function parseEstimateText(text) {
     'lf': 'LF', 'linear ft': 'LF', 'linear foot': 'LF', 'linear feet': 'LF',
     'sf': 'SF', 'sq ft': 'SF', 'square ft': 'SF', 'square feet': 'SF',
     'ea': 'EA', 'each': 'EA', 'unit': 'EA', 'pc': 'EA', 'piece': 'EA',
-    'hr': 'HR', 'hour': 'HR', 'hrs': 'HR', 'hours': 'HR',
     'ls': 'LS', 'lump sum': 'LS', 'lot': 'LS',
-    'load': 'LOAD', 'loads': 'LOAD',
-    'ton': 'TON', 'tons': 'TON',
-    'day': 'DAY', 'days': 'DAY',
   }
 
   const pricePattern = /\$?([\d,]+(?:\.\d{1,2})?)/g
@@ -346,7 +342,7 @@ export default function AnalyzeEstimate() {
                     value={item.unit}
                     onChange={e => updateResult(item.id, 'unit', e.target.value)}
                   >
-                    {['LF','SF','EA','HR','LS','LOAD','TON','DAY'].map(u => <option key={u}>{u}</option>)}
+                    {['LF','SF','EA','LS'].map(u => <option key={u}>{u}</option>)}
                   </select>
                   <div className="col-span-2 flex items-center gap-0.5">
                     <span className="text-gray-400 text-sm">$</span>

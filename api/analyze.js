@@ -41,7 +41,7 @@ Return ONLY a valid JSON array (no markdown, no explanation) like:
 Rules:
 - name: concise description (max 60 chars), title case
 - qty: numeric quantity (default 1 if unknown)
-- unit: one of LF, SF, EA, HR, LS, LOAD, TON, DAY
+- unit: one of LF, SF, EA, LS
 - unitPrice: price per unit in USD (integer or 1 decimal)
 - category: one of Fencing, Gates, Demo, Materials, Labor, Framing, Concrete, Electrical, Plumbing, General
 - confidence: 0-100, how confident you are in the extracted price
@@ -50,7 +50,7 @@ Rules:
 - If an item has no price at all, set confidence to 40 and estimate based on context`
 
 const CATEGORIES = ['Fencing','Gates','Demo','Materials','Labor','Framing','Concrete','Electrical','Plumbing','General']
-const UNITS = ['LF','SF','EA','HR','LS','LOAD','TON','DAY']
+const UNITS = ['LF','SF','EA','LS']
 const IMAGE_TYPES = ['image/jpeg','image/jpg','image/png','image/gif','image/webp']
 
 export default async function handler(req, res) {

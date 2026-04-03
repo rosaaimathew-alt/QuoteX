@@ -3,7 +3,7 @@ import { Search, Edit2, Trash2, Plus, Check, X } from 'lucide-react'
 import { useStore } from '../store'
 
 const CATEGORIES = ['Fencing', 'Gates', 'Demo', 'Materials', 'Labor', 'Framing', 'Concrete', 'Electrical', 'Plumbing', 'General']
-const UNITS = ['LF', 'SF', 'EA', 'HR', 'LS', 'LOAD', 'TON', 'DAY']
+const UNITS = ['LF', 'SF', 'EA', 'LS']
 
 function ConfidenceBadge({ value }) {
   const color = value >= 90 ? 'bg-green-100 text-green-700' : value >= 75 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-500'
