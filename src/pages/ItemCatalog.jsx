@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Search, Edit2, Trash2, Plus, Check, X } from 'lucide-react'
 import { useStore } from '../store'
 
-const CATEGORIES = ['Fencing', 'Gates', 'Demo', 'Materials', 'Labor', 'Framing', 'Concrete', 'Electrical', 'Plumbing', 'General']
+const CATEGORIES = ['Fencing','Gates','Demo','Materials','Labor','Framing','Concrete','Electrical','Plumbing','Roofing','Flooring','Drywall','Painting','HVAC','Windows','Doors','Tile','Insulation','Siding','General']
 const UNITS = ['LF', 'SF', 'EA', 'LS']
 
 function ConfidenceBadge({ value }) {

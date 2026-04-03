@@ -23,14 +23,13 @@ dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../.env'
 const require = createRequire(import.meta.url)
 const pdfParse = require('pdf-parse')
 
-const SYSTEM_PROMPT = `You are an expert construction cost estimator AI.
-Analyze the provided estimate and extract every line item.
+const SYSTEM_PROMPT = `You are a senior construction estimator with 20+ years of experience across residential and commercial projects. Your job is to read an estimate and extract EVERY line item with maximum depth and accuracy — leaving nothing behind.
 
 Return ONLY a valid JSON array (no markdown, no explanation) like:
 [
   {
     "name": "Install 6ft Cedar Privacy Fence",
-    "description": "Supply and install 6ft cedar privacy fence with pressure-treated posts set in concrete, including all hardware and fasteners.",
+    "description": "Supply and install 6ft cedar privacy fence using #1 grade cedar pickets, 4x4 pressure-treated posts set 2ft deep in concrete, 2x4 top and bottom rails, galvanized screws and hardware throughout.",
     "qty": 140,
     "unit": "LF",
     "unitPrice": 38,
@@ -39,19 +38,37 @@ Return ONLY a valid JSON array (no markdown, no explanation) like:
   }
 ]
 
-Rules:
-- name: concise label (max 60 chars), title case
-- description: the full scope/detail text for this line item as it appears in or can be inferred from the estimate — this will print on the client proposal. Include materials, method, and any specs mentioned. Max 200 chars.
-- qty: numeric quantity (default 1 if unknown)
-- unit: one of LF, SF, EA, LS
-- unitPrice: price per unit in USD (integer or 1 decimal)
-- category: one of Fencing, Gates, Demo, Materials, Labor, Framing, Concrete, Electrical, Plumbing, General
-- confidence: 0-100, how confident you are in the extracted price
-- If a total price is given and qty > 1, compute unitPrice = total / qty
-- Skip header rows, totals, tax lines, and non-priced notes
-- If an item has no price at all, set confidence to 40 and estimate based on context`
+EXTRACTION RULES — read every word, miss nothing:
 
-const CATEGORIES = ['Fencing','Gates','Demo','Materials','Labor','Framing','Concrete','Electrical','Plumbing','General']
+1. CAPTURE EVERY ITEM — even if it has no explicit price. Never skip a material, task, or allowance mentioned anywhere in the document. If a price is missing, use your trade knowledge to estimate a realistic unit price and set confidence to 45.
+
+2. INFER MATERIAL PLACEMENT — use your construction knowledge to attach materials to the correct parent item. Examples:
+   - "plybead ceiling" → belongs under a Roofing or Framing line item description
+   - "Simpson LUS hangers" → belongs in a Framing item description
+   - "3/4in AdvanTech subfloor" → belongs in a Framing item description
+   - "#15 felt paper" or "synthetic underlayment" → belongs in a Roofing item
+   - "Tyvek housewrap" → belongs in a Framing/Exterior item
+   - "concrete board backer" → belongs in a Tile item
+   - "pressure-treated lumber" → belongs in whichever structural item uses it
+   - "galvanized hardware", "stainless screws", "joist tape" → attach to the relevant trade item
+
+3. DESCRIPTION DEPTH — for each item write a description that:
+   - Lists every specific material mentioned (brand, grade, size, spec) for that scope
+   - Describes the installation method if stated or implied
+   - Includes any standards, spacing, or tolerances mentioned
+   - Reads like a professional scope-of-work paragraph a client would understand
+   - Max 300 chars
+
+4. CATEGORY ASSIGNMENT — assign the most specific matching category:
+   Fencing, Gates, Demo, Materials, Labor, Framing, Concrete, Electrical, Plumbing, Roofing, Flooring, Drywall, Painting, HVAC, Windows, Doors, Tile, Insulation, Siding, General
+
+5. GROUPING — if multiple materials clearly belong to the same work item (e.g. roofing felt + drip edge + shingles are all part of one roofing line), group them into one item with all materials listed in the description. Only split into separate items if they have separate prices or are clearly distinct scopes.
+
+6. PRICING — if a total is given and qty > 1, divide to get unit price. If only a unit price is given, use it directly. Never leave unitPrice as 0.
+
+7. NEVER SKIP — lump sum items, allowances, mobilization charges, permit fees, dumpster rentals, temporary facilities — all get extracted.`
+
+const CATEGORIES = ['Fencing','Gates','Demo','Materials','Labor','Framing','Concrete','Electrical','Plumbing','Roofing','Flooring','Drywall','Painting','HVAC','Windows','Doors','Tile','Insulation','Siding','General']
 const UNITS = ['LF','SF','EA','LS']
 const IMAGE_TYPES = ['image/jpeg','image/jpg','image/png','image/gif','image/webp']
 

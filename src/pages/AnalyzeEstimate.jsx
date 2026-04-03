@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import { Upload, FileText, Image, File, Trash2, CheckCircle, AlertCircle, Plus, Save } from 'lucide-react'
 import { useStore } from '../store'
 
-const CATEGORIES = ['Fencing', 'Gates', 'Demo', 'Materials', 'Labor', 'Framing', 'Concrete', 'Electrical', 'Plumbing', 'General']
+const CATEGORIES = ['Fencing','Gates','Demo','Materials','Labor','Framing','Concrete','Electrical','Plumbing','Roofing','Flooring','Drywall','Painting','HVAC','Windows','Doors','Tile','Insulation','Siding','General']
 
 function parseEstimateText(text) {
   const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean)
