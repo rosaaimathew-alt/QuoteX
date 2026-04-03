@@ -114,7 +114,12 @@ export default function ProposalView() {
             <tbody>
               {lines.map((line, i) => (
                 <tr key={line.id} className={`border-b border-gray-50 ${i % 2 === 0 ? '' : 'bg-gray-50'}`}>
-                  <td className="py-3 text-gray-800 font-medium">{line.name || '—'}</td>
+                  <td className="py-3 pr-4">
+                    <p className="text-gray-800 font-medium">{line.name || '—'}</p>
+                    {line.description && (
+                      <p className="text-gray-400 text-xs mt-0.5 leading-snug">{line.description}</p>
+                    )}
+                  </td>
                   <td className="py-3 text-center text-gray-600">{line.qty}</td>
                   <td className="py-3 text-center text-gray-500 text-xs">{line.unit}</td>
                   <td className="py-3 text-right text-gray-600">

@@ -32,6 +32,7 @@ export default function BuildQuote() {
         id: Date.now() + Math.random(),
         catalogId: item.id,
         name: item.name,
+        description: item.description || '',
         unit: item.unit,
         qty: 1,
         unitPrice: item.unitPrice,
@@ -53,6 +54,7 @@ export default function BuildQuote() {
     id: Date.now(),
     catalogId: null,
     name: '',
+    description: '',
     unit: 'EA',
     qty: 1,
     unitPrice: 0,
@@ -170,10 +172,16 @@ export default function BuildQuote() {
                     </td>
                     <td className="px-4 py-2">
                       <input
-                        className="w-full border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none text-sm text-gray-800"
+                        className="w-full border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none text-sm font-medium text-gray-800"
                         value={line.name}
                         onChange={e => updateLine(line.id, 'name', e.target.value)}
-                        placeholder="Item description"
+                        placeholder="Item name"
+                      />
+                      <input
+                        className="w-full border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none text-xs text-gray-400 italic mt-0.5"
+                        value={line.description || ''}
+                        onChange={e => updateLine(line.id, 'description', e.target.value)}
+                        placeholder="Scope detail (optional, prints on proposal)..."
                       />
                     </td>
                     <td className="px-4 py-2">

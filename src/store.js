@@ -41,10 +41,13 @@ export const useStore = create(
             existing.count += 1
             existing.confidence = Math.min(99, existing.confidence + 1)
             existing.lastUpdated = new Date().toLocaleDateString()
+            // Keep the most recent description if provided
+            if (item.description) existing.description = item.description
           } else {
             updated.push({
               id: idCounter++,
               name: item.name,
+              description: item.description || '',
               unit: item.unit || 'EA',
               unitPrice: item.unitPrice,
               minPrice: item.unitPrice,

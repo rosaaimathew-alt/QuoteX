@@ -30,6 +30,7 @@ Return ONLY a valid JSON array (no markdown, no explanation) like:
 [
   {
     "name": "Install 6ft Cedar Privacy Fence",
+    "description": "Supply and install 6ft cedar privacy fence with pressure-treated posts set in concrete, including all hardware and fasteners.",
     "qty": 140,
     "unit": "LF",
     "unitPrice": 38,
@@ -39,7 +40,8 @@ Return ONLY a valid JSON array (no markdown, no explanation) like:
 ]
 
 Rules:
-- name: concise description (max 60 chars), title case
+- name: concise label (max 60 chars), title case
+- description: the full scope/detail text for this line item as it appears in or can be inferred from the estimate — this will print on the client proposal. Include materials, method, and any specs mentioned. Max 200 chars.
 - qty: numeric quantity (default 1 if unknown)
 - unit: one of LF, SF, EA, LS
 - unitPrice: price per unit in USD (integer or 1 decimal)
@@ -140,6 +142,7 @@ export default async function handler(req, res) {
       .filter(i => i.name && i.unitPrice > 0)
       .map(i => ({
         name: String(i.name).slice(0, 80),
+        description: String(i.description || '').slice(0, 200),
         qty: Math.max(0, parseFloat(i.qty) || 1),
         unit: UNITS.includes(i.unit) ? i.unit : 'EA',
         unitPrice: Math.round(parseFloat(i.unitPrice) * 100) / 100,

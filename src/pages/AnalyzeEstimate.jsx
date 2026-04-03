@@ -317,59 +317,69 @@ export default function AnalyzeEstimate() {
 
           <div className="divide-y divide-gray-50">
             {results.map((item) => (
-              <div key={item.id} className={`px-5 py-3 flex items-center gap-3 ${selected.has(item.id) ? 'bg-blue-50' : ''}`}>
+              <div key={item.id} className={`px-5 py-3 flex items-start gap-3 ${selected.has(item.id) ? 'bg-blue-50' : ''}`}>
                 <input
                   type="checkbox"
                   checked={selected.has(item.id)}
                   onChange={() => toggleSelect(item.id)}
-                  className="w-4 h-4 accent-blue-600"
+                  className="w-4 h-4 accent-blue-600 mt-1"
                 />
-                <div className="flex-1 grid grid-cols-12 gap-2 items-center">
-                  <input
-                    className="col-span-5 text-sm text-gray-800 border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none bg-transparent"
-                    value={item.name}
-                    onChange={e => updateResult(item.id, 'name', e.target.value)}
-                  />
-                  <input
-                    className="col-span-1 text-sm text-center border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none bg-transparent"
-                    value={item.qty}
-                    onChange={e => updateResult(item.id, 'qty', e.target.value)}
-                    type="number"
-                    min="0"
-                  />
-                  <select
-                    className="col-span-1 text-xs border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none bg-transparent"
-                    value={item.unit}
-                    onChange={e => updateResult(item.id, 'unit', e.target.value)}
-                  >
-                    {['LF','SF','EA','LS'].map(u => <option key={u}>{u}</option>)}
-                  </select>
-                  <div className="col-span-2 flex items-center gap-0.5">
-                    <span className="text-gray-400 text-sm">$</span>
+                <div className="flex-1 flex flex-col gap-1.5">
+                  {/* Row 1: name, qty, unit, price, category, confidence */}
+                  <div className="grid grid-cols-12 gap-2 items-center">
                     <input
-                      className="w-full text-sm font-medium text-gray-800 border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none bg-transparent"
-                      value={item.unitPrice}
-                      onChange={e => updateResult(item.id, 'unitPrice', e.target.value)}
+                      className="col-span-5 text-sm font-medium text-gray-800 border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none bg-transparent"
+                      value={item.name}
+                      onChange={e => updateResult(item.id, 'name', e.target.value)}
+                    />
+                    <input
+                      className="col-span-1 text-sm text-center border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none bg-transparent"
+                      value={item.qty}
+                      onChange={e => updateResult(item.id, 'qty', e.target.value)}
                       type="number"
                       min="0"
                     />
+                    <select
+                      className="col-span-1 text-xs border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none bg-transparent"
+                      value={item.unit}
+                      onChange={e => updateResult(item.id, 'unit', e.target.value)}
+                    >
+                      {['LF','SF','EA','LS'].map(u => <option key={u}>{u}</option>)}
+                    </select>
+                    <div className="col-span-2 flex items-center gap-0.5">
+                      <span className="text-gray-400 text-sm">$</span>
+                      <input
+                        className="w-full text-sm font-medium text-gray-800 border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none bg-transparent"
+                        value={item.unitPrice}
+                        onChange={e => updateResult(item.id, 'unitPrice', e.target.value)}
+                        type="number"
+                        min="0"
+                      />
+                    </div>
+                    <select
+                      className="col-span-2 text-xs border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none bg-transparent"
+                      value={item.category}
+                      onChange={e => updateResult(item.id, 'category', e.target.value)}
+                    >
+                      {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                    </select>
+                    <div className="col-span-1">
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                        item.confidence >= 85 ? 'bg-green-100 text-green-700' :
+                        item.confidence >= 70 ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-gray-100 text-gray-500'
+                      }`}>
+                        {item.confidence}%
+                      </span>
+                    </div>
                   </div>
-                  <select
-                    className="col-span-2 text-xs border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none bg-transparent"
-                    value={item.category}
-                    onChange={e => updateResult(item.id, 'category', e.target.value)}
-                  >
-                    {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-                  </select>
-                  <div className="col-span-1">
-                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                      item.confidence >= 85 ? 'bg-green-100 text-green-700' :
-                      item.confidence >= 70 ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-gray-100 text-gray-500'
-                    }`}>
-                      {item.confidence}%
-                    </span>
-                  </div>
+                  {/* Row 2: description */}
+                  <input
+                    className="w-full text-xs text-gray-500 border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none bg-transparent italic"
+                    placeholder="Scope description (printed on proposal)..."
+                    value={item.description || ''}
+                    onChange={e => updateResult(item.id, 'description', e.target.value)}
+                  />
                 </div>
               </div>
             ))}
