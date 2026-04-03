@@ -13,7 +13,10 @@ export default function BuildQuote() {
   const [catFilter, setCatFilter] = useState('All')
   const [lines, setLines] = useState([])
   const [client, setClient] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
+  const [expiration, setExpiration] = useState('')
   const [margin, setMargin] = useState(MARGIN_DEFAULT)
   const [showMargin, setShowMargin] = useState(false)
 
@@ -78,7 +81,7 @@ export default function BuildQuote() {
   const cost = showMargin ? subtotal / (1 + margin / 100) : null
 
   const goToProposal = () => {
-    sessionStorage.setItem('proposal', JSON.stringify({ client, address, lines, margin }))
+    sessionStorage.setItem('proposal', JSON.stringify({ client, email, phone, address, expiration, lines, margin }))
     navigate('/proposal')
   }
 
@@ -134,15 +137,30 @@ export default function BuildQuote() {
           </button>
         </div>
 
-        {/* Client info */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs font-medium text-gray-500 block mb-1">Client Name</label>
-            <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="John Smith" value={client} onChange={e => setClient(e.target.value)} />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-gray-500 block mb-1">Project Address</label>
-            <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="123 Main St" value={address} onChange={e => setAddress(e.target.value)} />
+        {/* Customer info */}
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Customer Info</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-gray-500 block mb-1">Customer Name</label>
+              <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="John Smith" value={client} onChange={e => setClient(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-500 block mb-1">Project Address</label>
+              <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="123 Main St" value={address} onChange={e => setAddress(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-500 block mb-1">Email Address</label>
+              <input type="email" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="john@example.com" value={email} onChange={e => setEmail(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-500 block mb-1">Phone Number</label>
+              <input type="tel" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="(555) 000-0000" value={phone} onChange={e => setPhone(e.target.value)} />
+            </div>
+            <div className="col-span-2 sm:col-span-1">
+              <label className="text-xs font-medium text-gray-500 block mb-1">Quote Expiration Date</label>
+              <input type="date" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" value={expiration} onChange={e => setExpiration(e.target.value)} />
+            </div>
           </div>
         </div>
 
@@ -153,18 +171,18 @@ export default function BuildQuote() {
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
                   <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase w-8">#</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Description</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Item / Scope</th>
                   <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase w-20">Qty</th>
                   <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase w-20">Unit</th>
                   <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase w-28">Unit Price</th>
                   <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase w-28">Line Total</th>
-                  <th className="px-4 py-2.5 w-16"></th>
+                  <th className="px-4 py-2.5 w-10"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {lines.map((line, idx) => (
-                  <tr key={line.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-2">
+                  <tr key={line.id} className="hover:bg-gray-50 align-top">
+                    <td className="px-4 pt-3">
                       <div className="flex flex-col gap-0.5">
                         <button onClick={() => moveUp(idx)} disabled={idx === 0} className="text-gray-300 hover:text-gray-500 disabled:opacity-20"><ChevronUp size={12} /></button>
                         <button onClick={() => moveDown(idx)} disabled={idx === lines.length - 1} className="text-gray-300 hover:text-gray-500 disabled:opacity-20"><ChevronDown size={12} /></button>
@@ -177,14 +195,15 @@ export default function BuildQuote() {
                         onChange={e => updateLine(line.id, 'name', e.target.value)}
                         placeholder="Item name"
                       />
-                      <input
-                        className="w-full border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none text-xs text-gray-400 italic mt-0.5"
+                      <textarea
+                        rows={2}
+                        className="w-full border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none text-xs text-gray-400 italic mt-0.5 resize-none"
                         value={line.description || ''}
                         onChange={e => updateLine(line.id, 'description', e.target.value)}
-                        placeholder="Scope detail (optional, prints on proposal)..."
+                        placeholder="Scope detail (prints on proposal)..."
                       />
                     </td>
-                    <td className="px-4 py-2">
+                    <td className="px-4 pt-3">
                       <input
                         type="number" min="0"
                         className="w-full border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none text-sm text-center"
@@ -192,7 +211,7 @@ export default function BuildQuote() {
                         onChange={e => updateLine(line.id, 'qty', e.target.value)}
                       />
                     </td>
-                    <td className="px-4 py-2">
+                    <td className="px-4 pt-3">
                       <select
                         className="text-sm border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none"
                         value={line.unit}
@@ -201,7 +220,7 @@ export default function BuildQuote() {
                         {['LF','SF','EA','LS'].map(u => <option key={u}>{u}</option>)}
                       </select>
                     </td>
-                    <td className="px-4 py-2">
+                    <td className="px-4 pt-3">
                       <div className="flex items-center gap-0.5">
                         <span className="text-gray-400 text-sm">$</span>
                         <input
@@ -212,10 +231,10 @@ export default function BuildQuote() {
                         />
                       </div>
                     </td>
-                    <td className="px-4 py-2 text-right font-medium text-gray-800">
+                    <td className="px-4 pt-3 text-right font-medium text-gray-800 whitespace-nowrap">
                       ${(line.qty * line.unitPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
-                    <td className="px-4 py-2">
+                    <td className="px-2 pt-3">
                       <button onClick={() => removeLine(line.id)} className="p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50">
                         <Trash2 size={13} />
                       </button>
