@@ -232,7 +232,7 @@ export const useStore = create(
         })),
     }),
     {
-      name: 'estimateiq-store',
+      name: 'quotex-store',
       storage: createJSONStorage(() => localStorage),
       version: 4,
       // IMPORTANT: merge persisted data ON TOP of defaults so that:

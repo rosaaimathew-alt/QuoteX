@@ -55,14 +55,15 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-gray-50 flex">
+      <div className="min-h-screen bg-sky-50 flex">
         {/* Sidebar */}
-        <aside className="w-56 bg-white border-r border-gray-200 flex flex-col no-print shrink-0">
-          <div className="px-5 py-5 border-b border-gray-200">
-            <h1 className="text-lg font-bold text-blue-700 leading-tight">EstimateIQ</h1>
-            <p className="text-xs text-gray-500 mt-0.5">Smart Contractor Pricing</p>
+        <aside className="w-56 bg-sky-700 flex flex-col no-print shrink-0 shadow-lg">
+          {/* Logo */}
+          <div className="px-5 py-5 border-b border-sky-600">
+            <h1 className="text-xl font-black text-white tracking-widest leading-tight">QUOTEX</h1>
+            <p className="text-xs text-sky-300 mt-0.5 font-medium">Smart Contractor Pricing</p>
           </div>
-          <nav className="flex-1 py-4 space-y-1 px-2">
+          <nav className="flex-1 py-4 space-y-0.5 px-2">
             {NAV.map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={to}
@@ -71,28 +72,28 @@ export default function App() {
                 className={({ isActive }) =>
                   `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     isActive
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                      ? 'bg-white text-sky-700 shadow-sm'
+                      : 'text-sky-100 hover:bg-sky-600 hover:text-white'
                   }`
                 }
               >
                 <Icon size={16} />
                 <span className="flex-1">{label}</span>
                 {to === '/tracker' && dueCount > 0 && (
-                  <span className="bg-amber-500 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                  <span className="bg-amber-400 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
                     {dueCount}
                   </span>
                 )}
                 {to === '/inbox' && inboxUnread > 0 && (
-                  <span className="bg-blue-500 text-white text-xs font-bold rounded-full min-w-4 h-4 px-1 flex items-center justify-center leading-none">
+                  <span className="bg-white text-sky-700 text-xs font-bold rounded-full min-w-4 h-4 px-1 flex items-center justify-center leading-none">
                     {inboxUnread}
                   </span>
                 )}
               </NavLink>
             ))}
           </nav>
-          <div className="px-4 py-3 border-t border-gray-200">
-            <p className="text-xs text-gray-400">© 2025 EstimateIQ</p>
+          <div className="px-4 py-3 border-t border-sky-600">
+            <p className="text-xs text-sky-400">© 2025 QUOTEX</p>
           </div>
         </aside>
 

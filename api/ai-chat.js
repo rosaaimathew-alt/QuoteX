@@ -7,7 +7,7 @@ dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../.env'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-const SYSTEM_PROMPT = `You are a pricing catalog assistant for a contractor estimating tool called EstimateIQ.
+const SYSTEM_PROMPT = `You are a pricing catalog assistant for a contractor estimating tool called QUOTEX.
 Your job is to help contractors bulk-edit their pricing catalog using plain English commands.
 
 The contractor's full catalog will be provided in each request as JSON.

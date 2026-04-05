@@ -258,7 +258,7 @@ export default function ProposalView() {
               )}
             </div>
             <div className="text-right">
-              <p className="font-semibold text-lg">EstimateIQ</p>
+              <p className="font-semibold text-lg">QUOTEX</p>
               <p className="text-blue-200 text-sm">Contractor Services</p>
             </div>
           </div>

@@ -70,7 +70,7 @@ function buildEmailHtml({ client, email, phone, address, expiration, lines, comp
           ${expirationFormatted ? `<p style="margin:4px 0 0;color:#bfdbfe;font-size:13px;font-weight:500;">Valid Until: ${expirationFormatted}</p>` : ''}
         </div>
         <div style="text-align:right;">
-          <p style="margin:0;color:#ffffff;font-size:16px;font-weight:600;">${companyName || 'EstimateIQ'}</p>
+          <p style="margin:0;color:#ffffff;font-size:16px;font-weight:600;">${companyName || 'QUOTEX'}</p>
           <p style="margin:4px 0 0;color:#93c5fd;font-size:13px;">Contractor Services</p>
         </div>
       </div>
@@ -167,7 +167,7 @@ export default async function handler(req, res) {
 
   const fromAddress = fromName && fromEmail
     ? `${fromName} <${fromEmail}>`
-    : 'EstimateIQ <onboarding@resend.dev>'
+    : 'QUOTEX <onboarding@resend.dev>'
 
   try {
     const payload = {

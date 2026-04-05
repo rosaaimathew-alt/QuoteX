@@ -1,5 +1,5 @@
 /**
- * /api/analyze — EstimateIQ line-item extraction
+ * /api/analyze — QUOTEX line-item extraction
  *
  * Accepts:
  *   { text: string }                          — plain text estimate
