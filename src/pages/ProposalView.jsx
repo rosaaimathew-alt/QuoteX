@@ -37,6 +37,7 @@ export default function ProposalView() {
           total: parsed.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0),
           lines: parsed.lines,
           status: 'Draft',
+          parentId: parsed.parentId || null,
         })
         proposalIdRef.current = id
         // Persist id back into sessionStorage so repeated views don't duplicate

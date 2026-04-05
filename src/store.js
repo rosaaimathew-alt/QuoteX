@@ -115,11 +115,19 @@ export const useStore = create(
           })
           return proposalData.id
         }
+        // Auto-compute version number for revisions
+        const version = proposalData.parentId
+          ? proposals.filter(
+              (p) => p.id === proposalData.parentId || p.parentId === proposalData.parentId
+            ).length + 1
+          : 1
         const id = nextProposalId
         set({
           proposals: [
             {
               id,
+              parentId: proposalData.parentId || null,
+              version,
               ...proposalData,
               status: 'Draft',
               createdAt: new Date().toISOString(),

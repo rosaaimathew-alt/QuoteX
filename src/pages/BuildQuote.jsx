@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Plus, Trash2, ChevronDown, ChevronUp, Eye, EyeOff, BookTemplate, X, Save } from 'lucide-react'
+import { Search, Plus, Trash2, ChevronDown, ChevronUp, Eye, EyeOff, BookTemplate, X, Save, Copy } from 'lucide-react'
 import { useStore } from '../store'
 
 const MARGIN_DEFAULT = 30
@@ -27,6 +27,22 @@ export default function BuildQuote() {
   const [showLoadTemplate, setShowLoadTemplate] = useState(false)
   const [templateName, setTemplateName] = useState('')
   const [templateDesc, setTemplateDesc] = useState('')
+  const [revisingParentId, setRevisingParentId] = useState(null)
+
+  // Pre-fill when opening a revision from the Proposal Tracker
+  useEffect(() => {
+    const raw = sessionStorage.getItem('revise-proposal')
+    if (!raw) return
+    sessionStorage.removeItem('revise-proposal')
+    const d = JSON.parse(raw)
+    setClient(d.client || '')
+    setEmail(d.email || '')
+    setPhone(d.phone || '')
+    setAddress(d.address || '')
+    setExpiration(d.expiration || '')
+    setLines((d.lines || []).map(l => ({ ...l, id: Date.now() + Math.random() })))
+    setRevisingParentId(d.parentId || null)
+  }, [])
 
   const cats = ['All', ...new Set(catalog.map(c => c.category))]
   const filtered = catalog
@@ -85,7 +101,10 @@ export default function BuildQuote() {
   const cost = showMargin ? subtotal / (1 + margin / 100) : null
 
   const goToProposal = () => {
-    sessionStorage.setItem('proposal', JSON.stringify({ client, email, phone, address, expiration, lines, margin }))
+    sessionStorage.setItem('proposal', JSON.stringify({
+      client, email, phone, address, expiration, lines, margin,
+      ...(revisingParentId ? { parentId: revisingParentId } : {}),
+    }))
     navigate('/proposal')
   }
 
@@ -144,6 +163,13 @@ export default function BuildQuote() {
 
       {/* Right: Quote builder */}
       <div className="flex-1 flex flex-col gap-4">
+        {revisingParentId && (
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+            <Copy size={13} className="shrink-0" />
+            <span>Creating a <strong>new revision</strong> — client info and lines are pre-filled. Edit as needed, then preview.</span>
+            <button onClick={() => setRevisingParentId(null)} className="ml-auto text-amber-400 hover:text-amber-700"><X size={13} /></button>
+          </div>
+        )}
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <h2 className="text-2xl font-bold text-gray-900">Build Quote</h2>
           <div className="flex items-center gap-2">

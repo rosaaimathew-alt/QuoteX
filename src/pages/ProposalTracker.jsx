@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   useStore, PROPOSAL_STATUSES, WIN_REASONS, LOSS_REASONS, ACTIVITY_TYPES,
 } from '../store'
@@ -6,7 +7,31 @@ import {
   Bell, Trash2, X, CheckCircle, AlertCircle, Clock, TrendingUp,
   DollarSign, FileText, Plus, ChevronDown, ChevronUp, MessageSquare,
   Phone, Mail, Users, BarChart2, Columns, List, Award, ThumbsDown,
+  Eye, Copy, GitBranch,
 } from 'lucide-react'
+
+// Group proposals into root → revisions trees
+function buildGroups(proposals) {
+  const ids = new Set(proposals.map(p => p.id))
+  const roots = proposals.filter(p => !p.parentId || !ids.has(p.parentId))
+  return roots.map(root => ({
+    root,
+    revisions: proposals
+      .filter(p => p.parentId === root.id)
+      .sort((a, b) => (a.version || 2) - (b.version || 2)),
+  }))
+}
+
+// Collapse proposal groups to client-level outcomes for analytics
+function clientOutcomes(proposals) {
+  const groups = buildGroups(proposals)
+  return groups.map(({ root, revisions }) => {
+    const all = [root, ...revisions]
+    const isWon = all.some(p => p.status === 'Won')
+    const isLost = !isWon && all.every(p => p.status === 'Lost')
+    return { all, isWon, isLost }
+  })
+}
 
 const fmt = (n) =>
   Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -221,15 +246,102 @@ function ReminderBadges({ proposal, onAdd }) {
 }
 
 // ── List View ──────────────────────────────────────────────────────────────
-function ListView({ proposals, onStatusChange, onReminderOpen }) {
+function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onOpen, onRevise }) {
   const { deleteProposal } = useStore()
   const [expanded, setExpanded] = useState(null)
 
   const toggle = (id) => setExpanded(v => v === id ? null : id)
 
+  // Build groups then apply status filter at the group level
+  const allGroups = buildGroups(proposals)
+  const groups = filterStatus === 'All'
+    ? allGroups
+    : allGroups.filter(({ root, revisions }) =>
+        [root, ...revisions].some(p => p.status === filterStatus)
+      )
+
+  const ProposalRow = ({ p, isRevision }) => (
+    <>
+      <tr className={`border-t border-gray-50 hover:bg-gray-50 align-top ${isRevision ? 'bg-gray-50/60' : ''}`}>
+        <td className="px-4 py-3">
+          <div className={`flex items-start gap-2 ${isRevision ? 'pl-5' : ''}`}>
+            {isRevision && <GitBranch size={12} className="text-gray-300 mt-1 shrink-0" />}
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="font-medium text-gray-900">{p.client || <span className="text-gray-400 italic">No name</span>}</p>
+                {(p.version || 1) > 1 && (
+                  <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 font-semibold">
+                    Alt {p.version}
+                  </span>
+                )}
+              </div>
+              {!isRevision && p.email && <p className="text-xs text-gray-400 mt-0.5">{p.email}</p>}
+              {p.winLossReason?.category && (
+                <span className={`inline-block mt-1 text-xs px-1.5 py-0.5 rounded font-medium ${p.status === 'Won' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                  {p.winLossReason.category}
+                </span>
+              )}
+            </div>
+          </div>
+        </td>
+        <td className="px-4 py-3 text-right font-semibold text-gray-900 whitespace-nowrap">
+          ${fmt(p.total || 0)}
+        </td>
+        <td className="px-4 py-3">
+          <select
+            value={p.status}
+            onChange={e => onStatusChange(p, e.target.value)}
+            className={`text-xs font-medium px-2 py-1 rounded-full border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-300 ${STATUS_STYLES[p.status] || 'bg-gray-100 text-gray-600'}`}
+          >
+            {PROPOSAL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </td>
+        <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+          {p.sentAt
+            ? new Date(p.sentAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            : <span className="italic text-gray-300">Not sent</span>}
+          {p.closedAt && (
+            <p className="text-gray-300 mt-0.5">
+              Closed {new Date(p.closedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              {p.sentAt && daysBetween(p.sentAt, p.closedAt) != null && (
+                <span> · {daysBetween(p.sentAt, p.closedAt)}d</span>
+              )}
+            </p>
+          )}
+        </td>
+        <td className="px-4 py-3">
+          <ReminderBadges proposal={p} onAdd={() => onReminderOpen(p.id)} />
+        </td>
+        <td className="px-4 py-3 text-right">
+          <div className="flex items-center justify-end gap-1">
+            <button onClick={() => onOpen(p)} className="p-1.5 rounded text-gray-300 hover:text-sky-600 hover:bg-sky-50" title="Open proposal">
+              <Eye size={13} />
+            </button>
+            <button onClick={() => onRevise(p)} className="p-1.5 rounded text-gray-300 hover:text-purple-600 hover:bg-purple-50" title="Create revision">
+              <Copy size={13} />
+            </button>
+            <button onClick={() => toggle(p.id)} className="p-1.5 rounded text-gray-300 hover:text-blue-500 hover:bg-blue-50" title="Activity log">
+              {expanded === p.id ? <ChevronUp size={13} /> : <MessageSquare size={13} />}
+            </button>
+            <button onClick={() => deleteProposal(p.id)} className="p-1.5 rounded text-gray-300 hover:text-red-500 hover:bg-red-50" title="Delete">
+              <Trash2 size={13} />
+            </button>
+          </div>
+        </td>
+      </tr>
+      {expanded === p.id && (
+        <tr key={`${p.id}-log`} className="border-t border-gray-100">
+          <td colSpan={6} className="p-0">
+            <ActivityLog proposal={p} />
+          </td>
+        </tr>
+      )}
+    </>
+  )
+
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-      {proposals.length === 0 ? (
+      {groups.length === 0 ? (
         <div className="py-16 text-center text-gray-400">
           <FileText size={32} className="mx-auto mb-3 opacity-30" />
           <p className="text-sm">No proposals match this filter.</p>
@@ -243,77 +355,17 @@ function ListView({ proposals, onStatusChange, onReminderOpen }) {
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-36">Status</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-28">Date</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Follow-ups</th>
-              <th className="px-4 py-3 w-20"></th>
+              <th className="px-4 py-3 w-28"></th>
             </tr>
           </thead>
           <tbody>
-            {proposals.map(p => (
-              <>
-                <tr key={p.id} className="border-t border-gray-50 hover:bg-gray-50 align-top">
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-gray-900">{p.client || <span className="text-gray-400 italic">No name</span>}</p>
-                    {p.email && <p className="text-xs text-gray-400 mt-0.5">{p.email}</p>}
-                    {p.winLossReason?.category && (
-                      <span className={`inline-block mt-1 text-xs px-1.5 py-0.5 rounded font-medium ${p.status === 'Won' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
-                        {p.winLossReason.category}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right font-semibold text-gray-900 whitespace-nowrap">
-                    ${fmt(p.total || 0)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <select
-                      value={p.status}
-                      onChange={e => onStatusChange(p, e.target.value)}
-                      className={`text-xs font-medium px-2 py-1 rounded-full border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-300 ${STATUS_STYLES[p.status] || 'bg-gray-100 text-gray-600'}`}
-                    >
-                      {PROPOSAL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
-                    {p.sentAt
-                      ? new Date(p.sentAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                      : <span className="italic text-gray-300">Not sent</span>}
-                    {p.closedAt && (
-                      <p className="text-gray-300 mt-0.5">
-                        Closed {new Date(p.closedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        {p.sentAt && daysBetween(p.sentAt, p.closedAt) != null && (
-                          <span> · {daysBetween(p.sentAt, p.closedAt)}d</span>
-                        )}
-                      </p>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <ReminderBadges proposal={p} onAdd={() => onReminderOpen(p.id)} />
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => toggle(p.id)}
-                        className="p-1.5 rounded text-gray-300 hover:text-blue-500 hover:bg-blue-50"
-                        title="Activity log"
-                      >
-                        {expanded === p.id ? <ChevronUp size={13} /> : <MessageSquare size={13} />}
-                      </button>
-                      <button
-                        onClick={() => deleteProposal(p.id)}
-                        className="p-1.5 rounded text-gray-300 hover:text-red-500 hover:bg-red-50"
-                        title="Delete"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-                {expanded === p.id && (
-                  <tr key={`${p.id}-log`} className="border-t border-gray-100">
-                    <td colSpan={6} className="p-0">
-                      <ActivityLog proposal={p} />
-                    </td>
-                  </tr>
-                )}
-              </>
+            {groups.map(({ root, revisions }) => (
+              <React.Fragment key={root.id}>
+                <ProposalRow p={root} isRevision={false} />
+                {revisions.map(rev => (
+                  <ProposalRow key={rev.id} p={rev} isRevision={true} />
+                ))}
+              </React.Fragment>
             ))}
           </tbody>
         </table>
@@ -384,12 +436,21 @@ function PipelineView({ proposals, onStatusChange }) {
 
 // ── Analytics View ─────────────────────────────────────────────────────────
 function AnalyticsView({ proposals }) {
-  const closed = proposals.filter(p => p.status === 'Won' || p.status === 'Lost')
   const won = proposals.filter(p => p.status === 'Won')
   const lost = proposals.filter(p => p.status === 'Lost')
   const active = proposals.filter(p => ['Sent', 'Followed Up', 'Negotiating'].includes(p.status))
 
-  const winRate = closed.length > 0 ? Math.round((won.length / closed.length) * 100) : null
+  // Client-level win rate: a client group is "won" if any proposal is Won;
+  // "lost" only if all proposals in the group are Lost (no active or won ones)
+  const outcomes = clientOutcomes(proposals)
+  const wonClients = outcomes.filter(o => o.isWon)
+  const lostClients = outcomes.filter(o => o.isLost)
+  const closedClients = [...wonClients, ...lostClients]
+  const winRate = closedClients.length > 0
+    ? Math.round((wonClients.length / closedClients.length) * 100)
+    : null
+  const uniqueClients = outcomes.length
+
   const avgWon = won.length > 0
     ? won.reduce((s, p) => s + (p.total || 0), 0) / won.length
     : null
@@ -432,7 +493,7 @@ function AnalyticsView({ proposals }) {
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-1">Win Rate</p>
           <p className="text-3xl font-bold text-gray-900">{winRate !== null ? `${winRate}%` : '—'}</p>
-          <p className="text-xs text-gray-400 mt-0.5">{won.length}W / {lost.length}L of {closed.length} closed</p>
+          <p className="text-xs text-gray-400 mt-0.5">{wonClients.length}W / {lostClients.length}L · {uniqueClients} clients</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-1">Avg Deal (Won)</p>
@@ -521,6 +582,7 @@ export default function ProposalTracker() {
     proposals, updateProposalStatus, setWinLossReason,
     addReminder, dismissReminder,
   } = useStore()
+  const navigate = useNavigate()
 
   const [tab, setTab] = useState('list')
   const [filterStatus, setFilterStatus] = useState('All')
@@ -531,6 +593,36 @@ export default function ProposalTracker() {
   const [reminderNote, setReminderNote] = useState('')
 
   const today = new Date().toISOString().split('T')[0]
+
+  // Open a proposal in read-only view
+  const handleOpen = (proposal) => {
+    sessionStorage.setItem('proposal', JSON.stringify({
+      client: proposal.client,
+      email: proposal.email,
+      phone: proposal.phone,
+      address: proposal.address,
+      expiration: proposal.expiration,
+      lines: proposal.lines || [],
+      margin: 0,
+      proposalId: proposal.id,
+    }))
+    navigate('/proposal')
+  }
+
+  // Open BuildQuote pre-filled to create a new revision
+  const handleRevise = (proposal) => {
+    const rootId = proposal.parentId || proposal.id
+    sessionStorage.setItem('revise-proposal', JSON.stringify({
+      client: proposal.client,
+      email: proposal.email,
+      phone: proposal.phone,
+      address: proposal.address,
+      expiration: proposal.expiration,
+      lines: proposal.lines || [],
+      parentId: rootId,
+    }))
+    navigate('/quote')
+  }
 
   const filtered = proposals.filter(p => filterStatus === 'All' || p.status === filterStatus)
 
@@ -642,9 +734,12 @@ export default function ProposalTracker() {
       {/* Tab content */}
       {tab === 'list' && (
         <ListView
-          proposals={filtered}
+          proposals={proposals}
+          filterStatus={filterStatus}
           onStatusChange={handleStatusChange}
           onReminderOpen={openReminder}
+          onOpen={handleOpen}
+          onRevise={handleRevise}
         />
       )}
       {tab === 'pipeline' && (
