@@ -246,13 +246,17 @@ function ReminderBadges({ proposal, onAdd }) {
 }
 
 // ── List View ──────────────────────────────────────────────────────────────
+// Rank to pick the "best" proposal to surface as the primary row
+const STATUS_RANK = { Won: 6, Negotiating: 5, 'Followed Up': 4, Sent: 3, Draft: 2, Lost: 1 }
+function bestInGroup(all) {
+  return all.reduce((b, p) => (STATUS_RANK[p.status] || 0) > (STATUS_RANK[b.status] || 0) ? p : b)
+}
+
 function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onOpen, onRevise }) {
   const { deleteProposal } = useStore()
-  const [expanded, setExpanded] = useState(null)
+  const [expandedLog, setExpandedLog] = useState(null)   // proposal id with activity log open
+  const [expandedAlts, setExpandedAlts] = useState(null) // root id with alts expanded
 
-  const toggle = (id) => setExpanded(v => v === id ? null : id)
-
-  // Build groups then apply status filter at the group level
   const allGroups = buildGroups(proposals)
   const groups = filterStatus === 'All'
     ? allGroups
@@ -260,84 +264,85 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
         [root, ...revisions].some(p => p.status === filterStatus)
       )
 
-  const ProposalRow = ({ p, isRevision }) => (
-    <>
-      <tr className={`border-t border-gray-50 hover:bg-gray-50 align-top ${isRevision ? 'bg-gray-50/60' : ''}`}>
-        <td className="px-4 py-3">
-          <div className={`flex items-start gap-2 ${isRevision ? 'pl-5' : ''}`}>
-            {isRevision && <GitBranch size={12} className="text-gray-300 mt-1 shrink-0" />}
-            <div>
-              <div className="flex items-center gap-2">
-                <p className="font-medium text-gray-900">{p.client || <span className="text-gray-400 italic">No name</span>}</p>
-                {(p.version || 1) > 1 && (
-                  <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 font-semibold">
-                    Alt {p.version}
-                  </span>
-                )}
+  const ProposalRow = ({ p, altCount, showAltToggle }) => {
+    const isAltExpanded = expandedAlts === p.id
+    return (
+      <>
+        <tr className="border-t border-gray-50 hover:bg-gray-50 align-top">
+          <td className="px-4 py-3">
+            <p className="font-medium text-gray-900">{p.client || <span className="text-gray-400 italic">No name</span>}</p>
+            {p.email && <p className="text-xs text-gray-400 mt-0.5">{p.email}</p>}
+            {p.winLossReason?.category && (
+              <span className={`inline-block mt-1 text-xs px-1.5 py-0.5 rounded font-medium ${p.status === 'Won' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                {p.winLossReason.category}
+              </span>
+            )}
+          </td>
+          <td className="px-4 py-3 text-right font-semibold text-gray-900 whitespace-nowrap">
+            ${fmt(p.total || 0)}
+            {altCount > 0 && (
+              <div className="mt-0.5">
+                <button
+                  onClick={() => setExpandedAlts(isAltExpanded ? null : p.id)}
+                  className="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 font-semibold hover:bg-purple-200"
+                >
+                  {altCount} alt{altCount !== 1 ? 's' : ''} {isAltExpanded ? '▲' : '▼'}
+                </button>
               </div>
-              {!isRevision && p.email && <p className="text-xs text-gray-400 mt-0.5">{p.email}</p>}
-              {p.winLossReason?.category && (
-                <span className={`inline-block mt-1 text-xs px-1.5 py-0.5 rounded font-medium ${p.status === 'Won' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
-                  {p.winLossReason.category}
-                </span>
-              )}
+            )}
+          </td>
+          <td className="px-4 py-3">
+            <select
+              value={p.status}
+              onChange={e => onStatusChange(p, e.target.value)}
+              className={`text-xs font-medium px-2 py-1 rounded-full border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-300 ${STATUS_STYLES[p.status] || 'bg-gray-100 text-gray-600'}`}
+            >
+              {PROPOSAL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </td>
+          <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+            {p.sentAt
+              ? new Date(p.sentAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+              : <span className="italic text-gray-300">Not sent</span>}
+            {p.closedAt && (
+              <p className="text-gray-300 mt-0.5">
+                Closed {new Date(p.closedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                {p.sentAt && daysBetween(p.sentAt, p.closedAt) != null && (
+                  <span> · {daysBetween(p.sentAt, p.closedAt)}d</span>
+                )}
+              </p>
+            )}
+          </td>
+          <td className="px-4 py-3">
+            <ReminderBadges proposal={p} onAdd={() => onReminderOpen(p.id)} />
+          </td>
+          <td className="px-4 py-3 text-right">
+            <div className="flex items-center justify-end gap-1">
+              <button onClick={() => onOpen(p)} className="p-1.5 rounded text-gray-300 hover:text-sky-600 hover:bg-sky-50" title="Open proposal">
+                <Eye size={13} />
+              </button>
+              <button onClick={() => onRevise(p)} className="p-1.5 rounded text-gray-300 hover:text-purple-600 hover:bg-purple-50" title="Create revision">
+                <Copy size={13} />
+              </button>
+              <button onClick={() => setExpandedLog(expandedLog === p.id ? null : p.id)} className="p-1.5 rounded text-gray-300 hover:text-blue-500 hover:bg-blue-50" title="Activity log">
+                {expandedLog === p.id ? <ChevronUp size={13} /> : <MessageSquare size={13} />}
+              </button>
+              <button onClick={() => deleteProposal(p.id)} className="p-1.5 rounded text-gray-300 hover:text-red-500 hover:bg-red-50" title="Delete">
+                <Trash2 size={13} />
+              </button>
             </div>
-          </div>
-        </td>
-        <td className="px-4 py-3 text-right font-semibold text-gray-900 whitespace-nowrap">
-          ${fmt(p.total || 0)}
-        </td>
-        <td className="px-4 py-3">
-          <select
-            value={p.status}
-            onChange={e => onStatusChange(p, e.target.value)}
-            className={`text-xs font-medium px-2 py-1 rounded-full border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-300 ${STATUS_STYLES[p.status] || 'bg-gray-100 text-gray-600'}`}
-          >
-            {PROPOSAL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </td>
-        <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
-          {p.sentAt
-            ? new Date(p.sentAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-            : <span className="italic text-gray-300">Not sent</span>}
-          {p.closedAt && (
-            <p className="text-gray-300 mt-0.5">
-              Closed {new Date(p.closedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-              {p.sentAt && daysBetween(p.sentAt, p.closedAt) != null && (
-                <span> · {daysBetween(p.sentAt, p.closedAt)}d</span>
-              )}
-            </p>
-          )}
-        </td>
-        <td className="px-4 py-3">
-          <ReminderBadges proposal={p} onAdd={() => onReminderOpen(p.id)} />
-        </td>
-        <td className="px-4 py-3 text-right">
-          <div className="flex items-center justify-end gap-1">
-            <button onClick={() => onOpen(p)} className="p-1.5 rounded text-gray-300 hover:text-sky-600 hover:bg-sky-50" title="Open proposal">
-              <Eye size={13} />
-            </button>
-            <button onClick={() => onRevise(p)} className="p-1.5 rounded text-gray-300 hover:text-purple-600 hover:bg-purple-50" title="Create revision">
-              <Copy size={13} />
-            </button>
-            <button onClick={() => toggle(p.id)} className="p-1.5 rounded text-gray-300 hover:text-blue-500 hover:bg-blue-50" title="Activity log">
-              {expanded === p.id ? <ChevronUp size={13} /> : <MessageSquare size={13} />}
-            </button>
-            <button onClick={() => deleteProposal(p.id)} className="p-1.5 rounded text-gray-300 hover:text-red-500 hover:bg-red-50" title="Delete">
-              <Trash2 size={13} />
-            </button>
-          </div>
-        </td>
-      </tr>
-      {expanded === p.id && (
-        <tr key={`${p.id}-log`} className="border-t border-gray-100">
-          <td colSpan={6} className="p-0">
-            <ActivityLog proposal={p} />
           </td>
         </tr>
-      )}
-    </>
-  )
+        {expandedLog === p.id && (
+          <tr className="border-t border-gray-100">
+            <td colSpan={6} className="p-0">
+              <ActivityLog proposal={p} />
+            </td>
+          </tr>
+        )}
+      </>
+    )
+  }
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -359,14 +364,49 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
             </tr>
           </thead>
           <tbody>
-            {groups.map(({ root, revisions }) => (
-              <React.Fragment key={root.id}>
-                <ProposalRow p={root} isRevision={false} />
-                {revisions.map(rev => (
-                  <ProposalRow key={rev.id} p={rev} isRevision={true} />
-                ))}
-              </React.Fragment>
-            ))}
+            {groups.map(({ root, revisions }) => {
+              const all = [root, ...revisions]
+              const primary = bestInGroup(all)
+              const alts = all.filter(p => p.id !== primary.id)
+              const isAltExpanded = expandedAlts === primary.id
+              return (
+                <React.Fragment key={root.id}>
+                  <ProposalRow p={primary} altCount={alts.length} />
+                  {isAltExpanded && alts.map(alt => (
+                    <tr key={alt.id} className="border-t border-purple-50 bg-purple-50/40 align-top">
+                      <td className="px-4 py-2.5 pl-8">
+                        <div className="flex items-center gap-2">
+                          <GitBranch size={11} className="text-purple-300 shrink-0" />
+                          <span className="text-xs font-semibold text-purple-700 mr-1">Alt {alt.version || '—'}</span>
+                          <span className="text-xs text-gray-500">{alt.client || '—'}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5 text-right text-xs font-semibold text-gray-700">${fmt(alt.total || 0)}</td>
+                      <td className="px-4 py-2.5">
+                        <select
+                          value={alt.status}
+                          onChange={e => onStatusChange(alt, e.target.value)}
+                          className={`text-xs font-medium px-2 py-1 rounded-full border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-300 ${STATUS_STYLES[alt.status] || 'bg-gray-100 text-gray-600'}`}
+                        >
+                          {PROPOSAL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-gray-400">
+                        {alt.createdAt ? new Date(alt.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
+                      </td>
+                      <td className="px-4 py-2.5" />
+                      <td className="px-4 py-2.5 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => onOpen(alt)} className="p-1 rounded text-gray-300 hover:text-sky-600 hover:bg-sky-50" title="Open"><Eye size={12} /></button>
+                          <button onClick={() => onRevise(alt)} className="p-1 rounded text-gray-300 hover:text-purple-600 hover:bg-purple-50" title="Revise"><Copy size={12} /></button>
+                          <button onClick={() => deleteProposal(alt.id)} className="p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50" title="Delete"><Trash2 size={12} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </React.Fragment>
+              )
+            })}
           </tbody>
         </table>
       )}
