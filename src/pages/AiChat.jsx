@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useStore } from '../store'
 import {
   Send, Loader, Bot, User, CheckCircle, X, Sparkles,
-  TrendingUp, Tag, FileText, DollarSign, RefreshCw,
+  TrendingUp, Tag, FileText, RefreshCw,
 } from 'lucide-react'
 
 const SUGGESTIONS = [
@@ -154,28 +154,15 @@ function CatalogStats({ catalog }) {
   const topCats = Object.entries(byCategory)
     .sort((a, b) => b[1].length - a[1].length)
     .slice(0, 6)
-  const avgPrice = catalog.length
-    ? catalog.reduce((s, c) => s + c.unitPrice, 0) / catalog.length
-    : 0
-
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-2">
-        <div className="bg-white border border-gray-200 rounded-xl p-3">
+      <div className="bg-white border border-gray-200 rounded-xl p-3">
           <div className="flex items-center gap-1.5 mb-0.5">
             <FileText size={12} className="text-blue-400" />
             <span className="text-xs text-gray-400 uppercase tracking-wide font-semibold">Items</span>
           </div>
           <p className="text-xl font-bold text-gray-900">{catalog.length}</p>
         </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-3">
-          <div className="flex items-center gap-1.5 mb-0.5">
-            <DollarSign size={12} className="text-green-400" />
-            <span className="text-xs text-gray-400 uppercase tracking-wide font-semibold">Avg Price</span>
-          </div>
-          <p className="text-xl font-bold text-gray-900">${fmt(avgPrice)}</p>
-        </div>
-      </div>
       <div className="bg-white border border-gray-200 rounded-xl p-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">By Category</p>
         <div className="space-y-1.5">

@@ -318,27 +318,22 @@ export default function ProposalView() {
             <thead>
               <tr className="border-b-2 border-gray-200">
                 <th className="text-left pb-2 font-semibold text-gray-600 text-xs uppercase tracking-wider">Item</th>
-                <th className="text-center pb-2 font-semibold text-gray-600 text-xs uppercase tracking-wider w-16">Qty</th>
-                <th className="text-center pb-2 font-semibold text-gray-600 text-xs uppercase tracking-wider w-16">Unit</th>
-                <th className="text-right pb-2 font-semibold text-gray-600 text-xs uppercase tracking-wider w-28">Unit Price</th>
-                <th className="text-right pb-2 font-semibold text-gray-600 text-xs uppercase tracking-wider w-28">Amount</th>
+                <th className="text-left pb-2 font-semibold text-gray-600 text-xs uppercase tracking-wider">Description</th>
+                <th className="text-right pb-2 font-semibold text-gray-600 text-xs uppercase tracking-wider w-28">Price</th>
               </tr>
             </thead>
             <tbody>
               {lines.map((line, i) => (
                 <tr key={line.id} className={`border-b border-gray-50 ${i % 2 === 0 ? '' : 'bg-gray-50'}`}>
                   <td className="py-2.5 text-gray-800 font-medium">{line.name || '—'}</td>
-                  <td className="py-2.5 text-center text-gray-600">{line.qty}</td>
-                  <td className="py-2.5 text-center text-gray-500 text-xs">{line.unit}</td>
-                  <td className="py-2.5 text-right text-gray-600">${fmt(line.unitPrice)}</td>
+                  <td className="py-2.5 text-gray-500 text-xs">{line.description || '—'}</td>
                   <td className="py-2.5 text-right font-semibold text-gray-900">${fmt(line.qty * line.unitPrice)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-gray-300">
-                <td colSpan={3} />
-                <td className="pt-4 text-right text-sm font-semibold text-gray-600 pr-4">TOTAL</td>
+                <td colSpan={2} />
                 <td className="pt-4 text-right text-xl font-bold text-blue-700">${fmt(subtotal)}</td>
               </tr>
             </tfoot>
