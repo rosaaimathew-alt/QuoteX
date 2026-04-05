@@ -17,6 +17,7 @@ import handler from './analyze.js'
 import emailHandler from './send-email.js'
 import messagesHandler from './messages.js'
 import inboundHandler from './inbound-email.js'
+import aiChatHandler from './ai-chat.js'
 
 const app = express()
 app.use(express.json({ limit: '25mb' }))
@@ -27,6 +28,7 @@ app.get('/api/messages', (req, res) => messagesHandler(req, res))
 app.post('/api/messages', (req, res) => messagesHandler(req, res))
 app.delete('/api/messages', (req, res) => messagesHandler(req, res))
 app.post('/api/inbound-email', (req, res) => inboundHandler(req, res))
+app.post('/api/ai-chat', (req, res) => aiChatHandler(req, res))
 
 const PORT = process.env.API_PORT || 3001
 app.listen(PORT, () => {

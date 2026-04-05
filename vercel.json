@@ -11,6 +11,9 @@
     },
     "api/messages.js": {
       "maxDuration": 10
+    },
+    "api/ai-chat.js": {
+      "maxDuration": 30
     }
   }
 }
