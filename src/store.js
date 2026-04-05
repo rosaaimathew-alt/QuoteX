@@ -235,6 +235,21 @@ export const useStore = create(
       name: 'estimateiq-store',
       storage: createJSONStorage(() => localStorage),
       version: 4,
+      // IMPORTANT: merge persisted data ON TOP of defaults so that:
+      //   - New fields added in future versions get their default values
+      //   - Existing user data (catalog, proposals, etc.) is always preserved
+      //   - Version bumps never wipe the catalog again
+      migrate: (persisted) => ({
+        catalog: SEED_CATALOG,
+        nextCatalogId: SEED_CATALOG.length + 1,
+        templates: [],
+        nextTemplateId: 1,
+        proposals: [],
+        nextProposalId: 1,
+        readMessageIds: [],
+        // Persisted data always wins — overwrites the defaults above
+        ...persisted,
+      }),
     }
   )
 )
