@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom'
-import { FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox, Sheet } from 'lucide-react'
+import { useEffect, useState, lazy, Suspense } from 'react'
 import AnalyzeEstimate from './pages/AnalyzeEstimate'
 import ItemCatalog from './pages/ItemCatalog'
 import BuildQuote from './pages/BuildQuote'
@@ -9,8 +9,12 @@ import ProposalTracker from './pages/ProposalTracker'
 import InboxPage from './pages/Inbox'
 import { useStore } from './store'
 
+// Lazy-load xlsx-heavy page so SheetJS only downloads when needed
+const ImportPricing = lazy(() => import('./pages/ImportPricing'))
+
 const NAV = [
   { to: '/', label: 'Analyze Estimate', icon: FileText },
+  { to: '/import', label: 'Import Pricing', icon: Sheet },
   { to: '/catalog', label: 'Item Catalog', icon: BookOpen },
   { to: '/quote', label: 'Build Quote', icon: ClipboardList },
   { to: '/proposal', label: 'Proposal', icon: FileCheck },
@@ -94,6 +98,7 @@ export default function App() {
         <main className="flex-1 overflow-auto">
           <Routes>
             <Route path="/" element={<AnalyzeEstimate />} />
+            <Route path="/import" element={<Suspense fallback={<div className="p-10 text-center text-gray-400 text-sm">Loading…</div>}><ImportPricing /></Suspense>} />
             <Route path="/catalog" element={<ItemCatalog />} />
             <Route path="/quote" element={<BuildQuote />} />
             <Route path="/proposal" element={<ProposalView />} />
