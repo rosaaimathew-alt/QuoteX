@@ -91,7 +91,7 @@ function ComposeModal({ proposals, onSend, onClose }) {
     <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center">
       <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-2xl w-full sm:max-w-lg mx-0 sm:mx-4 flex flex-col" style={{ maxHeight: '90vh' }}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h3 className="font-semibold text-gray-900 flex items-center gap-2"><PenLine size={16} className="text-blue-500" /> New Message</h3>
+          <h3 className="font-semibold text-gray-900 flex items-center gap-2"><PenLine size={16} className="text-[var(--brand-500)]" /> New Message</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-5 space-y-3">

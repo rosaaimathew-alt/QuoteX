@@ -359,7 +359,7 @@ export default function BuildQuote() {
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <Save size={16} className="text-blue-500" /> Save as Template
+                <Save size={16} className="text-[var(--brand-500)]" /> Save as Template
               </h3>
               <button onClick={() => setShowSaveTemplate(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
             </div>
@@ -405,7 +405,7 @@ export default function BuildQuote() {
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <BookTemplate size={16} className="text-blue-500" /> Load Template
+                <BookTemplate size={16} className="text-[var(--brand-500)]" /> Load Template
               </h3>
               <button onClick={() => setShowLoadTemplate(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
             </div>

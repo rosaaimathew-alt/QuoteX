@@ -225,9 +225,9 @@ export default function ImportPricing() {
             onChange={e => handleFile(e.target.files[0])}
           />
           {loading ? (
-            <RefreshCw size={28} className="text-blue-500 animate-spin mb-2" />
+            <RefreshCw size={28} className="text-[var(--brand-500)] animate-spin mb-2" />
           ) : file ? (
-            <Table size={28} className="text-green-500 mb-2" />
+            <Table size={28} className="text-[var(--brand-500)] mb-2" />
           ) : (
             <Upload size={28} className="text-gray-400 mb-2" />
           )}

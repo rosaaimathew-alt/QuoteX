@@ -306,7 +306,7 @@ function AiSuggestBanner({ suggestions, catalog, onApply, onDismiss }) {
     <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Sparkles size={15} className="text-purple-500" />
+          <Sparkles size={15} className="text-[var(--brand-500)]" />
           <span className="text-sm font-semibold text-purple-800">AI Category Suggestions</span>
           <span className="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">{rows.length} item{rows.length !== 1 ? 's' : ''}</span>
         </div>
@@ -320,7 +320,7 @@ function AiSuggestBanner({ suggestions, catalog, onApply, onDismiss }) {
           <div key={item.id} className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border border-purple-100 text-sm">
             <span className="flex-1 text-gray-800 font-medium truncate">{item.name}</span>
             <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{item.category}</span>
-            <MoveRight size={12} className="text-purple-400 shrink-0" />
+            <MoveRight size={12} className="text-[var(--brand-400)] shrink-0" />
             <span className="text-xs text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full font-medium">{newCategory}</span>
             <button
               onClick={() => onApply([{ id: item.id, category: newCategory }])}
@@ -465,7 +465,7 @@ export default function ItemCatalog() {
       {/* AI suggestions banner */}
       {suggestError && (
         <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl p-3 mb-4 text-sm text-gray-500">
-          <Sparkles size={14} className="text-purple-400 shrink-0" />
+          <Sparkles size={14} className="text-[var(--brand-400)] shrink-0" />
           {suggestError}
           <button onClick={() => setSuggestError('')} className="ml-auto text-gray-300 hover:text-gray-500"><X size={14} /></button>
         </div>

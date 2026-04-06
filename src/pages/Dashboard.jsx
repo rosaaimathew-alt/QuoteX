@@ -52,7 +52,7 @@ function KpiCard({ icon: Icon, label, value, sub, color, onClick }) {
         <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>
           <Icon size={17} className="text-white" />
         </div>
-        <ChevronRight size={14} className="text-gray-300 group-hover:text-sky-500 mt-1 transition-colors" />
+        <ChevronRight size={14} className="text-gray-300 group-hover:text-[var(--brand-500)] mt-1 transition-colors" />
       </div>
       <p className="text-2xl font-bold text-gray-900 leading-none mb-1">{value}</p>
       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{label}</p>
@@ -175,19 +175,19 @@ export default function Dashboard() {
           onClick={() => navigate('/tracker')}
         />
         <KpiCard
-          icon={TrendingUp} label="Open Pipeline" color="bg-sky-500"
+          icon={TrendingUp} label="Open Pipeline" color="bg-green-600"
           value={fmtSh(pipeline)}
           sub={`${active.length} active proposal${active.length !== 1 ? 's' : ''}`}
           onClick={() => navigate('/tracker')}
         />
         <KpiCard
-          icon={Award} label="Win Rate" color="bg-purple-500"
+          icon={Award} label="Win Rate" color="bg-[var(--brand-500)]"
           value={winRate !== null ? `${winRate}%` : '—'}
           sub={`${won.length}W · ${lost.length}L of ${closed.length} closed`}
           onClick={() => navigate('/tracker')}
         />
         <KpiCard
-          icon={Package} label="Catalog Items" color="bg-amber-500"
+          icon={Package} label="Catalog Items" color="bg-[var(--brand-400)]"
           value={catalog.length}
           sub={`${new Set(catalog.map(c => c.category)).size} categories`}
           onClick={() => navigate('/catalog')}
@@ -313,7 +313,7 @@ export default function Dashboard() {
                       }`}
                     >
                       {overdue
-                        ? <AlertCircle size={13} className="text-red-500 mt-0.5 shrink-0" />
+                        ? <AlertCircle size={13} className="text-[var(--brand-500)] mt-0.5 shrink-0" />
                         : <Clock size={13} className="text-gray-400 mt-0.5 shrink-0" />}
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium text-gray-800 truncate">{r.client || 'Unnamed client'}</p>
@@ -339,7 +339,7 @@ export default function Dashboard() {
             icon={FileText}
             label="Analyze"
             description="AI analysis or import a pricing spreadsheet"
-            color="bg-sky-500"
+            color="bg-[var(--brand-400)]"
             actionLabel="Analyze"
             action={() => navigate('/analyze')}
             secondaryAction={() => navigate('/analyze')}
@@ -349,7 +349,7 @@ export default function Dashboard() {
             icon={ClipboardList}
             label="Build Quote"
             description="Build a new proposal from your catalog"
-            color="bg-blue-600"
+            color="bg-[var(--brand-600)]"
             actionLabel="New Quote"
             action={() => navigate('/quote')}
             secondaryAction={templates.length > 0 ? () => navigate('/quote') : null}
@@ -359,7 +359,7 @@ export default function Dashboard() {
             icon={BookOpen}
             label="Item Catalog"
             description={`${catalog.length} items across ${new Set(catalog.map(c => c.category)).size} categories`}
-            color="bg-indigo-500"
+            color="bg-[var(--brand-700)]"
             actionLabel="Browse"
             action={() => navigate('/catalog')}
           />
@@ -367,7 +367,7 @@ export default function Dashboard() {
             icon={MessageSquareMore}
             label="AI Assistant"
             description="Bulk-edit pricing with plain English"
-            color="bg-violet-500"
+            color="bg-[var(--brand-500)]"
             actionLabel="Open Chat"
             action={() => navigate('/ai')}
           />
@@ -375,7 +375,7 @@ export default function Dashboard() {
             icon={BarChart2}
             label="Proposal Tracker"
             description="Manage your pipeline from quote to close"
-            color="bg-purple-500"
+            color="bg-[var(--brand-600)]"
             actionLabel="View Pipeline"
             action={() => navigate('/tracker')}
           />
@@ -383,7 +383,7 @@ export default function Dashboard() {
             icon={Inbox}
             label="Inbox"
             description="Read and reply to client emails"
-            color="bg-teal-500"
+            color="bg-[var(--brand-500)]"
             actionLabel="Open Inbox"
             action={() => navigate('/inbox')}
           />
@@ -391,7 +391,7 @@ export default function Dashboard() {
             icon={FileCheck}
             label="Last Proposal"
             description="View the most recently created proposal"
-            color="bg-orange-500"
+            color="bg-[var(--brand-800)]"
             actionLabel="Open"
             action={() => {
               const latest = [...proposals].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0]

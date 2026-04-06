@@ -158,7 +158,7 @@ function CatalogStats({ catalog }) {
     <div className="space-y-4">
       <div className="bg-white border border-gray-200 rounded-xl p-3">
           <div className="flex items-center gap-1.5 mb-0.5">
-            <FileText size={12} className="text-blue-400" />
+            <FileText size={12} className="text-[var(--brand-400)]" />
             <span className="text-xs text-gray-400 uppercase tracking-wide font-semibold">Items</span>
           </div>
           <p className="text-xl font-bold text-gray-900">{catalog.length}</p>

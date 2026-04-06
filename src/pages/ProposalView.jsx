@@ -156,7 +156,7 @@ export default function ProposalView() {
           onClick={handleCopy}
           className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
         >
-          {copied ? <CheckCircle size={14} className="text-green-500" /> : <Copy size={14} />}
+          {copied ? <CheckCircle size={14} className="text-[var(--brand-500)]" /> : <Copy size={14} />}
           {copied ? 'Copied!' : 'Copy text'}
         </button>
         <button
@@ -184,7 +184,7 @@ export default function ProposalView() {
 
             {sendSuccess ? (
               <div className="text-center py-6">
-                <CheckCircle size={40} className="text-green-500 mx-auto mb-3" />
+                <CheckCircle size={40} className="text-[var(--brand-500)] mx-auto mb-3" />
                 <p className="font-semibold text-gray-900 mb-1">Proposal Sent!</p>
                 <p className="text-sm text-gray-500 mb-1">Email delivered to <strong>{email}</strong></p>
                 <p className="text-xs text-gray-400 mb-4">This proposal has been logged as <span className="font-medium text-blue-600">Sent</span> in your tracker.</p>

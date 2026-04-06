@@ -126,9 +126,9 @@ function AnalyzeTab() {
             {file ? (
               <div className="text-center">
                 {isImageOrPdf && ['jpg','jpeg','png','gif','webp'].includes(fileExt)
-                  ? <Image size={28} className="mx-auto text-blue-500 mb-2" />
-                  : fileExt === 'pdf' ? <File size={28} className="mx-auto text-red-500 mb-2" />
-                  : <FileText size={28} className="mx-auto text-green-500 mb-2" />}
+                  ? <Image size={28} className="mx-auto text-[var(--brand-500)] mb-2" />
+                  : fileExt === 'pdf' ? <File size={28} className="mx-auto text-[var(--brand-400)] mb-2" />
+                  : <FileText size={28} className="mx-auto text-[var(--brand-600)] mb-2" />}
                 <p className="text-sm font-medium text-gray-700">{file.name}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{(file.size / 1024).toFixed(0)} KB</p>
               </div>

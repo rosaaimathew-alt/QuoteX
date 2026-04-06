@@ -103,7 +103,7 @@ function WinLossModal({ proposal, onSave, onClose }) {
         <div className="flex items-center gap-2 mb-4">
           {isWon
             ? <Award size={20} className="text-green-500" />
-            : <ThumbsDown size={20} className="text-red-400" />}
+            : <ThumbsDown size={20} className="text-[var(--brand-400)]" />}
           <h3 className="font-semibold text-gray-900">
             {isWon ? 'Why did you win this job?' : 'Why was this job lost?'}
           </h3>
@@ -195,7 +195,7 @@ function ActivityLog({ proposal }) {
           const Icon = ACTIVITY_ICONS[a.type] || MessageSquare
           return (
             <div key={a.id} className="flex items-start gap-2 bg-white rounded-lg px-3 py-2 border border-gray-100 group">
-              <Icon size={13} className="text-blue-400 mt-0.5 shrink-0" />
+              <Icon size={13} className="text-[var(--brand-400)] mt-0.5 shrink-0" />
               <div className="flex-1 min-w-0">
                 <span className="text-xs font-semibold text-gray-500 mr-1.5">{a.type}</span>
                 <span className="text-xs text-gray-700">{a.text}</span>
@@ -376,7 +376,7 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
                     <tr key={alt.id} className="border-t border-purple-50 bg-purple-50/40 align-top">
                       <td className="px-4 py-2.5 pl-8">
                         <div className="flex items-center gap-2">
-                          <GitBranch size={11} className="text-purple-300 shrink-0" />
+                          <GitBranch size={11} className="text-[var(--brand-300)] shrink-0" />
                           <span className="text-xs font-semibold text-purple-700 mr-1">Alt {alt.version || '—'}</span>
                           <span className="text-xs text-gray-500">{alt.client || '—'}</span>
                         </div>
@@ -715,7 +715,7 @@ export default function ProposalTracker() {
         </div>
         {dueCount > 0 && (
           <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-300 rounded-lg text-sm font-medium text-amber-800">
-            <Bell size={15} className="text-amber-500" />
+            <Bell size={15} className="text-[var(--brand-500)]" />
             {dueCount} follow-up{dueCount !== 1 ? 's' : ''} due
           </div>
         )}
@@ -724,10 +724,10 @@ export default function ProposalTracker() {
       {/* Stats strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
         {[
-          { label: 'Total Proposals', value: proposals.length, icon: FileText, color: 'text-blue-500' },
-          { label: 'Won', value: proposals.filter(p => p.status === 'Won').length, icon: CheckCircle, color: 'text-green-500' },
+          { label: 'Total Proposals', value: proposals.length, icon: FileText, color: 'text-[var(--brand-500)]' },
+          { label: 'Won', value: proposals.filter(p => p.status === 'Won').length, icon: CheckCircle, color: 'text-[var(--brand-400)]' },
           { label: 'Won Revenue', value: `$${fmt(proposals.filter(p => p.status === 'Won').reduce((s, p) => s + (p.total || 0), 0))}`, icon: DollarSign, color: 'text-green-500' },
-          { label: 'Open Pipeline', value: `$${fmt(proposals.filter(p => ['Sent','Followed Up','Negotiating'].includes(p.status)).reduce((s, p) => s + (p.total || 0), 0))}`, icon: TrendingUp, color: 'text-purple-500' },
+          { label: 'Open Pipeline', value: `$${fmt(proposals.filter(p => ['Sent','Followed Up','Negotiating'].includes(p.status)).reduce((s, p) => s + (p.total || 0), 0))}`, icon: TrendingUp, color: 'text-green-600' },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="bg-white rounded-xl border border-gray-200 p-4">
             <div className="flex items-center gap-1.5 mb-1">
@@ -807,7 +807,7 @@ export default function ProposalTracker() {
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <Bell size={16} className="text-blue-500" /> Set Follow-up Reminder
+                <Bell size={16} className="text-[var(--brand-500)]" /> Set Follow-up Reminder
               </h3>
               <button onClick={() => setReminderProposalId(null)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
             </div>
