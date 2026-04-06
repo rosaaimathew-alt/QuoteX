@@ -264,9 +264,8 @@ export default function ProposalView() {
             </div>
             <div className="text-right">
               {branding?.logo
-                ? <img src={branding.logo} alt="logo" className="h-10 object-contain mb-1 ml-auto" />
+                ? <img src={branding.logo} alt="logo" className="h-14 object-contain ml-auto" />
                 : <p className="font-semibold text-lg">{companyName}</p>}
-              <p className="text-sm" style={{ color: palette[200] }}>Contractor Services</p>
             </div>
           </div>
         </div>

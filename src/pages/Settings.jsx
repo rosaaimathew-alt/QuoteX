@@ -28,9 +28,8 @@ function SidebarPreview({ companyName, tagline, logo, color }) {
       {/* Logo area */}
       <div className="px-4 py-4 border-b" style={{ borderColor: palette[600] }}>
         {logo
-          ? <img src={logo} alt="logo" className="h-8 object-contain" />
+          ? <img src={logo} alt="logo" className="h-12 object-contain" />
           : <p className="text-lg font-black text-white tracking-widest leading-tight">{companyName || 'QUOTEX'}</p>}
-        <p className="text-xs mt-0.5 font-medium" style={{ color: palette[300] }}>{tagline || 'Smart Contractor Pricing'}</p>
       </div>
       {/* Nav items preview */}
       <div className="py-3 px-2 space-y-0.5">

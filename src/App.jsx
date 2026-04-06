@@ -194,9 +194,8 @@ function AppShell() {
         {/* Logo */}
         <div className="px-5 py-5 border-b" style={{ borderColor: 'var(--brand-600)' }}>
           {logo
-            ? <img src={logo} alt="logo" className="h-8 object-contain mb-1" />
+            ? <img src={logo} alt="logo" className="h-12 object-contain" />
             : <h1 className="text-xl font-black text-white tracking-widest leading-tight">{companyName}</h1>}
-          <p className="text-xs font-medium mt-0.5" style={{ color: 'var(--brand-300)' }}>{tagline}</p>
         </div>
 
         {/* Nav links */}
