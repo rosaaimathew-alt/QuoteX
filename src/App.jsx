@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox, MessageSquareMore, Search, X } from 'lucide-react'
-import { useEffect, useState, useRef, Suspense } from 'react'
+import { LayoutDashboard, FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon } from 'lucide-react'
+import { useEffect, useState, useRef } from 'react'
 import Dashboard from './pages/Dashboard'
 import Analyze from './pages/Analyze'
 import ItemCatalog from './pages/ItemCatalog'
@@ -9,9 +9,9 @@ import ProposalView from './pages/ProposalView'
 import ProposalTracker from './pages/ProposalTracker'
 import InboxPage from './pages/Inbox'
 import AiChat from './pages/AiChat'
+import SettingsPage from './pages/Settings'
 import { useStore } from './store'
-
-const ImportPricing = lazy(() => import('./pages/ImportPricing'))
+import { applyBrandStyles, DEFAULT_BRAND_COLOR } from './brand'
 
 const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -39,7 +39,7 @@ const UNREAD_POLL = 60_000
 
 // ── Global Search ────────────────────────────────────────────────────────────
 function GlobalSearch() {
-  const navigate = useNavigate()
+  const navigate  = useNavigate()
   const proposals = useStore(s => s.proposals)
   const catalog   = useStore(s => s.catalog)
   const [query, setQuery] = useState('')
@@ -82,7 +82,7 @@ function GlobalSearch() {
   return (
     <div ref={ref} className="relative">
       <div className={`flex items-center gap-2 border rounded-lg px-3 py-1.5 bg-white w-64 transition-all ${
-        open ? 'border-sky-400 ring-1 ring-sky-300' : 'border-gray-200'
+        open ? 'border-[var(--brand-400)] ring-1 ring-[var(--brand-300)]' : 'border-gray-200'
       }`}>
         <Search size={14} className="text-gray-400 shrink-0" />
         <input
@@ -105,16 +105,11 @@ function GlobalSearch() {
             <div>
               <p className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-gray-400 bg-gray-50">Clients / Proposals</p>
               {matchedProposals.map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => openProposal(p)}
-                  className="w-full text-left px-4 py-2.5 hover:bg-sky-50 border-t border-gray-50 transition-colors"
-                >
+                <button key={p.id} onClick={() => openProposal(p)}
+                  className="w-full text-left px-4 py-2.5 hover:bg-[var(--brand-50)] border-t border-gray-50 transition-colors">
                   <p className="text-sm font-medium text-gray-900">{p.client || <span className="italic text-gray-400">Unnamed</span>}</p>
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                    <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${STATUS_BADGE[p.status] || 'bg-gray-100 text-gray-600'}`}>
-                      {p.status}
-                    </span>
+                    <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${STATUS_BADGE[p.status] || 'bg-gray-100 text-gray-600'}`}>{p.status}</span>
                     <span className="text-xs text-gray-400">${fmt(p.total || 0)}</span>
                     {p.email && <span className="text-xs text-gray-400 truncate max-w-[120px]">{p.email}</span>}
                   </div>
@@ -126,11 +121,8 @@ function GlobalSearch() {
             <div>
               <p className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-gray-400 bg-gray-50 border-t border-gray-100">Catalog Items</p>
               {matchedCatalog.map(c => (
-                <button
-                  key={c.id}
-                  onClick={goToCatalog}
-                  className="w-full text-left px-4 py-2.5 hover:bg-sky-50 border-t border-gray-50 transition-colors"
-                >
+                <button key={c.id} onClick={goToCatalog}
+                  className="w-full text-left px-4 py-2.5 hover:bg-[var(--brand-50)] border-t border-gray-50 transition-colors">
                   <p className="text-sm font-medium text-gray-900">{c.name}</p>
                   <p className="text-xs text-gray-400">{c.category} · ${c.unitPrice}/{c.unit}</p>
                 </button>
@@ -148,11 +140,17 @@ function GlobalSearch() {
   )
 }
 
-// ── App Shell (inside Router so useNavigate works) ───────────────────────────
+// ── App Shell ────────────────────────────────────────────────────────────────
 function AppShell() {
   const proposals      = useStore(s => s.proposals)
   const readMessageIds = useStore(s => s.readMessageIds)
+  const branding       = useStore(s => s.branding)
   const [inboxUnread, setInboxUnread] = useState(0)
+
+  // Apply brand CSS variables whenever the stored color changes
+  useEffect(() => {
+    applyBrandStyles(branding?.primaryColor || DEFAULT_BRAND_COLOR)
+  }, [branding?.primaryColor])
 
   const dueCount = proposals.reduce((count, p) => {
     const today = new Date(); today.setHours(0, 0, 0, 0)
@@ -175,14 +173,24 @@ function AppShell() {
     return () => clearInterval(timer)
   }, [readMessageIds])
 
+  const companyName = branding?.companyName || 'QUOTEX'
+  const tagline     = branding?.tagline     || 'Smart Contractor Pricing'
+  const logo        = branding?.logo        || null
+
   return (
-    <div className="min-h-screen bg-sky-50 flex">
+    <div className="min-h-screen flex" style={{ backgroundColor: 'var(--brand-50)' }}>
       {/* Sidebar */}
-      <aside className="w-56 bg-sky-700 flex flex-col no-print shrink-0 shadow-lg">
-        <div className="px-5 py-5 border-b border-sky-600">
-          <h1 className="text-xl font-black text-white tracking-widest leading-tight">QUOTEX</h1>
-          <p className="text-xs text-sky-300 mt-0.5 font-medium">Smart Contractor Pricing</p>
+      <aside className="w-56 flex flex-col no-print shrink-0 shadow-lg" style={{ backgroundColor: 'var(--brand-700)' }}>
+
+        {/* Logo */}
+        <div className="px-5 py-5 border-b" style={{ borderColor: 'var(--brand-600)' }}>
+          {logo
+            ? <img src={logo} alt="logo" className="h-8 object-contain mb-1" />
+            : <h1 className="text-xl font-black text-white tracking-widest leading-tight">{companyName}</h1>}
+          <p className="text-xs font-medium mt-0.5" style={{ color: 'var(--brand-300)' }}>{tagline}</p>
         </div>
+
+        {/* Nav links */}
         <nav className="flex-1 py-4 space-y-0.5 px-2">
           {NAV.map(({ to, label, icon: Icon }) => (
             <NavLink
@@ -191,9 +199,7 @@ function AppShell() {
               end={to === '/'}
               className={({ isActive }) =>
                 `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-white text-sky-700 shadow-sm'
-                    : 'text-sky-100 hover:bg-sky-600 hover:text-white'
+                  isActive ? 'brand-nav-active' : 'brand-nav-inactive'
                 }`
               }
             >
@@ -205,15 +211,31 @@ function AppShell() {
                 </span>
               )}
               {to === '/inbox' && inboxUnread > 0 && (
-                <span className="bg-white text-sky-700 text-xs font-bold rounded-full min-w-4 h-4 px-1 flex items-center justify-center leading-none">
+                <span className="brand-badge bg-white text-xs font-bold rounded-full min-w-4 h-4 px-1 flex items-center justify-center leading-none">
                   {inboxUnread}
                 </span>
               )}
             </NavLink>
           ))}
         </nav>
-        <div className="px-4 py-3 border-t border-sky-600">
-          <p className="text-xs text-sky-400">© 2025 QUOTEX</p>
+
+        {/* Settings link at bottom */}
+        <div className="px-2 pb-2">
+          <NavLink
+            to="/settings"
+            className={({ isActive }) =>
+              `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                isActive ? 'brand-nav-active' : 'brand-nav-inactive'
+              }`
+            }
+          >
+            <SettingsIcon size={16} />
+            <span>Settings</span>
+          </NavLink>
+        </div>
+
+        <div className="px-4 py-3 border-t" style={{ borderColor: 'var(--brand-600)' }}>
+          <p className="text-xs brand-footer">© 2025 {companyName}</p>
         </div>
       </aside>
 
@@ -227,14 +249,15 @@ function AppShell() {
         {/* Page content */}
         <main className="flex-1 overflow-auto">
           <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/analyze" element={<Analyze />} />
-            <Route path="/ai" element={<AiChat />} />
-            <Route path="/catalog" element={<ItemCatalog />} />
-            <Route path="/quote" element={<BuildQuote />} />
+            <Route path="/"         element={<Dashboard />} />
+            <Route path="/analyze"  element={<Analyze />} />
+            <Route path="/ai"       element={<AiChat />} />
+            <Route path="/catalog"  element={<ItemCatalog />} />
+            <Route path="/quote"    element={<BuildQuote />} />
             <Route path="/proposal" element={<ProposalView />} />
-            <Route path="/tracker" element={<ProposalTracker />} />
-            <Route path="/inbox" element={<InboxPage />} />
+            <Route path="/tracker"  element={<ProposalTracker />} />
+            <Route path="/inbox"    element={<InboxPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </main>
       </div>

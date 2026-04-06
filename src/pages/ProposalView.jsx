@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Printer, Copy, ArrowLeft, CheckCircle, Send, X, Loader } from 'lucide-react'
 import { useStore } from '../store'
+import { generatePalette, DEFAULT_BRAND_COLOR } from '../brand'
 
 const fmt = (n) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -20,6 +21,9 @@ export default function ProposalView() {
 
   const proposalIdRef = useRef(null)
   const { saveProposal, markProposalSent } = useStore()
+  const branding = useStore(s => s.branding)
+  const palette  = generatePalette(branding?.primaryColor || DEFAULT_BRAND_COLOR)
+  const companyName = branding?.companyName || 'QUOTEX'
 
   useEffect(() => {
     const raw = sessionStorage.getItem('proposal')
@@ -249,18 +253,20 @@ export default function ProposalView() {
       <div className="max-w-3xl mx-auto my-8 bg-white shadow-lg rounded-xl overflow-hidden print:shadow-none print:rounded-none print:my-0">
 
         {/* Header */}
-        <div className="bg-blue-700 text-white px-10 py-8">
+        <div className="text-white px-10 py-8" style={{ backgroundColor: palette[700] }}>
           <div className="flex justify-between items-start">
             <div>
               <h1 className="text-2xl font-bold tracking-tight">PROPOSAL</h1>
-              <p className="text-blue-200 text-sm mt-1">{today}</p>
+              <p className="text-sm mt-1" style={{ color: palette[200] }}>{today}</p>
               {expirationFormatted && (
-                <p className="text-blue-100 text-sm mt-0.5 font-medium">Valid Until: {expirationFormatted}</p>
+                <p className="text-sm mt-0.5 font-medium" style={{ color: palette[100] }}>Valid Until: {expirationFormatted}</p>
               )}
             </div>
             <div className="text-right">
-              <p className="font-semibold text-lg">QUOTEX</p>
-              <p className="text-blue-200 text-sm">Contractor Services</p>
+              {branding?.logo
+                ? <img src={branding.logo} alt="logo" className="h-10 object-contain mb-1 ml-auto" />
+                : <p className="font-semibold text-lg">{companyName}</p>}
+              <p className="text-sm" style={{ color: palette[200] }}>Contractor Services</p>
             </div>
           </div>
         </div>
@@ -293,8 +299,8 @@ export default function ProposalView() {
               return (
                 <div key={key}>
                   <div className="flex items-center gap-3 mb-3">
-                    <span className="text-xs font-bold uppercase tracking-widest text-blue-700">{key}</span>
-                    <div className="flex-1 h-px bg-blue-100" />
+                    <span className="text-xs font-bold uppercase tracking-widest" style={{ color: palette[700] }}>{key}</span>
+                    <div className="flex-1 h-px" style={{ backgroundColor: palette[100] }} />
                   </div>
                   <div className="space-y-2 pl-0">
                     {items.map(line => (
@@ -335,7 +341,7 @@ export default function ProposalView() {
             <tfoot>
               <tr className="border-t-2 border-gray-300">
                 <td colSpan={2} />
-                <td className="pt-4 text-right text-xl font-bold text-blue-700">${fmt(subtotal)}</td>
+                <td className="pt-4 text-right text-xl font-bold" style={{ color: palette[700] }}>${fmt(subtotal)}</td>
               </tr>
             </tfoot>
           </table>

@@ -229,6 +229,17 @@ export const useStore = create(
       deleteProposal: (id) =>
         set((s) => ({ proposals: s.proposals.filter((p) => p.id !== id) })),
 
+      // ── Branding ─────────────────────────────────────────────────────────────
+      branding: {
+        companyName: 'QUOTEX',
+        tagline: 'Smart Contractor Pricing',
+        logo: null,           // base64 data URL
+        primaryColor: null,   // hex string, null = default sky-700
+      },
+
+      updateBranding: (changes) =>
+        set((s) => ({ branding: { ...s.branding, ...changes } })),
+
       // ── Read message tracking (IDs of messages the user has opened) ───────
       readMessageIds: [],
 
@@ -255,6 +266,7 @@ export const useStore = create(
         proposals: [],
         nextProposalId: 1,
         readMessageIds: [],
+        branding: { companyName: 'QUOTEX', tagline: 'Smart Contractor Pricing', logo: null, primaryColor: null },
         // Persisted data always wins — overwrites the defaults above
         ...persisted,
       }),
