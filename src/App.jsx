@@ -192,7 +192,7 @@ function AppShell() {
       <aside className="w-56 flex flex-col no-print shrink-0 shadow-lg" style={{ backgroundColor: 'var(--brand-700)' }}>
 
         {/* Logo */}
-        <div className="px-5 py-5 border-b" style={{ borderColor: 'var(--brand-600)' }}>
+        <div className="px-5 py-5 border-b flex flex-col items-center" style={{ borderColor: 'var(--brand-600)' }}>
           {logo
             ? <img src={logo} alt="logo" className="h-12 object-contain" />
             : <h1 className="text-xl font-black text-white tracking-widest leading-tight">{companyName}</h1>}

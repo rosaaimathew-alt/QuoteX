@@ -26,7 +26,7 @@ function SidebarPreview({ companyName, tagline, logo, color }) {
       style={{ backgroundColor: palette[700] }}
     >
       {/* Logo area */}
-      <div className="px-4 py-4 border-b" style={{ borderColor: palette[600] }}>
+      <div className="px-4 py-4 border-b flex flex-col items-center" style={{ borderColor: palette[600] }}>
         {logo
           ? <img src={logo} alt="logo" className="h-12 object-contain" />
           : <p className="text-lg font-black text-white tracking-widest leading-tight">{companyName || 'QUOTEX'}</p>}
