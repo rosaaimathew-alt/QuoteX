@@ -348,14 +348,19 @@ export default function ProposalView() {
 
         {/* Terms & Signature */}
         <div className="px-10 pb-10">
-          <div className="bg-gray-50 rounded-lg p-4 text-xs text-gray-500 leading-relaxed">
-            <p className="font-semibold text-gray-600 mb-1">Terms & Conditions</p>
+          <div className="bg-gray-50 rounded-lg p-4 text-xs text-gray-500 leading-relaxed space-y-2">
+            <p className="font-semibold text-gray-600">Terms & Conditions</p>
             <p>
               {expirationFormatted
                 ? `This proposal is valid until ${expirationFormatted}.`
                 : 'This proposal is valid for 30 days from the date above.'
-              } A 50% deposit is required to schedule work. Final payment is due upon completion. Pricing is based on normal site conditions; any unforeseen conditions may result in additional costs with prior approval. All work to be completed in a professional manner according to standard practices.
+              }
             </p>
+            <p><span className="font-semibold text-gray-600">Payment:</span> A 20% deposit is required to schedule work. Progress payments will follow different stages of completion as labeled in a scope of work document drafted once the proposal has been accepted.</p>
+            <p><span className="font-semibold text-gray-600">Site Conditions:</span> Pricing is based on normal site conditions. Any unforeseen conditions may result in additional costs with prior written approval.</p>
+            <p><span className="font-semibold text-gray-600">Warranty:</span> All projects include a standard 1-year warranty on materials and a 5-year structural warranty.</p>
+            <p className="font-semibold text-gray-600 pt-1">Addendums</p>
+            <p>Any changes resulting in additional charges must be paid at the time of the change. If the inspector requires engineering, it will result in an additional charge.</p>
           </div>
           <div className="mt-8 grid grid-cols-2 gap-10">
             <div>
