@@ -337,13 +337,14 @@ export default function ProposalView() {
                 </tr>
               ))}
             </tbody>
-            <tfoot>
-              <tr className="border-t-2 border-gray-300">
-                <td colSpan={2} />
-                <td className="pt-4 text-right text-xl font-bold" style={{ color: palette[700] }}>${fmt(subtotal)}</td>
-              </tr>
-            </tfoot>
           </table>
+          {/* Total — always rendered after ALL rows, never mid-page */}
+          <div style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }} className="border-t-2 border-gray-300 mt-2 pt-4 flex justify-end">
+            <div className="text-right">
+              <span className="text-xs font-semibold uppercase tracking-widest text-gray-400 mr-4">Total</span>
+              <span className="text-xl font-bold" style={{ color: palette[700] }}>${fmt(subtotal)}</span>
+            </div>
+          </div>
         </div>
 
         {/* Terms & Signature */}
