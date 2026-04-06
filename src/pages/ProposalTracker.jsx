@@ -722,22 +722,36 @@ export default function ProposalTracker() {
       </div>
 
       {/* Stats strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-        {[
-          { label: 'Total Proposals', value: proposals.length, icon: FileText, color: 'text-[var(--brand-500)]' },
-          { label: 'Won', value: proposals.filter(p => p.status === 'Won').length, icon: CheckCircle, color: 'text-[var(--brand-400)]' },
+      {(() => {
+        const clientCount = buildGroups(proposals).length
+        const stats = [
           { label: 'Won Revenue', value: `$${fmt(proposals.filter(p => p.status === 'Won').reduce((s, p) => s + (p.total || 0), 0))}`, icon: DollarSign, color: 'text-green-500' },
           { label: 'Open Pipeline', value: `$${fmt(proposals.filter(p => ['Sent','Followed Up','Negotiating'].includes(p.status)).reduce((s, p) => s + (p.total || 0), 0))}`, icon: TrendingUp, color: 'text-green-600' },
-        ].map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="flex items-center gap-1.5 mb-1">
-              <Icon size={14} className={color} />
-              <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">{label}</span>
+          { label: 'Won', value: proposals.filter(p => p.status === 'Won').length, icon: CheckCircle, color: 'text-[var(--brand-400)]' },
+        ]
+        return (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+            {/* Total Proposals — shows unique clients, total proposals as sub */}
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <div className="flex items-center gap-1.5 mb-1">
+                <FileText size={14} className="text-[var(--brand-500)]" />
+                <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">Total Proposals</span>
+              </div>
+              <p className="text-xl font-bold text-gray-900">{clientCount}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{proposals.length} total incl. revisions</p>
             </div>
-            <p className="text-xl font-bold text-gray-900">{value}</p>
+            {stats.map(({ label, value, icon: Icon, color }) => (
+              <div key={label} className="bg-white rounded-xl border border-gray-200 p-4">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Icon size={14} className={color} />
+                  <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">{label}</span>
+                </div>
+                <p className="text-xl font-bold text-gray-900">{value}</p>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        )
+      })()}
 
       {/* Tabs + Filter */}
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
