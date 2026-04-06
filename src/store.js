@@ -229,6 +229,10 @@ export const useStore = create(
       deleteProposal: (id) =>
         set((s) => ({ proposals: s.proposals.filter((p) => p.id !== id) })),
 
+      // ── Theme ────────────────────────────────────────────────────────────────
+      theme: 'light',
+      setTheme: (theme) => set({ theme }),
+
       // ── Branding ─────────────────────────────────────────────────────────────
       branding: {
         companyName: 'QUOTEX',
@@ -266,6 +270,7 @@ export const useStore = create(
         proposals: [],
         nextProposalId: 1,
         readMessageIds: [],
+        theme: 'light',
         branding: { companyName: 'QUOTEX', tagline: 'Smart Contractor Pricing', logo: null, primaryColor: null },
         // Persisted data always wins — overwrites the defaults above
         ...persisted,

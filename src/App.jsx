@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon } from 'lucide-react'
+import { LayoutDashboard, FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon, Sun, Moon } from 'lucide-react'
 import { useEffect, useState, useRef } from 'react'
 import Dashboard from './pages/Dashboard'
 import Analyze from './pages/Analyze'
@@ -11,7 +11,7 @@ import InboxPage from './pages/Inbox'
 import AiChat from './pages/AiChat'
 import SettingsPage from './pages/Settings'
 import { useStore } from './store'
-import { applyBrandStyles, DEFAULT_BRAND_COLOR } from './brand'
+import { applyBrandStyles, applyTheme, DEFAULT_BRAND_COLOR } from './brand'
 
 const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -145,12 +145,21 @@ function AppShell() {
   const proposals      = useStore(s => s.proposals)
   const readMessageIds = useStore(s => s.readMessageIds)
   const branding       = useStore(s => s.branding)
+  const theme          = useStore(s => s.theme)
+  const setTheme       = useStore(s => s.setTheme)
   const [inboxUnread, setInboxUnread] = useState(0)
+
+  const isDark = theme === 'dark'
 
   // Apply brand CSS variables whenever the stored color changes
   useEffect(() => {
     applyBrandStyles(branding?.primaryColor || DEFAULT_BRAND_COLOR)
   }, [branding?.primaryColor])
+
+  // Apply light/dark theme
+  useEffect(() => {
+    applyTheme(isDark)
+  }, [isDark])
 
   const dueCount = proposals.reduce((count, p) => {
     const today = new Date(); today.setHours(0, 0, 0, 0)
@@ -234,8 +243,15 @@ function AppShell() {
           </NavLink>
         </div>
 
-        <div className="px-4 py-3 border-t" style={{ borderColor: 'var(--brand-600)' }}>
+        <div className="px-4 py-3 border-t flex items-center justify-between" style={{ borderColor: 'var(--brand-600)' }}>
           <p className="text-xs brand-footer">© 2025 {companyName}</p>
+          <button
+            onClick={() => setTheme(isDark ? 'light' : 'dark')}
+            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors brand-nav-inactive hover:bg-white/10"
+          >
+            {isDark ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
         </div>
       </aside>
 

@@ -143,3 +143,86 @@ export function extractDominantColor(dataUrl) {
 }
 
 export const DEFAULT_BRAND_COLOR = '#0369a1'  // sky-700 equivalent
+
+// ── Dark mode injection ───────────────────────────────────────────────────────
+// Overrides the most common Tailwind utility colors with dark equivalents.
+// Uses !important so no component files need to be touched.
+
+export function applyTheme(isDark) {
+  let el = document.getElementById('qx-theme')
+  if (!el) { el = document.createElement('style'); el.id = 'qx-theme'; document.head.appendChild(el) }
+
+  if (!isDark) {
+    el.textContent = ''
+    document.documentElement.classList.remove('dark')
+    return
+  }
+
+  document.documentElement.classList.add('dark')
+  el.textContent = `
+    html.dark { --brand-50: #111827; color-scheme: dark; }
+    html.dark body { background-color: #111827; }
+
+    /* Backgrounds */
+    html.dark .bg-white           { background-color: #1f2937 !important; }
+    html.dark .bg-gray-50         { background-color: #111827 !important; }
+    html.dark .bg-gray-100        { background-color: #1a2234 !important; }
+    html.dark .bg-sky-50          { background-color: #111827 !important; }
+    html.dark .bg-blue-50         { background-color: #1a2234 !important; }
+    html.dark .bg-green-50        { background-color: #14291f !important; }
+    html.dark .bg-red-50          { background-color: #2d1414 !important; }
+    html.dark .bg-amber-50        { background-color: #2d2010 !important; }
+    html.dark .bg-purple-50       { background-color: #1e1a2d !important; }
+
+    /* Text */
+    html.dark .text-gray-900      { color: #f9fafb !important; }
+    html.dark .text-gray-800      { color: #f3f4f6 !important; }
+    html.dark .text-gray-700      { color: #e5e7eb !important; }
+    html.dark .text-gray-600      { color: #d1d5db !important; }
+    html.dark .text-gray-500      { color: #9ca3af !important; }
+    html.dark .text-gray-400      { color: #6b7280 !important; }
+    html.dark .text-gray-300      { color: #4b5563 !important; }
+
+    /* Borders */
+    html.dark .border-gray-200    { border-color: #374151 !important; }
+    html.dark .border-gray-100    { border-color: #2d3748 !important; }
+    html.dark .border-gray-300    { border-color: #4b5563 !important; }
+
+    /* Dividers */
+    html.dark .divide-gray-50  > :not([hidden]) ~ :not([hidden]) { border-color: #2d3748 !important; }
+    html.dark .divide-white    > :not([hidden]) ~ :not([hidden]) { border-color: #374151 !important; }
+
+    /* Hover states */
+    html.dark .hover\\:bg-gray-50:hover   { background-color: #1a2234 !important; }
+    html.dark .hover\\:bg-gray-100:hover  { background-color: #2d3748 !important; }
+    html.dark .hover\\:bg-sky-50:hover    { background-color: #1a2234 !important; }
+    html.dark .hover\\:bg-blue-50:hover   { background-color: #1a2234 !important; }
+    html.dark .hover\\:bg-red-50:hover    { background-color: #2d1414 !important; }
+
+    /* Inputs */
+    html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="color"]),
+    html.dark textarea,
+    html.dark select {
+      background-color: #1f2937 !important;
+      color: #f3f4f6 !important;
+      border-color: #374151 !important;
+    }
+
+    /* Shadows — deepen them in dark mode */
+    html.dark .shadow-sm  { box-shadow: 0 1px 2px rgba(0,0,0,0.5)  !important; }
+    html.dark .shadow-lg  { box-shadow: 0 10px 15px rgba(0,0,0,0.6) !important; }
+    html.dark .shadow-xl  { box-shadow: 0 20px 25px rgba(0,0,0,0.7) !important; }
+    html.dark .shadow-2xl { box-shadow: 0 25px 50px rgba(0,0,0,0.8) !important; }
+
+    /* Sticky table headers */
+    html.dark .bg-white.bg-opacity-60 { background-color: rgba(31,41,55,0.8) !important; }
+
+    /* White text on colored backgrounds should stay white */
+    html.dark .bg-blue-600,
+    html.dark .bg-green-600,
+    html.dark .bg-sky-600,
+    html.dark .bg-sky-700,
+    html.dark .bg-red-500,
+    html.dark .bg-amber-400 { color: #fff !important; }
+  `
+}
