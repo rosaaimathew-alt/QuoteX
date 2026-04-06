@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import {
   FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox,
-  Sheet, MessageSquareMore, DollarSign, TrendingUp, Award, Package,
+  MessageSquareMore, DollarSign, TrendingUp, Award, Package,
   Plus, ArrowRight, Bell, AlertCircle, Clock, ChevronRight,
 } from 'lucide-react'
 import { useStore } from '../store'
@@ -337,11 +337,13 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <ActionCard
             icon={FileText}
-            label="Analyze Estimate"
-            description="AI-powered competitor quote analysis"
+            label="Analyze"
+            description="AI analysis or import a pricing spreadsheet"
             color="bg-sky-500"
-            actionLabel="Open"
+            actionLabel="Analyze"
             action={() => navigate('/analyze')}
+            secondaryAction={() => navigate('/analyze')}
+            secondaryLabel="Import"
           />
           <ActionCard
             icon={ClipboardList}
@@ -384,14 +386,6 @@ export default function Dashboard() {
             color="bg-teal-500"
             actionLabel="Open Inbox"
             action={() => navigate('/inbox')}
-          />
-          <ActionCard
-            icon={Sheet}
-            label="Import Pricing"
-            description="Import an existing Excel or CSV spreadsheet"
-            color="bg-emerald-500"
-            actionLabel="Import"
-            action={() => navigate('/import')}
           />
           <ActionCard
             icon={FileCheck}

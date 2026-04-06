@@ -1,8 +1,8 @@
 import { BrowserRouter, Routes, Route, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox, Sheet, MessageSquareMore, Search, X } from 'lucide-react'
-import { useEffect, useState, useRef, lazy, Suspense } from 'react'
+import { LayoutDashboard, FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox, MessageSquareMore, Search, X } from 'lucide-react'
+import { useEffect, useState, useRef, Suspense } from 'react'
 import Dashboard from './pages/Dashboard'
-import AnalyzeEstimate from './pages/AnalyzeEstimate'
+import Analyze from './pages/Analyze'
 import ItemCatalog from './pages/ItemCatalog'
 import BuildQuote from './pages/BuildQuote'
 import ProposalView from './pages/ProposalView'
@@ -15,8 +15,7 @@ const ImportPricing = lazy(() => import('./pages/ImportPricing'))
 
 const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/analyze', label: 'Analyze Estimate', icon: FileText },
-  { to: '/import', label: 'Import Pricing', icon: Sheet },
+  { to: '/analyze', label: 'Analyze', icon: FileText },
   { to: '/ai', label: 'AI Assistant', icon: MessageSquareMore },
   { to: '/catalog', label: 'Item Catalog', icon: BookOpen },
   { to: '/quote', label: 'Build Quote', icon: ClipboardList },
@@ -229,8 +228,7 @@ function AppShell() {
         <main className="flex-1 overflow-auto">
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/analyze" element={<AnalyzeEstimate />} />
-            <Route path="/import" element={<Suspense fallback={<div className="p-10 text-center text-gray-400 text-sm">Loading…</div>}><ImportPricing /></Suspense>} />
+            <Route path="/analyze" element={<Analyze />} />
             <Route path="/ai" element={<AiChat />} />
             <Route path="/catalog" element={<ItemCatalog />} />
             <Route path="/quote" element={<BuildQuote />} />
