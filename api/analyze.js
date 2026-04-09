@@ -5,19 +5,18 @@
  *   { text: string }                          — plain text estimate
  *   { fileData: base64, fileName, mimeType }  — PDF, JPEG, PNG, GIF, WEBP
  *
- * PDFs: text is extracted server-side via pdf-parse, then sent to Claude as text.
- * Images: sent to Claude via the vision API (base64).
+ * PDFs: text extracted server-side via pdf-parse, then sent to Gemini as text.
+ * Images: sent to Gemini via inline vision (base64).
  *
- * Requires env var: ANTHROPIC_API_KEY
+ * Requires env var: GEMINI_API_KEY
  */
 
-import Anthropic from '@anthropic-ai/sdk'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import { createRequire } from 'module'
 import { fileURLToPath } from 'url'
 import { dirname, resolve } from 'path'
 import dotenv from 'dotenv'
 
-// Load .env for local dev (no-op on Vercel where env vars are set in the dashboard)
 dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../.env') })
 
 const require = createRequire(import.meta.url)
@@ -43,10 +42,7 @@ RULES:
 
 1. ONE LINE ITEM PER PRICED ENTRY — only create a JSON object if that item has a dollar amount in the estimate. If "Gable Roof" is priced at $12,500, that is ONE item. Do not split it into deck, rafters, shingles, etc. as separate items.
 
-2. ALL MATERIALS BELONG IN THE DESCRIPTION — every material, component, or task mentioned anywhere under a priced section goes into that section's description field. Use your construction knowledge to identify what belongs to each priced section. Examples:
-   - Deck boards, columns, ceiling boards, rafters, LVL ridge beam, headers, sheathing, underlayment, shingles, drip edge → all belong in the "Gable Roof" description if Gable Roof is the priced line
-   - Sub-items with no price → fold into the nearest priced parent's description
-   - Materials listed without a price anywhere in the document → use trade knowledge to place them in the correct priced section's description
+2. ALL MATERIALS BELONG IN THE DESCRIPTION — every material, component, or task mentioned anywhere under a priced section goes into that section's description field. Use your construction knowledge to identify what belongs to each priced section.
 
 3. NEVER CREATE A NEW LINE ITEM for something that is not separately priced in the original document. If it doesn't have its own dollar amount, it belongs in a description — not as its own item.
 
@@ -73,22 +69,26 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Provide text or fileData' })
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) {
-    return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured. Add it to your .env file.' })
+    return res.status(500).json({ error: 'GEMINI_API_KEY not configured. Add it to your .env file.' })
   }
 
-  const client = new Anthropic({ apiKey })
+  const genAI = new GoogleGenerativeAI(apiKey)
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-1.5-flash',
+    systemInstruction: SYSTEM_PROMPT,
+  })
 
   try {
-    let messageContent = []
+    let prompt
 
     if (fileData) {
       const ext = (fileName?.split('.').pop() || '').toLowerCase()
       const detectedMime = mimeType || guessMime(ext)
 
       if (detectedMime === 'application/pdf') {
-        // Extract text from PDF using pdf-parse, then send as text prompt
+        // Extract text from PDF, then send as text to Gemini
         const buffer = Buffer.from(fileData, 'base64')
         let pdfText = ''
         try {
@@ -103,40 +103,25 @@ export default async function handler(req, res) {
           return res.status(400).json({ error: 'PDF appears to be a scanned image with no text layer. Please upload a JPEG or PNG of the estimate instead.' })
         }
 
-        messageContent = [
-          { type: 'text', text: `Extract all line items from this estimate:\n\n${pdfText}` },
-        ]
+        prompt = `Extract all line items from this estimate:\n\n${pdfText}`
       } else if (IMAGE_TYPES.includes(detectedMime)) {
-        // Vision — JPEG/PNG/GIF/WEBP
-        messageContent = [
-          {
-            type: 'image',
-            source: {
-              type: 'base64',
-              media_type: detectedMime,
-              data: fileData,
-            },
-          },
-          { type: 'text', text: 'Extract all line items from this estimate image.' },
+        // Vision — send image inline
+        prompt = [
+          { inlineData: { data: fileData, mimeType: detectedMime } },
+          'Extract all line items from this estimate image.',
         ]
       } else {
         return res.status(400).json({ error: `Unsupported file type: ${ext || detectedMime}. Use PDF, JPEG, or PNG.` })
       }
     } else {
-      messageContent = [{ type: 'text', text: `Extract line items from this estimate:\n\n${text}` }]
+      prompt = `Extract line items from this estimate:\n\n${text}`
     }
 
-    const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 8192,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: messageContent }],
-    })
-
-    const raw = response.content[0]?.text || '[]'
+    const result = await model.generateContent(prompt)
+    const raw = result.response.text()
     const clean = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
 
-    // If response was cut off, trim to last complete object so JSON.parse succeeds
+    // If response was cut off, trim to last complete object
     let jsonStr = clean
     if (!jsonStr.endsWith(']')) {
       const lastClose = jsonStr.lastIndexOf('}')
@@ -162,7 +147,7 @@ export default async function handler(req, res) {
     return res.status(200).json(items)
   } catch (err) {
     console.error('analyze error:', err)
-    const msg = err?.error?.error?.message || err?.message || 'Analysis failed'
+    const msg = err?.message || 'Analysis failed'
     return res.status(500).json({ error: msg })
   }
 }

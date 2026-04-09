@@ -1,7 +1,7 @@
 /**
  * Local development server
  * Run: node api/server.js
- * Requires: ANTHROPIC_API_KEY and RESEND_API_KEY in .env file
+ * Requires: GEMINI_API_KEY and RESEND_API_KEY in .env file
  * Note: KV_REST_API_URL not required locally — messages use in-memory store
  */
 
@@ -32,11 +32,11 @@ app.post('/api/ai-chat', (req, res) => aiChatHandler(req, res))
 
 const PORT = process.env.API_PORT || 3001
 app.listen(PORT, () => {
-  const hasKey = !!process.env.ANTHROPIC_API_KEY
+  const hasKey = !!process.env.GEMINI_API_KEY
   const hasResend = !!process.env.RESEND_API_KEY
   const hasKV = !!process.env.KV_REST_API_URL
   console.log(`API server running on http://localhost:${PORT}`)
-  console.log(`ANTHROPIC_API_KEY: ${hasKey   ? 'loaded ✓' : 'MISSING ✗'}`)
-  console.log(`RESEND_API_KEY:    ${hasResend ? 'loaded ✓' : 'MISSING ✗'}`)
-  console.log(`KV_REST_API_URL:   ${hasKV    ? 'loaded ✓' : 'not set  (using in-memory store for local dev)'}`)
+  console.log(`GEMINI_API_KEY:  ${hasKey   ? 'loaded ✓' : 'MISSING ✗'}`)
+  console.log(`RESEND_API_KEY:  ${hasResend ? 'loaded ✓' : 'MISSING ✗'}`)
+  console.log(`KV_REST_API_URL: ${hasKV    ? 'loaded ✓' : 'not set  (using in-memory store for local dev)'}`)
 })
