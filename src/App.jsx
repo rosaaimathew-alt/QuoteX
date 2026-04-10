@@ -1,292 +1,751 @@
-import { BrowserRouter, Routes, Route, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon, Sun, Moon, Users } from 'lucide-react'
-import { useEffect, useState, useRef } from 'react'
-import Dashboard from './pages/Dashboard'
-import Analyze from './pages/Analyze'
-import ItemCatalog from './pages/ItemCatalog'
-import BuildQuote from './pages/BuildQuote'
-import ProposalView from './pages/ProposalView'
-import ProposalTracker from './pages/ProposalTracker'
-import InboxPage from './pages/Inbox'
-import AiChat from './pages/AiChat'
-import SettingsPage from './pages/Settings'
-import ClientList from './pages/ClientList'
-import { useStore } from './store'
-import { applyBrandStyles, applyTheme, DEFAULT_BRAND_COLOR } from './brand'
+import { useState, useEffect } from 'react'
+import { Phone, Mail, MapPin, Clock, ChevronRight, Menu, X } from 'lucide-react'
 
-const NAV = [
-  { to: '/',        label: 'Dashboard',       icon: LayoutDashboard },
-  { to: '/clients', label: 'Clients',          icon: Users },
-  { to: '/analyze', label: 'Analyze',          icon: FileText },
-  { to: '/ai',      label: 'AI Assistant',     icon: MessageSquareMore },
-  { to: '/catalog', label: 'Item Catalog',     icon: BookOpen },
-  { to: '/quote',   label: 'Build Quote',      icon: ClipboardList },
-  { to: '/proposal',label: 'Proposal',         icon: FileCheck },
-  { to: '/tracker', label: 'Proposal Tracker', icon: BarChart2 },
-  { to: '/inbox',   label: 'Inbox',            icon: Inbox },
+/* Inline Instagram SVG (not available in this lucide-react version) */
+function Instagram({ size = 24, className = '', style = {} }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      style={style}
+    >
+      <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+    </svg>
+  )
+}
+
+const IG_URL = 'https://www.instagram.com/spawday_ct/'
+
+/* ─── Image URLs (Unsplash) ─── */
+const HERO_IMG =
+  'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=800&h=900&fit=crop&q=80'
+
+const SERVICE_IMGS = [
+  'https://images.unsplash.com/photo-1537151625747-768eb6cf92b2?w=600&h=400&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?w=600&h=400&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=600&h=400&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1552053831-71594a27632d?w=600&h=400&fit=crop&q=80',
 ]
 
-const STATUS_BADGE = {
-  Won:           'bg-green-100 text-green-700',
-  Lost:          'bg-red-100 text-red-700',
-  Draft:         'bg-gray-100 text-gray-600',
-  Sent:          'bg-blue-100 text-blue-700',
-  'Followed Up': 'bg-purple-100 text-purple-700',
-  Negotiating:   'bg-amber-100 text-amber-700',
-}
+const GALLERY_IMGS = [
+  'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400&h=400&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=400&h=400&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=400&h=400&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1537151625747-768eb6cf92b2?w=400&h=400&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1544568100-847a948585b9?w=400&h=400&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1552053831-71594a27632d?w=400&h=400&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1583337130417-13219ce76604?w=400&h=400&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1560807707-8cc77767d783?w=400&h=400&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1596492784531-6e6eb5ea9993?w=400&h=400&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1530281700549-e82e7bf110d6?w=400&h=400&fit=crop&q=80',
+]
 
-const fmt = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+/* ─── Data ─── */
+const SERVICES = [
+  {
+    title: 'Bathing & Hygienic Grooming',
+    desc: 'A thorough bath with premium shampoos, conditioning, and blow-dry — leaving your pet fresh, clean, and irresistibly soft.',
+    img: SERVICE_IMGS[0],
+  },
+  {
+    title: 'Full-Body Grooming',
+    desc: 'Breed-specific haircuts and styling by experienced groomers who treat every pet like family.',
+    img: SERVICE_IMGS[1],
+  },
+  {
+    title: 'Ear & Eye Cleaning',
+    desc: 'Gentle, careful cleaning of ears and eyes to prevent infection and keep your pet comfortable and healthy.',
+    img: SERVICE_IMGS[2],
+  },
+  {
+    title: 'Nail Trimming',
+    desc: 'Stress-free nail trimming done with care — we come to your door so your pet stays relaxed at home.',
+    img: SERVICE_IMGS[3],
+  },
+]
 
-const UNREAD_POLL = 60_000
+const PRICING = [
+  { size: 'Small', weight: '25 lbs & under', short: 60, long: 70, full: 90 },
+  { size: 'Medium', weight: '25–45 lbs', short: 80, long: 90, full: 110 },
+  { size: 'Large', weight: '45–60 lbs', short: 100, long: 110, full: 130 },
+]
 
-// ── Global Search ────────────────────────────────────────────────────────────
-function GlobalSearch() {
-  const navigate  = useNavigate()
-  const proposals = useStore(s => s.proposals)
-  const catalog   = useStore(s => s.catalog)
-  const [query, setQuery] = useState('')
-  const [open, setOpen]   = useState(false)
-  const ref = useRef(null)
+const NAV_LINKS = [
+  { label: 'Services', href: '#services' },
+  { label: 'About', href: '#about' },
+  { label: 'Pricing', href: '#pricing' },
+  { label: 'Gallery', href: '#gallery' },
+  { label: 'Contact', href: '#contact' },
+]
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Navbar
+   ───────────────────────────────────────────────────────────────────────────── */
+function Navbar() {
+  const [scrolled, setScrolled] = useState(false)
+  const [open, setOpen] = useState(false)
 
   useEffect(() => {
-    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
-    document.addEventListener('mousedown', close)
-    return () => document.removeEventListener('mousedown', close)
+    const onScroll = () => setScrolled(window.scrollY > 20)
+    window.addEventListener('scroll', onScroll)
+    return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  const q = query.toLowerCase().trim()
-
-  const matchedProposals = q.length < 2 ? [] : proposals
-    .filter(p => [p.client, p.email, p.phone, p.address, p.status]
-      .some(v => v?.toLowerCase().includes(q)))
-    .slice(0, 6)
-
-  const matchedCatalog = q.length < 2 ? [] : catalog
-    .filter(c => [c.name, c.description, c.category]
-      .some(v => v?.toLowerCase().includes(q)))
-    .slice(0, 4)
-
-  const hasResults = matchedProposals.length > 0 || matchedCatalog.length > 0
-  const showEmpty  = q.length >= 2 && !hasResults
-
-  const openProposal = (p) => {
-    sessionStorage.setItem('proposal', JSON.stringify({
-      client: p.client, email: p.email, phone: p.phone,
-      address: p.address, expiration: p.expiration,
-      lines: p.lines || [], margin: 0, proposalId: p.id,
-    }))
-    setQuery(''); setOpen(false)
-    navigate('/proposal')
-  }
-
-  const goToCatalog = () => { setQuery(''); setOpen(false); navigate('/catalog') }
-
   return (
-    <div ref={ref} className="relative">
-      <div className={`flex items-center gap-2 border rounded-lg px-3 py-1.5 bg-white w-64 transition-all ${
-        open ? 'border-[var(--brand-400)] ring-1 ring-[var(--brand-300)]' : 'border-gray-200'
-      }`}>
-        <Search size={14} className="text-gray-400 shrink-0" />
-        <input
-          className="flex-1 text-sm bg-transparent outline-none placeholder:text-gray-400"
-          placeholder="Search clients or items…"
-          value={query}
-          onChange={e => { setQuery(e.target.value); setOpen(true) }}
-          onFocus={() => setOpen(true)}
-        />
-        {query && (
-          <button onClick={() => { setQuery(''); setOpen(false) }} className="text-gray-300 hover:text-gray-500">
-            <X size={13} />
-          </button>
-        )}
+    <nav
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        scrolled
+          ? 'bg-white/95 backdrop-blur-sm shadow-sm border-b border-gray-200'
+          : 'bg-[#F5F4EF]'
+      }`}
+    >
+      <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-16">
+        <a href="#" className="flex items-center gap-2.5">
+          <span className="text-2xl leading-none">🐾</span>
+          <span className="text-xl font-black tracking-wide" style={{ color: '#6B8F71' }}>
+            SPAWDAY
+          </span>
+        </a>
+
+        {/* Desktop */}
+        <div className="hidden md:flex items-center gap-8">
+          {NAV_LINKS.map((l) => (
+            <a
+              key={l.href}
+              href={l.href}
+              className="text-sm font-medium text-[#2c2c2c] hover:text-[#6B8F71] transition-colors"
+            >
+              {l.label}
+            </a>
+          ))}
+          <a
+            href={IG_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-5 py-2 text-sm font-semibold text-white bg-[#6B8F71] hover:bg-[#5a7d60] transition-colors"
+            style={{ borderRadius: 24 }}
+          >
+            Book Now
+          </a>
+        </div>
+
+        {/* Mobile toggle */}
+        <button className="md:hidden p-2 text-[#2c2c2c]" onClick={() => setOpen(!open)}>
+          {open ? <X size={24} /> : <Menu size={24} />}
+        </button>
       </div>
 
-      {open && (hasResults || showEmpty) && (
-        <div className="absolute top-full right-0 mt-1.5 w-80 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden">
-          {matchedProposals.length > 0 && (
-            <div>
-              <p className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-gray-400 bg-gray-50">Clients / Proposals</p>
-              {matchedProposals.map(p => (
-                <button key={p.id} onClick={() => openProposal(p)}
-                  className="w-full text-left px-4 py-2.5 hover:bg-[var(--brand-50)] border-t border-gray-50 transition-colors">
-                  <p className="text-sm font-medium text-gray-900">{p.client || <span className="italic text-gray-400">Unnamed</span>}</p>
-                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                    <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${STATUS_BADGE[p.status] || 'bg-gray-100 text-gray-600'}`}>{p.status}</span>
-                    <span className="text-xs text-gray-400">${fmt(p.total || 0)}</span>
-                    {p.email && <span className="text-xs text-gray-400 truncate max-w-[120px]">{p.email}</span>}
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-          {matchedCatalog.length > 0 && (
-            <div>
-              <p className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-gray-400 bg-gray-50 border-t border-gray-100">Catalog Items</p>
-              {matchedCatalog.map(c => (
-                <button key={c.id} onClick={goToCatalog}
-                  className="w-full text-left px-4 py-2.5 hover:bg-[var(--brand-50)] border-t border-gray-50 transition-colors">
-                  <p className="text-sm font-medium text-gray-900">{c.name}</p>
-                  <p className="text-xs text-gray-400">{c.category} · ${c.unitPrice}/{c.unit}</p>
-                </button>
-              ))}
-            </div>
-          )}
-          {showEmpty && (
-            <div className="px-4 py-5 text-center">
-              <p className="text-sm text-gray-400">No results for "<span className="font-medium text-gray-600">{query}</span>"</p>
-            </div>
-          )}
+      {/* Mobile menu */}
+      {open && (
+        <div className="md:hidden bg-white border-t border-gray-100 px-6 py-4 space-y-3 shadow-lg">
+          {NAV_LINKS.map((l) => (
+            <a
+              key={l.href}
+              href={l.href}
+              onClick={() => setOpen(false)}
+              className="block text-sm font-medium text-[#2c2c2c] hover:text-[#6B8F71] py-1"
+            >
+              {l.label}
+            </a>
+          ))}
+          <a
+            href={IG_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setOpen(false)}
+            className="block text-center px-5 py-2.5 text-sm font-semibold text-white bg-[#6B8F71] hover:bg-[#5a7d60] transition-colors mt-2"
+            style={{ borderRadius: 24 }}
+          >
+            Book Now
+          </a>
         </div>
       )}
-    </div>
+    </nav>
   )
 }
 
-// ── App Shell ────────────────────────────────────────────────────────────────
-function AppShell() {
-  const proposals      = useStore(s => s.proposals)
-  const readMessageIds = useStore(s => s.readMessageIds)
-  const branding       = useStore(s => s.branding)
-  const theme          = useStore(s => s.theme)
-  const setTheme       = useStore(s => s.setTheme)
-  const [inboxUnread, setInboxUnread] = useState(0)
+/* ─────────────────────────────────────────────────────────────────────────────
+   Hero
+   ───────────────────────────────────────────────────────────────────────────── */
+function Hero() {
+  return (
+    <section className="relative pt-16 overflow-hidden" style={{ backgroundColor: '#F5F4EF' }}>
+      {/* Decorative bubbles */}
+      <div className="bubble" style={{ width: 320, height: 320, top: -60, left: -80 }} />
+      <div className="bubble" style={{ width: 180, height: 180, top: 200, left: '8%' }} />
+      <div className="bubble" style={{ width: 100, height: 100, bottom: 40, left: '15%' }} />
+      <div
+        className="bubble"
+        style={{ width: 220, height: 220, top: 60, right: '35%', background: 'rgba(107,143,113,0.05)' }}
+      />
 
-  const isDark = theme === 'dark'
+      <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-2 items-center gap-8 min-h-[calc(100vh-64px)]">
+        {/* Left content */}
+        <div className="relative z-10 py-16 md:py-24 fade-in-up">
+          <p className="text-sm font-semibold tracking-widest uppercase mb-4" style={{ color: '#6B8F71' }}>
+            Mobile Pet Grooming &middot; Connecticut
+          </p>
+          <h1
+            className="text-5xl sm:text-6xl lg:text-7xl leading-[1.05] mb-6"
+            style={{ color: '#2c2c2c', fontWeight: 900, textTransform: 'uppercase' }}
+          >
+            The Care
+            <br />
+            Your Pet
+            <br />
+            <span style={{ color: '#6B8F71' }}>Deserves</span>
+          </h1>
+          <p className="text-lg max-w-md mb-8 leading-relaxed" style={{ color: '#5a5a5a' }}>
+            Connecticut's premier mobile grooming service. We bring the spa experience to your
+            doorstep — so your pet stays relaxed, happy, and looking their best.
+          </p>
+          <div className="flex flex-wrap gap-4">
+            <a
+              href={IG_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-7 py-3 text-sm font-semibold text-white bg-[#6B8F71] hover:bg-[#5a7d60] transition-colors"
+              style={{ borderRadius: 28 }}
+            >
+              Book Your Spawday <ChevronRight size={16} />
+            </a>
+            <a
+              href="#services"
+              className="inline-flex items-center gap-2 px-7 py-3 text-sm font-semibold border-2 hover:bg-[#6B8F71] hover:text-white hover:border-[#6B8F71] transition-colors"
+              style={{ borderRadius: 28, color: '#6B8F71', borderColor: '#6B8F71' }}
+            >
+              Our Services
+            </a>
+          </div>
+        </div>
 
-  // Apply brand CSS variables whenever the stored color changes
-  useEffect(() => {
-    applyBrandStyles(branding?.primaryColor || DEFAULT_BRAND_COLOR)
-  }, [branding?.primaryColor])
+        {/* Right image */}
+        <div className="relative z-10 flex justify-center md:justify-end">
+          <div className="relative">
+            <div
+              className="absolute -inset-4 rounded-3xl"
+              style={{ background: 'rgba(107,143,113,0.1)' }}
+            />
+            <img
+              src={HERO_IMG}
+              alt="Happy groomed dog"
+              className="relative rounded-3xl object-cover w-full max-w-lg shadow-2xl"
+              style={{ maxHeight: 560 }}
+            />
+          </div>
+        </div>
+      </div>
 
-  // Apply light/dark theme
-  useEffect(() => {
-    applyTheme(isDark)
-  }, [isDark])
+      {/* Bottom wave separator */}
+      <div className="absolute bottom-0 left-0 right-0">
+        <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0 60h1440V30c-240 20-480 30-720 30S240 50 0 30v30z" fill="#f0ede6" />
+        </svg>
+      </div>
+    </section>
+  )
+}
 
-  const dueCount = proposals.reduce((count, p) => {
-    const today = new Date(); today.setHours(0, 0, 0, 0)
-    const due = (p.reminders || []).filter(r => !r.dismissed && new Date(r.date + 'T00:00:00') <= today)
-    return count + due.length
-  }, 0)
+/* ─────────────────────────────────────────────────────────────────────────────
+   About
+   ───────────────────────────────────────────────────────────────────────────── */
+function About() {
+  return (
+    <section id="about" className="py-20 md:py-28" style={{ backgroundColor: '#f0ede6' }}>
+      <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-16 items-center">
+        <div>
+          <p className="text-sm font-semibold tracking-widest uppercase mb-3" style={{ color: '#6B8F71' }}>
+            About Us
+          </p>
+          <h2 className="text-3xl sm:text-4xl font-extrabold mb-6" style={{ color: '#2c2c2c' }}>
+            Why Families Trust Spawday
+          </h2>
+          <p className="text-base leading-relaxed mb-5" style={{ color: '#5a5a5a' }}>
+            At Spawday, we believe every pet deserves to feel pampered without the stress of an
+            unfamiliar salon. Our fully equipped mobile grooming van arrives at your doorstep,
+            providing a calm, one-on-one experience that keeps your furry family member comfortable
+            from start to finish.
+          </p>
+          <p className="text-base leading-relaxed mb-8" style={{ color: '#5a5a5a' }}>
+            We offer doorstep pickup and drop-off, premium bathing with hypoallergenic products,
+            breed-specific haircuts, ear and eye cleaning, and gentle nail trimming. Our experienced
+            groomers treat every pet like their own — because happy pets make happy families.
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            {[
+              'Doorstep Pickup & Drop-off',
+              'One-on-One Attention',
+              'Hypoallergenic Products',
+              'Experienced Groomers',
+            ].map((item) => (
+              <div key={item} className="flex items-start gap-2">
+                <span
+                  className="mt-1 w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-white text-xs font-bold"
+                  style={{ backgroundColor: '#6B8F71' }}
+                >
+                  ✓
+                </span>
+                <span className="text-sm font-medium" style={{ color: '#2c2c2c' }}>
+                  {item}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="relative">
+          <div
+            className="absolute -inset-3 rounded-2xl"
+            style={{ background: 'rgba(107,143,113,0.08)' }}
+          />
+          <img
+            src="https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=600&h=500&fit=crop&q=80"
+            alt="Dog being groomed"
+            className="relative rounded-2xl w-full object-cover shadow-lg"
+            style={{ maxHeight: 440 }}
+          />
+        </div>
+      </div>
+    </section>
+  )
+}
 
-  useEffect(() => {
-    const check = async () => {
-      try {
-        const res = await fetch('/api/messages')
-        if (!res.ok) return
-        const { messages } = await res.json()
-        const readSet = new Set(readMessageIds || [])
-        setInboxUnread(messages.filter(m => m.direction === 'inbound' && !readSet.has(m.id)).length)
-      } catch {}
-    }
-    check()
-    const timer = setInterval(check, UNREAD_POLL)
-    return () => clearInterval(timer)
-  }, [readMessageIds])
+/* ─────────────────────────────────────────────────────────────────────────────
+   Services
+   ───────────────────────────────────────────────────────────────────────────── */
+function Services() {
+  return (
+    <section id="services" className="py-20 md:py-28" style={{ backgroundColor: '#F5F4EF' }}>
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="text-center mb-14">
+          <p
+            className="text-sm font-semibold tracking-widest uppercase mb-3"
+            style={{ color: '#6B8F71' }}
+          >
+            What We Offer
+          </p>
+          <h2 className="text-3xl sm:text-4xl font-extrabold" style={{ color: '#2c2c2c' }}>
+            Our Services
+          </h2>
+        </div>
 
-  const companyName = branding?.companyName || 'QUOTEX'
-  const tagline     = branding?.tagline     || 'Smart Contractor Pricing'
-  const logo        = branding?.logo        || null
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {SERVICES.map((s) => (
+            <a
+              key={s.title}
+              href={IG_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="service-card bg-white rounded-2xl overflow-hidden shadow-md cursor-pointer block"
+            >
+              <div className="h-48 overflow-hidden">
+                <img
+                  src={s.img}
+                  alt={s.title}
+                  className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+                />
+              </div>
+              <div className="p-5">
+                <h3 className="text-base font-bold mb-2" style={{ color: '#2c2c2c' }}>
+                  {s.title}
+                </h3>
+                <p className="text-sm leading-relaxed mb-3" style={{ color: '#5a5a5a' }}>
+                  {s.desc}
+                </p>
+                <span
+                  className="text-sm font-semibold inline-flex items-center gap-1"
+                  style={{ color: '#6B8F71' }}
+                >
+                  Learn more <ChevronRight size={14} />
+                </span>
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Pricing
+   ───────────────────────────────────────────────────────────────────────────── */
+function Pricing() {
+  return (
+    <section id="pricing" className="py-20 md:py-28" style={{ backgroundColor: '#f0ede6' }}>
+      <div className="max-w-4xl mx-auto px-6">
+        <div className="text-center mb-14">
+          <p
+            className="text-sm font-semibold tracking-widest uppercase mb-3"
+            style={{ color: '#6B8F71' }}
+          >
+            Transparent Pricing
+          </p>
+          <h2 className="text-3xl sm:text-4xl font-extrabold" style={{ color: '#2c2c2c' }}>
+            Our Prices
+          </h2>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-md overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="pricing-table w-full">
+              <thead>
+                <tr style={{ backgroundColor: '#6B8F71', color: '#fff' }}>
+                  <th className="text-left">Size</th>
+                  <th>Short Hair Bath</th>
+                  <th>Long Hair Bath</th>
+                  <th>Long Hair Full Grooming</th>
+                </tr>
+              </thead>
+              <tbody>
+                {PRICING.map((row) => (
+                  <tr key={row.size} className="hover:bg-[#f9f8f5] transition-colors">
+                    <td>
+                      <span className="font-bold text-base">{row.size}</span>
+                      <br />
+                      <span className="text-xs" style={{ color: '#5a5a5a' }}>
+                        ({row.weight})
+                      </span>
+                    </td>
+                    <td className="font-semibold" style={{ color: '#2c2c2c' }}>
+                      ${row.short}
+                    </td>
+                    <td className="font-semibold" style={{ color: '#2c2c2c' }}>
+                      ${row.long}
+                    </td>
+                    <td className="font-semibold" style={{ color: '#2c2c2c' }}>
+                      ${row.full}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-center text-xs py-3 border-t" style={{ color: '#5a5a5a', borderColor: '#e5e2db' }}>
+            *Extra fee for specific breeds
+          </p>
+        </div>
+
+        <p className="text-center text-sm mt-6" style={{ color: '#5a5a5a' }}>
+          To ensure availability,{' '}
+          <strong style={{ color: '#2c2c2c' }}>please book your appointment 45 days ahead of time.</strong>{' '}
+          We appreciate your cooperation.
+        </p>
+
+        <div className="text-center mt-8">
+          <a
+            href={IG_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-7 py-3 text-sm font-semibold text-white bg-[#6B8F71] hover:bg-[#5a7d60] transition-colors"
+            style={{ borderRadius: 28 }}
+          >
+            Book Now <ChevronRight size={16} />
+          </a>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Instagram Feed
+   ───────────────────────────────────────────────────────────────────────────── */
+function GalleryFeed() {
+  return (
+    <section id="gallery" className="py-20 md:py-28" style={{ backgroundColor: '#F5F4EF' }}>
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="text-center mb-14">
+          <p
+            className="text-sm font-semibold tracking-widest uppercase mb-3"
+            style={{ color: '#6B8F71' }}
+          >
+            Follow Us
+          </p>
+          <h2 className="text-3xl sm:text-4xl font-extrabold mb-2" style={{ color: '#2c2c2c' }}>
+            @spawday_ct
+          </h2>
+          <p className="text-sm" style={{ color: '#5a5a5a' }}>
+            Come be part of the Spawday Family!
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {GALLERY_IMGS.map((src, i) => (
+            <a
+              key={i}
+              href={IG_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="gallery-item relative aspect-square rounded-xl overflow-hidden shadow-sm group"
+            >
+              <img
+                src={src}
+                alt={`Spawday gallery photo ${i + 1}`}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-[#6B8F71]/0 group-hover:bg-[#6B8F71]/30 transition-colors duration-300 flex items-center justify-center">
+                <Instagram
+                  size={28}
+                  className="text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                />
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Contact
+   ───────────────────────────────────────────────────────────────────────────── */
+function Contact() {
+  const [form, setForm] = useState({ name: '', email: '', message: '' })
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    window.open(IG_URL, '_blank', 'noopener,noreferrer')
+  }
 
   return (
-    <div className="min-h-screen flex" style={{ backgroundColor: 'var(--brand-50)' }}>
-      {/* Sidebar */}
-      <aside className="w-56 flex flex-col no-print shrink-0 shadow-lg" style={{ backgroundColor: 'var(--brand-700)' }}>
-
-        {/* Logo */}
-        <div className="px-5 py-5 border-b flex flex-col items-center" style={{ borderColor: 'var(--brand-600)' }}>
-          {logo
-            ? <img src={logo} alt="logo" className="h-12 object-contain" />
-            : <h1 className="text-xl font-black text-white tracking-widest leading-tight">{companyName}</h1>}
-        </div>
-
-        {/* Nav links */}
-        <nav className="flex-1 py-4 space-y-0.5 px-2">
-          {NAV.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === '/'}
-              className={({ isActive }) =>
-                `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive ? 'brand-nav-active' : 'brand-nav-inactive'
-                }`
-              }
-            >
-              <Icon size={16} />
-              <span className="flex-1">{label}</span>
-              {to === '/tracker' && dueCount > 0 && (
-                <span className="bg-amber-400 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
-                  {dueCount}
-                </span>
-              )}
-              {to === '/inbox' && inboxUnread > 0 && (
-                <span className="brand-badge bg-white text-xs font-bold rounded-full min-w-4 h-4 px-1 flex items-center justify-center leading-none">
-                  {inboxUnread}
-                </span>
-              )}
-            </NavLink>
-          ))}
-        </nav>
-
-        {/* Settings link at bottom */}
-        <div className="px-2 pb-2">
-          <NavLink
-            to="/settings"
-            className={({ isActive }) =>
-              `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                isActive ? 'brand-nav-active' : 'brand-nav-inactive'
-              }`
-            }
+    <section id="contact" className="py-20 md:py-28" style={{ backgroundColor: '#f0ede6' }}>
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="text-center mb-14">
+          <p
+            className="text-sm font-semibold tracking-widest uppercase mb-3"
+            style={{ color: '#6B8F71' }}
           >
-            <SettingsIcon size={16} />
-            <span>Settings</span>
-          </NavLink>
+            Get In Touch
+          </p>
+          <h2 className="text-3xl sm:text-4xl font-extrabold" style={{ color: '#2c2c2c' }}>
+            Contact Us
+          </h2>
         </div>
 
-        <div className="px-4 py-3 border-t flex items-center justify-between" style={{ borderColor: 'var(--brand-600)' }}>
-          <p className="text-xs brand-footer">© 2025 {companyName}</p>
-          <button
-            onClick={() => setTheme(isDark ? 'light' : 'dark')}
-            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-            className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors brand-nav-inactive hover:bg-white/10"
-          >
-            {isDark ? <Sun size={15} /> : <Moon size={15} />}
-          </button>
+        <div className="grid md:grid-cols-3 gap-8">
+          {/* Contact info */}
+          <div className="space-y-6">
+            <div className="flex items-start gap-4">
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                style={{ backgroundColor: 'rgba(107,143,113,0.12)' }}
+              >
+                <Phone size={18} style={{ color: '#6B8F71' }} />
+              </div>
+              <div>
+                <p className="text-sm font-bold mb-0.5" style={{ color: '#2c2c2c' }}>
+                  Phone
+                </p>
+                <p className="text-sm" style={{ color: '#5a5a5a' }}>
+                  (203) 555-PAWS
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-4">
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                style={{ backgroundColor: 'rgba(107,143,113,0.12)' }}
+              >
+                <Mail size={18} style={{ color: '#6B8F71' }} />
+              </div>
+              <div>
+                <p className="text-sm font-bold mb-0.5" style={{ color: '#2c2c2c' }}>
+                  Email
+                </p>
+                <p className="text-sm" style={{ color: '#5a5a5a' }}>
+                  hello@spawday.com
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-4">
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                style={{ backgroundColor: 'rgba(107,143,113,0.12)' }}
+              >
+                <MapPin size={18} style={{ color: '#6B8F71' }} />
+              </div>
+              <div>
+                <p className="text-sm font-bold mb-0.5" style={{ color: '#2c2c2c' }}>
+                  Service Area
+                </p>
+                <p className="text-sm" style={{ color: '#5a5a5a' }}>
+                  Greater Connecticut Area
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-4">
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                style={{ backgroundColor: 'rgba(107,143,113,0.12)' }}
+              >
+                <Clock size={18} style={{ color: '#6B8F71' }} />
+              </div>
+              <div>
+                <p className="text-sm font-bold mb-0.5" style={{ color: '#2c2c2c' }}>
+                  Hours
+                </p>
+                <p className="text-sm" style={{ color: '#5a5a5a' }}>
+                  Mon–Sat: 8 AM – 6 PM
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-4">
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                style={{ backgroundColor: 'rgba(107,143,113,0.12)' }}
+              >
+                <Instagram size={18} style={{ color: '#6B8F71' }} />
+              </div>
+              <div>
+                <p className="text-sm font-bold mb-0.5" style={{ color: '#2c2c2c' }}>
+                  Instagram
+                </p>
+                <a
+                  href={IG_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-medium hover:underline"
+                  style={{ color: '#6B8F71' }}
+                >
+                  @spawday_ct
+                </a>
+              </div>
+            </div>
+          </div>
+
+          {/* Contact form */}
+          <div className="bg-white rounded-2xl shadow-md p-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold mb-1.5" style={{ color: '#2c2c2c' }}>
+                  Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:border-[#6B8F71] focus:ring-1 focus:ring-[#6B8F71] transition-colors"
+                  style={{ backgroundColor: '#fafaf8' }}
+                  placeholder="Your name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1.5" style={{ color: '#2c2c2c' }}>
+                  Email
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:border-[#6B8F71] focus:ring-1 focus:ring-[#6B8F71] transition-colors"
+                  style={{ backgroundColor: '#fafaf8' }}
+                  placeholder="you@email.com"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1.5" style={{ color: '#2c2c2c' }}>
+                  Message
+                </label>
+                <textarea
+                  required
+                  rows={4}
+                  value={form.message}
+                  onChange={(e) => setForm({ ...form, message: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:border-[#6B8F71] focus:ring-1 focus:ring-[#6B8F71] transition-colors resize-none"
+                  style={{ backgroundColor: '#fafaf8' }}
+                  placeholder="Tell us about your pet..."
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full py-2.5 text-sm font-semibold text-white bg-[#6B8F71] hover:bg-[#5a7d60] transition-colors cursor-pointer"
+                style={{ borderRadius: 24 }}
+              >
+                Submit
+              </button>
+            </form>
+          </div>
+
+          {/* Google Map */}
+          <div className="rounded-2xl overflow-hidden shadow-md min-h-[320px]">
+            <iframe
+              title="Spawday service area"
+              src="https://maps.google.com/maps?q=Connecticut,+USA&t=&z=9&ie=UTF8&iwloc=&output=embed"
+              width="100%"
+              height="100%"
+              style={{ border: 0, minHeight: 320 }}
+              allowFullScreen
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          </div>
         </div>
-      </aside>
-
-      {/* Main column */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top header with search */}
-        <header className="h-12 bg-white border-b border-gray-200 flex items-center justify-end px-4 no-print shrink-0">
-          <GlobalSearch />
-        </header>
-
-        {/* Page content */}
-        <main className="flex-1 overflow-auto">
-          <Routes>
-            <Route path="/"         element={<Dashboard />} />
-            <Route path="/analyze"  element={<Analyze />} />
-            <Route path="/ai"       element={<AiChat />} />
-            <Route path="/catalog"  element={<ItemCatalog />} />
-            <Route path="/quote"    element={<BuildQuote />} />
-            <Route path="/proposal" element={<ProposalView />} />
-            <Route path="/clients"  element={<ClientList />} />
-            <Route path="/tracker"  element={<ProposalTracker />} />
-            <Route path="/inbox"    element={<InboxPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-          </Routes>
-        </main>
       </div>
-    </div>
+    </section>
   )
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   Footer
+   ───────────────────────────────────────────────────────────────────────────── */
+function Footer() {
+  return (
+    <footer className="py-8 border-t" style={{ backgroundColor: '#2c2c2c', borderColor: '#3a3a3a' }}>
+      <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-2.5">
+          <span className="text-xl leading-none">🐾</span>
+          <span className="text-lg font-black tracking-wide text-white">SPAWDAY</span>
+          <span className="text-xs text-gray-400 ml-1">Mobile Grooming</span>
+        </div>
+
+        <div className="flex items-center gap-5">
+          <span className="text-xs text-gray-400">&copy; 2025 Spawday. All rights reserved.</span>
+          <a
+            href={IG_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
+            style={{ backgroundColor: 'rgba(107,143,113,0.2)' }}
+          >
+            <Instagram size={18} style={{ color: '#6B8F71' }} />
+          </a>
+        </div>
+      </div>
+    </footer>
+  )
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   App (root)
+   ───────────────────────────────────────────────────────────────────────────── */
 export default function App() {
   return (
-    <BrowserRouter>
-      <AppShell />
-    </BrowserRouter>
+    <div style={{ fontFamily: "'Inter', sans-serif" }}>
+      <Navbar />
+      <Hero />
+      <About />
+      <Services />
+      <Pricing />
+      <GalleryFeed />
+      <Contact />
+      <Footer />
+    </div>
   )
 }
