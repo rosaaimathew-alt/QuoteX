@@ -1,11 +1,7 @@
-import Groq from 'groq-sdk'
-import { GROQ_API_KEY } from './config.local.js'
+import Anthropic from '@anthropic-ai/sdk'
+import { ANTHROPIC_API_KEY } from './config.local.js'
 
-let _client = null
-function getClient() {
-  if (!_client) _client = new Groq({ apiKey: GROQ_API_KEY, dangerouslyAllowBrowser: true })
-  return _client
-}
+const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY, dangerouslyAllowBrowser: true })
 
 export function getModel(systemInstruction) {
   return {
@@ -13,16 +9,17 @@ export function getModel(systemInstruction) {
     startChat({ history = [] }) {
       return {
         async sendMessage(text) {
-          const res = await getClient().chat.completions.create({
-            model: 'llama-3.3-70b-versatile',
-            messages: [
-              { role: 'system', content: systemInstruction },
-              ...history,
-              { role: 'user', content: text },
-            ],
+          const messages = [
+            ...history,
+            { role: 'user', content: text },
+          ]
+          const res = await client.messages.create({
+            model: 'claude-haiku-4-5-20251001',
             max_tokens: 4096,
+            system: systemInstruction,
+            messages,
           })
-          const content = res.choices[0].message.content
+          const content = res.content[0].text
           return { response: { text: () => content } }
         },
       }
@@ -30,35 +27,31 @@ export function getModel(systemInstruction) {
 
     // Used by Analyze — single-shot generation (text or image array)
     async generateContent(prompt) {
-      let model = 'llama-3.3-70b-versatile'
-      let userContent
+      let content
 
       if (Array.isArray(prompt)) {
         const imgPart = prompt.find(p => p?.inlineData)
         const txtPart = prompt.find(p => typeof p === 'string')
         if (imgPart) {
-          model = 'llama-3.2-11b-vision-preview'
-          userContent = [
-            { type: 'image_url', image_url: { url: `data:${imgPart.inlineData.mimeType};base64,${imgPart.inlineData.data}` } },
+          content = [
+            { type: 'image', source: { type: 'base64', media_type: imgPart.inlineData.mimeType, data: imgPart.inlineData.data } },
             { type: 'text', text: txtPart || 'Extract all line items from this estimate.' },
           ]
         } else {
-          userContent = txtPart || ''
+          content = txtPart || ''
         }
       } else {
-        userContent = prompt
+        content = prompt
       }
 
-      const res = await getClient().chat.completions.create({
-        model,
-        messages: [
-          { role: 'system', content: systemInstruction },
-          { role: 'user', content: userContent },
-        ],
-        max_tokens: 4096,
+      const res = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 8192,
+        system: systemInstruction,
+        messages: [{ role: 'user', content }],
       })
-      const content = res.choices[0].message.content
-      return { response: { text: () => content } }
+      const text = res.content[0].text
+      return { response: { text: () => text } }
     },
   }
 }
