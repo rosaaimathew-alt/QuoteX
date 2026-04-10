@@ -1,6 +1,64 @@
 import { useState, useRef, lazy, Suspense } from 'react'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import { Upload, FileText, Image, File, Trash2, CheckCircle, AlertCircle, Save, RefreshCw } from 'lucide-react'
 import { useStore } from '../store'
+
+const ANALYZE_SYSTEM_PROMPT = `You are a construction estimating assistant. Your job is simple: extract only the line items that have a dollar amount in this estimate. Nothing else becomes a line item.
+
+Return ONLY a valid JSON array (no markdown, no explanation):
+[
+  {
+    "name": "Gable Roof",
+    "section": "Gable Roof",
+    "description": "Deck, columns, ceiling, rafters, LVL ridge beam, headers, sheathing, felt, shingles, drip edge — all materials and labor included.",
+    "qty": 1,
+    "unit": "LS",
+    "unitPrice": 12500,
+    "category": "Roofing",
+    "confidence": 95
+  }
+]
+
+RULES:
+1. ONE LINE ITEM PER PRICED ENTRY — only create a JSON object if that item has a dollar amount.
+2. ALL MATERIALS BELONG IN THE DESCRIPTION — fold sub-items with no price into the nearest priced parent's description.
+3. NEVER CREATE A NEW LINE ITEM for something not separately priced.
+4. DESCRIPTION — one clean professional sentence or two. No bullets. Max 500 chars.
+5. SECTION — copy the exact name of the priced line from the estimate.
+6. PRICING — use the price exactly as written. If total given with qty > 1, compute unitPrice = total / qty. Never set unitPrice to 0.
+7. CATEGORY — assign best matching trade: Fencing, Gates, Demo, Materials, Labor, Framing, Concrete, Electrical, Plumbing, Roofing, Flooring, Drywall, Painting, HVAC, Windows, Doors, Tile, Insulation, Siding, General`
+
+const ANALYZE_CATEGORIES = ['Fencing','Gates','Demo','Materials','Labor','Framing','Concrete','Electrical','Plumbing','Roofing','Flooring','Drywall','Painting','HVAC','Windows','Doors','Tile','Insulation','Siding','General']
+const ANALYZE_UNITS = ['LF','SF','EA','LS']
+
+async function runGeminiAnalysis(prompt) {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+  if (!apiKey) throw new Error('VITE_GEMINI_API_KEY not set in .env')
+  const genAI = new GoogleGenerativeAI(apiKey)
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash', systemInstruction: ANALYZE_SYSTEM_PROMPT })
+  const result = await model.generateContent(prompt)
+  const raw = result.response.text()
+  const clean = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+  let jsonStr = clean
+  if (!jsonStr.endsWith(']')) {
+    const lastClose = jsonStr.lastIndexOf('}')
+    jsonStr = lastClose > 0 ? jsonStr.slice(0, lastClose + 1) + ']' : '[]'
+  }
+  let items = JSON.parse(jsonStr)
+  return items
+    .filter(i => i.name && i.unitPrice > 0)
+    .map(i => ({
+      name: String(i.name).slice(0, 80),
+      section: String(i.section || i.category || 'General').slice(0, 80),
+      description: String(i.description || '').slice(0, 600),
+      qty: Math.max(0, parseFloat(i.qty) || 1),
+      unit: ANALYZE_UNITS.includes(i.unit) ? i.unit : 'EA',
+      unitPrice: Math.round(parseFloat(i.unitPrice) * 100) / 100,
+      category: ANALYZE_CATEGORIES.includes(i.category) ? i.category : 'General',
+      confidence: Math.min(100, Math.max(0, parseInt(i.confidence) || 70)),
+      source: 'ai',
+    }))
+}
 
 // xlsx is heavy — only load it when the Import tab is actually visited
 const ImportTab = lazy(() => import('./ImportPricing'))
@@ -82,21 +140,20 @@ function AnalyzeTab() {
       if (file) {
         const ext = file.name.split('.').pop().toLowerCase()
         if (['jpg','jpeg','png','gif','webp','pdf'].includes(ext)) {
+          // Send image or PDF directly to Gemini via inlineData
           const base64 = await fileToBase64(file)
-          const res = await fetch('/api/analyze', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fileData: base64, fileName: file.name, mimeType: file.type }),
-          }).catch(() => null)
-          if (!res) throw new Error('Could not reach the AI server. Make sure ANTHROPIC_API_KEY is set and the server is running.')
-          if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.error || `API returned ${res.status}.`) }
-          items = await res.json()
+          const mimeType = file.type || (ext === 'pdf' ? 'application/pdf' : 'image/jpeg')
+          items = await runGeminiAnalysis([
+            { inlineData: { data: base64, mimeType } },
+            'Extract all line items from this estimate.',
+          ])
         } else if (['txt','csv'].includes(ext)) {
-          const res = await fetch('/api/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) }).catch(() => null)
-          items = res?.ok ? await res.json() : parseEstimateText(text)
+          items = text.trim()
+            ? await runGeminiAnalysis(`Extract line items from this estimate:\n\n${text}`).catch(() => parseEstimateText(text))
+            : parseEstimateText(text)
         }
       } else if (text.trim()) {
-        const res = await fetch('/api/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) }).catch(() => null)
-        items = res?.ok ? await res.json() : parseEstimateText(text)
+        items = await runGeminiAnalysis(`Extract line items from this estimate:\n\n${text}`).catch(() => parseEstimateText(text))
       }
       if (!items.length) { setError('No line items found. Try pasting text with quantities and prices.') }
       else { const withIds = items.map((item, i) => ({ ...item, id: Date.now() + i })); setResults(withIds); setSelected(new Set(withIds.map(i => i.id))) }

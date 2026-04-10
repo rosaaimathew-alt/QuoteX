@@ -1,9 +1,40 @@
 import { useState, useRef, useEffect } from 'react'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import { useStore } from '../store'
 import {
   Send, Loader, Bot, User, CheckCircle, X, Sparkles,
   TrendingUp, Tag, FileText, RefreshCw,
 } from 'lucide-react'
+
+const SYSTEM_PROMPT = `You are a pricing catalog assistant for a contractor estimating tool called QUOTEX.
+Your job is to help contractors bulk-edit their pricing catalog using plain English commands.
+
+The contractor's full catalog will be provided in each request as JSON.
+
+RESPONSE FORMAT — always follow this exactly:
+1. One or two sentences explaining what you changed (or why you can't).
+2. If making changes, output a JSON array wrapped in <changes></changes> tags.
+
+Change object format — only include fields being changed:
+{ "id": <number>, "name"?: "...", "description"?: "...", "unit"?: "EA|LF|SF|LS", "unitPrice"?: <number>, "category"?: "..." }
+
+Valid categories: Fencing, Gates, Demo, Materials, Labor, Framing, Concrete, Electrical, Plumbing, Roofing, Flooring, Drywall, Painting, HVAC, Windows, Doors, Tile, Insulation, Siding, General
+
+RULES:
+- Only modify fields explicitly asked about. Leave everything else untouched.
+- When asked to raise/lower prices by a %, compute the exact rounded value (round to 2 decimal places).
+- When no items match the request, say so clearly — do NOT make up changes.
+- Never create new items. Never delete items. Only modify existing ones.
+- Descriptions must be professional, under 500 chars, no bullet points.
+- If the user asks a general question (not a change request), answer it helpfully without a <changes> block.
+
+EXAMPLES:
+User: "Raise all fencing prices by 10%"
+Response: I'll increase the unit price on all 9 Fencing category items by 10%.
+<changes>[{"id":1,"unitPrice":24.20},{"id":2,"unitPrice":41.80}]</changes>
+
+User: "What's my most expensive item?"
+Response: Your most expensive item is Double Drive Gate at $680/EA.`
 
 const SUGGESTIONS = [
   'Raise all Fencing prices by 10%',
@@ -215,17 +246,38 @@ export default function AiChat() {
       .map(m => ({ role: m.role, content: m.text }))
 
     try {
-      const res = await fetch('/api/ai-chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: history, catalog }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || `Error ${res.status}`)
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+      if (!apiKey) throw new Error('VITE_GEMINI_API_KEY not set in .env')
+
+      const genAI = new GoogleGenerativeAI(apiKey)
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash', systemInstruction: SYSTEM_PROMPT })
+
+      const catalogSummary = catalog.map(({ id, name, description, unit, unitPrice, category }) =>
+        ({ id, name, description: description || '', unit, unitPrice, category })
+      )
+
+      // Build chat history (all but the last user message)
+      const geminiHistory = history.slice(0, -1).map(m => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }],
+      }))
+
+      const lastText = `CURRENT CATALOG (${catalogSummary.length} items):\n${JSON.stringify(catalogSummary, null, 2)}\n\nUSER REQUEST: ${history[history.length - 1].content}`
+
+      const chat = model.startChat({ history: geminiHistory })
+      const result = await chat.sendMessage(lastText)
+      const text = result.response.text()
+
+      const changesMatch = text.match(/<changes>([\s\S]*?)<\/changes>/)
+      let changes = null
+      let displayText = text
+      if (changesMatch) {
+        try { changes = JSON.parse(changesMatch[1].trim()); displayText = text.replace(/<changes>[\s\S]*?<\/changes>/, '').trim() } catch {}
+      }
 
       setMessages(prev => prev.map(m =>
         m.id === loadingMsg.id
-          ? { ...m, loading: false, text: data.text, changes: data.changes }
+          ? { ...m, loading: false, text: displayText, changes }
           : m
       ))
     } catch (err) {
