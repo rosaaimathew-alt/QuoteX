@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { getModel } from '../gemini'
 import { useStore } from '../store'
 import {
   Send, Loader, Bot, User, CheckCircle, X, Sparkles,
@@ -246,11 +246,7 @@ export default function AiChat() {
       .map(m => ({ role: m.role, content: m.text }))
 
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
-      if (!apiKey) throw new Error('VITE_GEMINI_API_KEY not set in .env')
-
-      const genAI = new GoogleGenerativeAI(apiKey)
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash', systemInstruction: SYSTEM_PROMPT })
+      const model = getModel(SYSTEM_PROMPT)
 
       const catalogSummary = catalog.map(({ id, name, description, unit, unitPrice, category }) =>
         ({ id, name, description: description || '', unit, unitPrice, category })

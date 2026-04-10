@@ -1,5 +1,5 @@
 import { useState, useRef, lazy, Suspense } from 'react'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { getModel } from '../gemini'
 import { Upload, FileText, Image, File, Trash2, CheckCircle, AlertCircle, Save, RefreshCw } from 'lucide-react'
 import { useStore } from '../store'
 
@@ -32,10 +32,7 @@ const ANALYZE_CATEGORIES = ['Fencing','Gates','Demo','Materials','Labor','Framin
 const ANALYZE_UNITS = ['LF','SF','EA','LS']
 
 async function runGeminiAnalysis(prompt) {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY
-  if (!apiKey) throw new Error('VITE_GEMINI_API_KEY not set in .env')
-  const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash', systemInstruction: ANALYZE_SYSTEM_PROMPT })
+  const model = getModel(ANALYZE_SYSTEM_PROMPT)
   const result = await model.generateContent(prompt)
   const raw = result.response.text()
   const clean = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
