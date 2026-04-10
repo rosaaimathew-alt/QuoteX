@@ -130,16 +130,34 @@ function AnalyzeTab() {
     reader.readAsDataURL(f)
   })
 
+  const extractPdfText = async (f) => {
+    const { getDocument, GlobalWorkerOptions } = await import('pdfjs-dist')
+    GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.mjs', import.meta.url).toString()
+    const arrayBuffer = await f.arrayBuffer()
+    const pdf = await getDocument({ data: arrayBuffer }).promise
+    let fullText = ''
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i)
+      const content = await page.getTextContent()
+      fullText += content.items.map(item => item.str).join(' ') + '\n'
+    }
+    return fullText.trim()
+  }
+
   const handleAnalyze = async () => {
     setAnalyzing(true); setError(''); setResults([]); setSaved(false)
     try {
       let items = []
       if (file) {
         const ext = file.name.split('.').pop().toLowerCase()
-        if (['jpg','jpeg','png','gif','webp','pdf'].includes(ext)) {
-          // Send image or PDF directly to Gemini via inlineData
+        if (ext === 'pdf') {
+          // Extract text from PDF in browser, then send to AI as text
+          const pdfText = await extractPdfText(file)
+          if (!pdfText) throw new Error('Could not extract text from PDF. Try a PNG or JPG screenshot of the estimate instead.')
+          items = await runGeminiAnalysis(`Extract line items from this estimate:\n\n${pdfText}`).catch(() => parseEstimateText(pdfText))
+        } else if (['jpg','jpeg','png','gif','webp'].includes(ext)) {
           const base64 = await fileToBase64(file)
-          const mimeType = file.type || (ext === 'pdf' ? 'application/pdf' : 'image/jpeg')
+          const mimeType = file.type || 'image/jpeg'
           items = await runGeminiAnalysis([
             { inlineData: { data: base64, mimeType } },
             'Extract all line items from this estimate.',
