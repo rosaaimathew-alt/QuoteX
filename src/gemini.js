@@ -1,13 +1,9 @@
 import Groq from 'groq-sdk'
+import { GROQ_API_KEY } from './config.local.js'
 
-// Lazy — only instantiate when a request is actually made
 let _client = null
 function getClient() {
-  if (!_client) {
-    const apiKey = import.meta.env.VITE_GROQ_API_KEY
-    if (!apiKey) throw new Error('VITE_GROQ_API_KEY not set in .env — restart the dev server after adding it.')
-    _client = new Groq({ apiKey, dangerouslyAllowBrowser: true })
-  }
+  if (!_client) _client = new Groq({ apiKey: GROQ_API_KEY, dangerouslyAllowBrowser: true })
   return _client
 }
 
