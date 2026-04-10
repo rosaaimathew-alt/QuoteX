@@ -1,28 +1,29 @@
 import Groq from 'groq-sdk'
 
-const client = new Groq({
-  apiKey: import.meta.env.VITE_GROQ_API_KEY,
-  dangerouslyAllowBrowser: true,
-})
+// Lazy — only instantiate when a request is actually made
+let _client = null
+function getClient() {
+  if (!_client) {
+    const apiKey = import.meta.env.VITE_GROQ_API_KEY
+    if (!apiKey) throw new Error('VITE_GROQ_API_KEY not set in .env — restart the dev server after adding it.')
+    _client = new Groq({ apiKey, dangerouslyAllowBrowser: true })
+  }
+  return _client
+}
 
-/**
- * Returns an object that mimics the Gemini SDK interface used by AiChat + Analyze,
- * but routes all requests through Groq.
- */
 export function getModel(systemInstruction) {
   return {
     // Used by AiChat — multi-turn chat
     startChat({ history = [] }) {
       return {
         async sendMessage(text) {
-          const messages = [
-            { role: 'system', content: systemInstruction },
-            ...history,
-            { role: 'user', content: text },
-          ]
-          const res = await client.chat.completions.create({
+          const res = await getClient().chat.completions.create({
             model: 'llama-3.3-70b-versatile',
-            messages,
+            messages: [
+              { role: 'system', content: systemInstruction },
+              ...history,
+              { role: 'user', content: text },
+            ],
             max_tokens: 4096,
           })
           const content = res.choices[0].message.content
@@ -31,22 +32,18 @@ export function getModel(systemInstruction) {
       }
     },
 
-    // Used by Analyze — single-shot content generation (text or image array)
+    // Used by Analyze — single-shot generation (text or image array)
     async generateContent(prompt) {
       let model = 'llama-3.3-70b-versatile'
       let userContent
 
       if (Array.isArray(prompt)) {
-        // Vision request: [{ inlineData: { data, mimeType } }, 'prompt text']
         const imgPart = prompt.find(p => p?.inlineData)
         const txtPart = prompt.find(p => typeof p === 'string')
         if (imgPart) {
           model = 'llama-3.2-11b-vision-preview'
           userContent = [
-            {
-              type: 'image_url',
-              image_url: { url: `data:${imgPart.inlineData.mimeType};base64,${imgPart.inlineData.data}` },
-            },
+            { type: 'image_url', image_url: { url: `data:${imgPart.inlineData.mimeType};base64,${imgPart.inlineData.data}` } },
             { type: 'text', text: txtPart || 'Extract all line items from this estimate.' },
           ]
         } else {
@@ -56,7 +53,7 @@ export function getModel(systemInstruction) {
         userContent = prompt
       }
 
-      const res = await client.chat.completions.create({
+      const res = await getClient().chat.completions.create({
         model,
         messages: [
           { role: 'system', content: systemInstruction },
