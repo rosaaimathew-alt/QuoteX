@@ -5,6 +5,20 @@ import {
   Sparkles, Loader, MoveRight,
 } from 'lucide-react'
 import { useStore } from '../store'
+import { getModel } from '../gemini'
+
+const AI_CHAT_SYSTEM = `You are a pricing catalog assistant for a contractor estimating tool called QUOTEX.
+Your job is to help contractors bulk-edit their pricing catalog using plain English commands.
+The contractor's full catalog will be provided in each request as JSON.
+RESPONSE FORMAT — always follow this exactly:
+1. One or two sentences explaining what you changed (or why you can't).
+2. If making changes, output a JSON array wrapped in <changes></changes> tags.
+Change object format — only include fields being changed:
+{ "id": <number>, "name"?: "...", "description"?: "...", "unit"?: "EA|LF|SF|LS", "unitPrice"?: <number>, "category"?: "..." }
+Valid categories: Fencing, Gates, Demo, Materials, Labor, Framing, Concrete, Electrical, Plumbing, Roofing, Flooring, Drywall, Painting, HVAC, Windows, Doors, Tile, Insulation, Siding, General
+RULES:
+- Only modify fields explicitly asked about.
+- Never create new items. Never delete items. Only modify existing ones.`
 
 const CATEGORIES = [
   'Fencing','Gates','Demo','Materials','Labor','Framing','Concrete','Electrical',
@@ -387,20 +401,18 @@ export default function ItemCatalog() {
     setSuggestError('')
     setSuggestions(null)
     try {
-      const prompt = `Review every item in the catalog and identify any that appear to be miscategorized — where the item clearly belongs in a different category based on its name and description. Only flag items where the category is clearly wrong. Return only items that should move; don't change items that are already correct.`
-      const res = await fetch('/api/ai-chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [{ role: 'user', content: prompt }],
-          catalog,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'AI error')
-      if (data.changes?.length) {
-        // Only keep category changes
-        const catChanges = data.changes.filter(c => c.category)
+      const catalogSummary = catalog.map(({ id, name, description, unit, unitPrice, category }) =>
+        ({ id, name, description: description || '', unit, unitPrice, category })
+      )
+      const prompt = `CURRENT CATALOG (${catalogSummary.length} items):\n${JSON.stringify(catalogSummary, null, 2)}\n\nUSER REQUEST: Review every item in the catalog and identify any that appear to be miscategorized — where the item clearly belongs in a different category based on its name and description. Only flag items where the category is clearly wrong. Return only items that should move; don't change items that are already correct.`
+      const model = getModel(AI_CHAT_SYSTEM)
+      const chat = model.startChat({ history: [] })
+      const result = await chat.sendMessage(prompt)
+      const text = result.response.text()
+      const changesMatch = text.match(/<changes>([\s\S]*?)<\/changes>/)
+      const changes = changesMatch ? JSON.parse(changesMatch[1].trim()) : null
+      if (changes?.length) {
+        const catChanges = changes.filter(c => c.category)
         setSuggestions(catChanges.length ? catChanges : null)
         if (!catChanges.length) setSuggestError('AI found no miscategorized items — your catalog looks well organized!')
       } else {
