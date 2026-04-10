@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon, Sun, Moon } from 'lucide-react'
+import { LayoutDashboard, FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon, Sun, Moon, Users } from 'lucide-react'
 import { useEffect, useState, useRef } from 'react'
 import Dashboard from './pages/Dashboard'
 import Analyze from './pages/Analyze'
@@ -10,18 +10,20 @@ import ProposalTracker from './pages/ProposalTracker'
 import InboxPage from './pages/Inbox'
 import AiChat from './pages/AiChat'
 import SettingsPage from './pages/Settings'
+import ClientList from './pages/ClientList'
 import { useStore } from './store'
 import { applyBrandStyles, applyTheme, DEFAULT_BRAND_COLOR } from './brand'
 
 const NAV = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/analyze', label: 'Analyze', icon: FileText },
-  { to: '/ai', label: 'AI Assistant', icon: MessageSquareMore },
-  { to: '/catalog', label: 'Item Catalog', icon: BookOpen },
-  { to: '/quote', label: 'Build Quote', icon: ClipboardList },
-  { to: '/proposal', label: 'Proposal', icon: FileCheck },
+  { to: '/',        label: 'Dashboard',       icon: LayoutDashboard },
+  { to: '/clients', label: 'Clients',          icon: Users },
+  { to: '/analyze', label: 'Analyze',          icon: FileText },
+  { to: '/ai',      label: 'AI Assistant',     icon: MessageSquareMore },
+  { to: '/catalog', label: 'Item Catalog',     icon: BookOpen },
+  { to: '/quote',   label: 'Build Quote',      icon: ClipboardList },
+  { to: '/proposal',label: 'Proposal',         icon: FileCheck },
   { to: '/tracker', label: 'Proposal Tracker', icon: BarChart2 },
-  { to: '/inbox', label: 'Inbox', icon: Inbox },
+  { to: '/inbox',   label: 'Inbox',            icon: Inbox },
 ]
 
 const STATUS_BADGE = {
@@ -270,6 +272,7 @@ function AppShell() {
             <Route path="/catalog"  element={<ItemCatalog />} />
             <Route path="/quote"    element={<BuildQuote />} />
             <Route path="/proposal" element={<ProposalView />} />
+            <Route path="/clients"  element={<ClientList />} />
             <Route path="/tracker"  element={<ProposalTracker />} />
             <Route path="/inbox"    element={<InboxPage />} />
             <Route path="/settings" element={<SettingsPage />} />
