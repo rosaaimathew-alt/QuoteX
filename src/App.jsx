@@ -11,6 +11,7 @@ import InboxPage from './pages/Inbox'
 import AiChat from './pages/AiChat'
 import SettingsPage from './pages/Settings'
 import ClientList from './pages/ClientList'
+import SpawdayLanding from './pages/SpawdayLanding'
 import { useStore } from './store'
 import { applyBrandStyles, applyTheme, DEFAULT_BRAND_COLOR } from './brand'
 
@@ -286,7 +287,10 @@ function AppShell() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AppShell />
+      <Routes>
+        <Route path="/spawday" element={<SpawdayLanding />} />
+        <Route path="/*" element={<AppShell />} />
+      </Routes>
     </BrowserRouter>
   )
 }
