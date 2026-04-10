@@ -5,5 +5,5 @@ const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyDOzBpHafealhV5G2BJ
 export const genAI = new GoogleGenerativeAI(API_KEY)
 
 export function getModel(systemInstruction) {
-  return genAI.getGenerativeModel({ model: 'gemini-1.5-flash', systemInstruction })
+  return genAI.getGenerativeModel({ model: 'gemini-2.0-flash', systemInstruction })
 }
