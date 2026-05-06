@@ -1,5 +1,5 @@
 import { useState, useRef, lazy, Suspense } from 'react'
-import { getModel } from '../gemini'
+import { getAnalyzeModel } from '../gemini'
 import { Upload, FileText, Image, File, Trash2, CheckCircle, AlertCircle, Save, RefreshCw } from 'lucide-react'
 import { useStore } from '../store'
 
@@ -52,7 +52,7 @@ const ANALYZE_CATEGORIES = ['Fencing','Gates','Demo','Materials','Labor','Framin
 const ANALYZE_UNITS = ['LF','SF','EA','LS']
 
 async function runGeminiAnalysis(prompt) {
-  const model = getModel(ANALYZE_SYSTEM_PROMPT)
+  const model = getAnalyzeModel(ANALYZE_SYSTEM_PROMPT)
   const result = await model.generateContent(prompt)
   const raw = result.response.text()
   const clean = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
