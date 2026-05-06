@@ -177,10 +177,14 @@ function AppShell() {
         const { messages } = await res.json()
         const readSet = new Set(readMessageIds || [])
         setInboxUnread(messages.filter(m => m.direction === 'inbound' && !readSet.has(m.id)).length)
-      } catch {}
+      } catch {
+        // Backend not running — inbox polling disabled
+      }
     }
-    check()
-    const timer = setInterval(check, UNREAD_POLL)
+    // Only poll if backend appears reachable
+    const timer = setInterval(async () => {
+      try { await check() } catch {}
+    }, UNREAD_POLL)
     return () => clearInterval(timer)
   }, [readMessageIds])
 
