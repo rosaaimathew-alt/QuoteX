@@ -131,17 +131,16 @@ function AnalyzeTab() {
   })
 
   const extractPdfText = async (f) => {
-    const { getDocument, GlobalWorkerOptions } = await import('pdfjs-dist')
-    GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.mjs', import.meta.url).toString()
-    const arrayBuffer = await f.arrayBuffer()
-    const pdf = await getDocument({ data: arrayBuffer }).promise
-    let fullText = ''
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i)
-      const content = await page.getTextContent()
-      fullText += content.items.map(item => item.str).join(' ') + '\n'
-    }
-    return fullText.trim()
+    const base64 = await fileToBase64(f)
+    const res = await fetch('/api/extract-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: base64 }),
+    })
+    if (!res.ok) throw new Error('Could not extract text from this PDF. Try a JPG or PNG screenshot instead.')
+    const { text, error } = await res.json()
+    if (error) throw new Error(error)
+    return text || ''
   }
 
   const handleAnalyze = async () => {

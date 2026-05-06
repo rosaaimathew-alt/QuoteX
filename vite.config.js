@@ -38,6 +38,27 @@ function localStorePlugin() {
         res.end('{"error":"method not allowed"}')
       })
 
+      // ── Server-side PDF text extraction (/api/extract-pdf) ──────────────
+      // Runs pdf-parse in Node so any browser can extract PDF text reliably.
+      server.middlewares.use('/api/extract-pdf', (req, res) => {
+        res.setHeader('Content-Type', 'application/json')
+        if (req.method !== 'POST') { res.statusCode = 405; res.end('{"error":"method not allowed"}'); return }
+        let body = ''
+        req.on('data', chunk => { body += chunk })
+        req.on('end', async () => {
+          try {
+            const { data } = JSON.parse(body)
+            const buffer = Buffer.from(data, 'base64')
+            const pdfParse = (await import('pdf-parse')).default
+            const result = await pdfParse(buffer)
+            res.end(JSON.stringify({ text: result.text || '' }))
+          } catch (err) {
+            res.statusCode = 400
+            res.end(JSON.stringify({ error: err.message }))
+          }
+        })
+      })
+
       // ── Ollama proxy (/api/ai → localhost:11434/v1) ───────────────────────
       // Proxied through the Vite server so road devices (Tailscale) can use
       // the AI features without Ollama needing to be installed on their end.
