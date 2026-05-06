@@ -27,3 +27,4 @@ dist-ssr
 *.sln
 *.sw?
 src/config.local.js
+quotex-data.json

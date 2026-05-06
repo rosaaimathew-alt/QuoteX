@@ -1,6 +1,62 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
+// Smart storage: saves to a file on the local Mac (via /api/store) so every
+// device on the network always reads the same data. Automatically falls back
+// to localStorage when the API is not available (e.g. cloud deployment).
+let _initial = null // cached promise for the first GET
+
+function _fetchInitial() {
+  if (!_initial) {
+    _initial = fetch('/api/store', { signal: AbortSignal.timeout(1500) })
+      .then(async r => {
+        if (!r.ok) return { mode: 'local', data: null }
+        const text = await r.text()
+        return { mode: 'file', data: (text && text !== 'null') ? text : null }
+      })
+      .catch(() => ({ mode: 'local', data: null }))
+  }
+  return _initial
+}
+
+const smartStorage = {
+  getItem: async (name) => {
+    const { mode, data } = await _fetchInitial()
+    if (mode === 'file') {
+      // File exists and has data — use it
+      if (data !== null) return data
+      // File is empty — migrate any existing localStorage data into the file
+      const local = localStorage.getItem(name)
+      if (local) {
+        fetch('/api/store', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ value: local }),
+        }).catch(() => {})
+        return local
+      }
+      return null
+    }
+    return localStorage.getItem(name)
+  },
+
+  setItem: async (name, value) => {
+    const { mode } = await _fetchInitial()
+    if (mode === 'file') {
+      // Fire-and-forget — don't block the UI while saving
+      fetch('/api/store', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value }),
+      }).catch(() => localStorage.setItem(name, value))
+      return
+    }
+    localStorage.setItem(name, value)
+  },
+
+  removeItem: (name) => localStorage.removeItem(name),
+}
+
 const SEED_CATALOG = [
   { id: 1, name: 'Chain Link Fence Installation', description: 'Supply and install chain link fence with posts set in concrete, including all hardware.', unit: 'LF', unitPrice: 22, minPrice: 18, maxPrice: 28, count: 12, category: 'Fencing', confidence: 95 },
   { id: 2, name: 'Wood Privacy Fence (6ft Cedar)', description: 'Supply and install 6ft cedar privacy fence with pressure-treated posts set in concrete, including all hardware and fasteners.', unit: 'LF', unitPrice: 38, minPrice: 32, maxPrice: 46, count: 18, category: 'Fencing', confidence: 97 },
@@ -275,7 +331,7 @@ export const useStore = create(
     }),
     {
       name: 'quotex-store',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => smartStorage),
       version: 4,
       migrate: (persisted) => {
         const persistedCatalog = persisted?.catalog
