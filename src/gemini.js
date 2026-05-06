@@ -1,64 +1,83 @@
-import Anthropic from '@anthropic-ai/sdk'
+// AI adapter — calls Ollama running locally on the Mac Mini.
+// All requests go through /api/ai (proxied by the Vite server) so road
+// devices on Tailscale use the Mac's Ollama without any extra setup.
+//
+// Models used:
+//   llama3.2  — text tasks (chat, catalog, estimate text)
+//   llava     — vision tasks (image-based estimates)
+//
+// Install: ollama pull llama3.2 && ollama pull llava
 
-const _k = [
-  'sk-ant-api03-7RhjczajSbAI6qFZEcSRHuCWQla5bHS',
-  'qnuMrBWdYpGlBcz04I3FsCQlgZsKYRRA2TR8Zeq_Cfen7U51eXfQo1g-t4Ef_AAA',
-].join('')
+const TEXT_MODEL   = 'llama3.2'
+const VISION_MODEL = 'llava'
+const API_BASE     = '/api/ai'  // proxied through Vite → localhost:11434/v1
 
-const client = new Anthropic({
-  apiKey: import.meta.env.VITE_ANTHROPIC_API_KEY || _k,
-  dangerouslyAllowBrowser: true,
-})
+async function callOllama(model, messages, system, maxTokens = 4096) {
+  const res = await fetch(`${API_BASE}/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      messages: [
+        ...(system ? [{ role: 'system', content: system }] : []),
+        ...messages,
+      ],
+      max_tokens: maxTokens,
+      stream: false,
+    }),
+  })
+  if (!res.ok) {
+    const err = await res.text().catch(() => res.statusText)
+    throw new Error(`Ollama (${model}): ${err}`)
+  }
+  const data = await res.json()
+  return data.choices[0].message.content
+}
 
 export function getModel(systemInstruction) {
   return {
-    // Used by AiChat — multi-turn chat
+    // Multi-turn chat (AI Assistant page)
     startChat({ history = [] }) {
       return {
         async sendMessage(text) {
-          const messages = [
-            ...history,
-            { role: 'user', content: text },
-          ]
-          const res = await client.messages.create({
-            model: 'claude-haiku-4-5-20251001',
-            max_tokens: 4096,
-            system: systemInstruction,
-            messages,
-          })
-          const content = res.content[0].text
+          const messages = [...history, { role: 'user', content: text }]
+          const content  = await callOllama(TEXT_MODEL, messages, systemInstruction)
           return { response: { text: () => content } }
         },
       }
     },
 
-    // Used by Analyze — single-shot generation (text or image array)
+    // Single-shot generation (Analyze page, Catalog AI Suggest)
     async generateContent(prompt) {
-      let content
-
+      // Image prompt — use vision model
       if (Array.isArray(prompt)) {
         const imgPart = prompt.find(p => p?.inlineData)
-        const txtPart = prompt.find(p => typeof p === 'string')
+        const txtPart = prompt.find(p => typeof p === 'string') || 'Extract all line items from this estimate.'
+
         if (imgPart) {
-          content = [
-            { type: 'image', source: { type: 'base64', media_type: imgPart.inlineData.mimeType, data: imgPart.inlineData.data } },
-            { type: 'text', text: txtPart || 'Extract all line items from this estimate.' },
-          ]
-        } else {
-          content = txtPart || ''
+          const content = await callOllama(
+            VISION_MODEL,
+            [{
+              role: 'user',
+              content: [
+                { type: 'image_url', image_url: { url: `data:${imgPart.inlineData.mimeType};base64,${imgPart.inlineData.data}` } },
+                { type: 'text', text: txtPart },
+              ],
+            }],
+            systemInstruction,
+            8192,
+          )
+          return { response: { text: () => content } }
         }
-      } else {
-        content = prompt
+
+        // Array but no image — treat as text
+        const content = await callOllama(TEXT_MODEL, [{ role: 'user', content: txtPart }], systemInstruction, 8192)
+        return { response: { text: () => content } }
       }
 
-      const res = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 8192,
-        system: systemInstruction,
-        messages: [{ role: 'user', content }],
-      })
-      const text = res.content[0].text
-      return { response: { text: () => text } }
+      // Plain text prompt
+      const content = await callOllama(TEXT_MODEL, [{ role: 'user', content: prompt }], systemInstruction, 8192)
+      return { response: { text: () => content } }
     },
   }
 }
