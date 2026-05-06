@@ -32,9 +32,9 @@ Return ONLY a valid JSON array with no markdown or explanation:
 
 RULES:
 1. ONLY include an item if it has an explicit dollar price. If no dollar amount → skip it entirely.
-2. GROUP sub-items — fold unlisted materials and labor into the description of the nearest priced parent. Do not create separate line items for them.
-3. ONE ITEM PER PRICED SCOPE — if a section has one total price, create one line item for that section.
-4. DESCRIPTION — one or two clean professional sentences. No bullets. Max 500 chars.
+2. GROUP sub-items — fold all unlisted materials, labor, and scope details listed beneath a priced parent into that parent's description. List every included component explicitly.
+3. ONE ITEM PER PRICED SCOPE — if a section has one total price, create one line item and pack ALL the work and materials into the description.
+4. DESCRIPTION — write one or two sentences that enumerate every material, component, and task included in this line item (pulled from any sub-items beneath it). Be specific: name the actual materials and work. No bullets. Max 500 chars.
 5. SECTION — copy the exact heading from the estimate that this item falls under.
 6. PRICING — use the price as written. If a total is given with qty > 1, compute unitPrice = total / qty. Never set unitPrice to 0.
 7. CATEGORY — pick the best match: Fencing, Gates, Demo, Materials, Labor, Framing, Concrete, Electrical, Plumbing, Roofing, Flooring, Drywall, Painting, HVAC, Windows, Doors, Tile, Insulation, Siding, General`
