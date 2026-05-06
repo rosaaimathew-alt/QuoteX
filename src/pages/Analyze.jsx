@@ -3,12 +3,23 @@ import { getModel } from '../gemini'
 import { Upload, FileText, Image, File, Trash2, CheckCircle, AlertCircle, Save, RefreshCw } from 'lucide-react'
 import { useStore } from '../store'
 
-const ANALYZE_SYSTEM_PROMPT = `You are a construction estimating assistant. Your job is simple: extract only the line items that have a dollar amount in this estimate. Nothing else becomes a line item.
+const ANALYZE_SYSTEM_PROMPT = `You are a construction estimating assistant. Extract ONLY priced line items from the estimate.
 
-Return ONLY a valid JSON array (no markdown, no explanation):
+A priced line item MUST have an explicit dollar amount like $500, $1,200, or 2500.00.
+
+NEVER include any of the following — these are NOT line items:
+- Phone numbers (e.g. 555-123-4567)
+- Email addresses or websites
+- Company names or contractor names
+- Addresses or locations
+- Dates or permit numbers
+- Section headings with no price
+- Sub-items that are described under a priced parent item
+
+Return ONLY a valid JSON array with no markdown or explanation:
 [
   {
-    "name": "Gable Roof",
+    "name": "Gable Roof Open Porch",
     "section": "Gable Roof",
     "description": "Deck, columns, ceiling, rafters, LVL ridge beam, headers, sheathing, felt, shingles, drip edge — all materials and labor included.",
     "qty": 1,
@@ -20,13 +31,13 @@ Return ONLY a valid JSON array (no markdown, no explanation):
 ]
 
 RULES:
-1. ONE LINE ITEM PER PRICED ENTRY — only create a JSON object if that item has a dollar amount.
-2. ALL MATERIALS BELONG IN THE DESCRIPTION — fold sub-items with no price into the nearest priced parent's description.
-3. NEVER CREATE A NEW LINE ITEM for something not separately priced.
-4. DESCRIPTION — one clean professional sentence or two. No bullets. Max 500 chars.
-5. SECTION — copy the exact name of the priced line from the estimate.
-6. PRICING — use the price exactly as written. If total given with qty > 1, compute unitPrice = total / qty. Never set unitPrice to 0.
-7. CATEGORY — assign best matching trade: Fencing, Gates, Demo, Materials, Labor, Framing, Concrete, Electrical, Plumbing, Roofing, Flooring, Drywall, Painting, HVAC, Windows, Doors, Tile, Insulation, Siding, General`
+1. ONLY include an item if it has an explicit dollar price. If no dollar amount → skip it entirely.
+2. GROUP sub-items — fold unlisted materials and labor into the description of the nearest priced parent. Do not create separate line items for them.
+3. ONE ITEM PER PRICED SCOPE — if a section has one total price, create one line item for that section.
+4. DESCRIPTION — one or two clean professional sentences. No bullets. Max 500 chars.
+5. SECTION — copy the exact heading from the estimate that this item falls under.
+6. PRICING — use the price as written. If a total is given with qty > 1, compute unitPrice = total / qty. Never set unitPrice to 0.
+7. CATEGORY — pick the best match: Fencing, Gates, Demo, Materials, Labor, Framing, Concrete, Electrical, Plumbing, Roofing, Flooring, Drywall, Painting, HVAC, Windows, Doors, Tile, Insulation, Siding, General`
 
 const ANALYZE_CATEGORIES = ['Fencing','Gates','Demo','Materials','Labor','Framing','Concrete','Electrical','Plumbing','Roofing','Flooring','Drywall','Painting','HVAC','Windows','Doors','Tile','Insulation','Siding','General']
 const ANALYZE_UNITS = ['LF','SF','EA','LS']
@@ -75,7 +86,7 @@ function parseEstimateText(text) {
     'ea': 'EA', 'each': 'EA', 'unit': 'EA', 'pc': 'EA', 'piece': 'EA',
     'ls': 'LS', 'lump sum': 'LS', 'lot': 'LS',
   }
-  const pricePattern = /\$?([\d,]+(?:\.\d{1,2})?)/g
+  const pricePattern = /\$([\d,]+(?:\.\d{1,2})?)/g
   const qtyPattern = /(\d+(?:\.\d+)?)\s*(?:x\s*)?(lf|linear\s*f(?:t|oot|eet)|sf|sq\.?\s*ft|square\s*f(?:t|eet)|ea(?:ch)?|unit|pc|piece|hr|hour|ls|lump\s*sum|load|ton|day)/i
 
   for (const line of lines) {

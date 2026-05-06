@@ -3,12 +3,12 @@
 // devices on Tailscale use the Mac's Ollama without any extra setup.
 //
 // Models used:
-//   llama3.2  — text tasks (chat, catalog, estimate text)
-//   llava     — vision tasks (image-based estimates)
+//   mistral  — text tasks (chat, catalog, estimate analysis)
+//   llava    — vision tasks (image-based estimates)
 //
-// Install: ollama pull llama3.2 && ollama pull llava
+// Install: ollama pull mistral && ollama pull llava
 
-const TEXT_MODEL   = 'llama3.2'
+const TEXT_MODEL   = 'mistral'
 const VISION_MODEL = 'llava'
 const API_BASE     = '/api/ai'  // proxied through Vite → localhost:11434/v1
 
