@@ -16,25 +16,30 @@ NEVER include any of the following — these are NOT line items:
 - Section headings with no price
 - Sub-items that are described under a priced parent item
 
-Return ONLY a valid JSON array with no markdown or explanation:
-[
-  {
-    "name": "Gable Roof Open Porch",
-    "section": "Gable Roof",
-    "description": "Deck, columns, ceiling, rafters, LVL ridge beam, headers, sheathing, felt, shingles, drip edge — all materials and labor included.",
-    "qty": 1,
-    "unit": "LS",
-    "unitPrice": 12500,
-    "category": "Roofing",
-    "confidence": 95
-  }
-]
+EXAMPLE — given this section of an estimate:
+  Gable Roof Open Porch .............. $12,500
+    - Deck framing & ledger board
+    - (4) 6x6 columns
+    - Ceiling with 2x6 tongue & groove
+    - Rafters, LVL ridge beam, headers
+    - Sheathing, felt, architectural shingles, drip edge
+    - All materials and labor
+
+Correct output (ONE item, all sub-items folded into description):
+[{
+  "name": "Gable Roof Open Porch",
+  "section": "Gable Roof",
+  "description": "Deck framing and ledger board, (4) 6x6 columns, tongue and groove ceiling, rafters, LVL ridge beam and headers, sheathing, felt, architectural shingles, and drip edge — all materials and labor included.",
+  "qty": 1, "unit": "LS", "unitPrice": 12500, "category": "Roofing", "confidence": 95
+}]
+
+Return ONLY a valid JSON array with no markdown or explanation.
 
 RULES:
 1. ONLY include an item if it has an explicit dollar price. If no dollar amount → skip it entirely.
-2. GROUP sub-items — fold all unlisted materials, labor, and scope details listed beneath a priced parent into that parent's description. List every included component explicitly.
+2. GROUP sub-items — fold all unlisted materials, labor, and scope details listed beneath a priced parent into that parent's description. List every included component explicitly by name.
 3. ONE ITEM PER PRICED SCOPE — if a section has one total price, create one line item and pack ALL the work and materials into the description.
-4. DESCRIPTION — write one or two sentences that enumerate every material, component, and task included in this line item (pulled from any sub-items beneath it). Be specific: name the actual materials and work. No bullets. Max 500 chars.
+4. DESCRIPTION — one or two sentences naming every material, component, and task from the sub-items. Be specific. No bullets. Max 500 chars.
 5. SECTION — copy the exact heading from the estimate that this item falls under.
 6. PRICING — use the price as written. If a total is given with qty > 1, compute unitPrice = total / qty. Never set unitPrice to 0.
 7. CATEGORY — pick the best match: Fencing, Gates, Demo, Materials, Labor, Framing, Concrete, Electrical, Plumbing, Roofing, Flooring, Drywall, Painting, HVAC, Windows, Doors, Tile, Insulation, Siding, General`
