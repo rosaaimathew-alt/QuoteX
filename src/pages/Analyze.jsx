@@ -39,7 +39,11 @@ RULES:
 1. ONLY include an item if it has an explicit dollar price. If no dollar amount → skip it entirely.
 2. GROUP sub-items — fold all unlisted materials, labor, and scope details listed beneath a priced parent into that parent's description. List every included component explicitly by name.
 3. ONE ITEM PER PRICED SCOPE — if a section has one total price, create one line item and pack ALL the work and materials into the description.
-4. DESCRIPTION — one or two sentences naming every material, component, and task from the sub-items. Be specific. No bullets. Max 500 chars.
+4. DESCRIPTION — REQUIRED, never leave empty. Write one or two sentences:
+   - If sub-items are listed below the priced line: name every one of them explicitly.
+   - If no sub-items are shown: write a professional scope description based on what that type of work typically includes (materials, labor, fasteners, prep, cleanup, etc.).
+   Example for "8x16 Trex Enhance Open Deck Material and labor": "Supply and install 8x16 Trex Enhance composite deck boards on pressure-treated framing with hidden fasteners, stair stringers, post footings, rim joist, and all associated hardware and labor."
+   No bullets. Max 500 chars.
 5. SECTION — copy the exact heading from the estimate that this item falls under.
 6. PRICING — use the price as written. If a total is given with qty > 1, compute unitPrice = total / qty. Never set unitPrice to 0.
 7. CATEGORY — pick the best match: Fencing, Gates, Demo, Materials, Labor, Framing, Concrete, Electrical, Plumbing, Roofing, Flooring, Drywall, Painting, HVAC, Windows, Doors, Tile, Insulation, Siding, General`
@@ -63,7 +67,7 @@ async function runGeminiAnalysis(prompt) {
     .map(i => ({
       name: String(i.name).slice(0, 80),
       section: String(i.section || i.category || 'General').slice(0, 80),
-      description: String(i.description || '').slice(0, 600),
+      description: String(i.description || `Supply and install ${i.name} — all materials and labor included.`).slice(0, 600),
       qty: Math.max(0, parseFloat(i.qty) || 1),
       unit: ANALYZE_UNITS.includes(i.unit) ? i.unit : 'EA',
       unitPrice: Math.round(parseFloat(i.unitPrice) * 100) / 100,
