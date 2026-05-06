@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Upload, Trash2, CheckCircle, RefreshCw, Palette, Building2, Eye } from 'lucide-react'
+import { Upload, Trash2, CheckCircle, RefreshCw, Palette, Building2, Eye, Download, FolderOpen, AlertTriangle } from 'lucide-react'
 import { useStore } from '../store'
 import { extractDominantColor, generatePalette, applyBrandStyles, DEFAULT_BRAND_COLOR } from '../brand'
 
@@ -46,6 +46,99 @@ function SidebarPreview({ companyName, tagline, logo, color }) {
       <div className="px-4 py-2.5 border-t" style={{ borderColor: palette[600] }}>
         <p className="text-xs" style={{ color: palette[400] }}>© 2025 {companyName || 'QUOTEX'}</p>
       </div>
+    </div>
+  )
+}
+
+// ── Data management ───────────────────────────────────────────────────────────
+function DataManagement() {
+  const store = useStore()
+  const importRef = useRef()
+  const [importStatus, setImportStatus] = useState(null) // null | 'ok' | 'error'
+  const [importMsg, setImportMsg]       = useState('')
+
+  const handleExport = () => {
+    const data = {
+      exportedAt: new Date().toISOString(),
+      catalog:    store.catalog,
+      proposals:  store.proposals,
+      templates:  store.templates,
+      branding:   store.branding,
+      theme:      store.theme,
+    }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href     = url
+    a.download = `quotex-backup-${new Date().toISOString().slice(0,10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleImport = (file) => {
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result)
+        if (!data.catalog && !data.proposals) throw new Error('Unrecognized backup file.')
+
+        if (Array.isArray(data.catalog))   store.importCatalog(data.catalog)
+        if (Array.isArray(data.proposals)) store.importProposals(data.proposals)
+        if (Array.isArray(data.templates)) store.importTemplates(data.templates)
+        if (data.branding)                 store.updateBranding(data.branding)
+
+        setImportStatus('ok')
+        setImportMsg(`Imported ${data.catalog?.length || 0} catalog items and ${data.proposals?.length || 0} proposals.`)
+      } catch (err) {
+        setImportStatus('error')
+        setImportMsg(err.message || 'Failed to read backup file.')
+      }
+      if (importRef.current) importRef.current.value = ''
+      setTimeout(() => setImportStatus(null), 5000)
+    }
+    reader.readAsText(file)
+  }
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-5">
+      <div className="flex items-center gap-2 mb-1">
+        <Download size={16} className="text-gray-400" />
+        <h3 className="font-semibold text-gray-800 text-sm">Data Backup &amp; Restore</h3>
+      </div>
+      <p className="text-xs text-gray-400 mb-4">
+        Your data is saved in this browser. Export a backup to move it to another device or URL.
+      </p>
+
+      <div className="flex gap-3 flex-wrap">
+        <button
+          onClick={handleExport}
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-600)] text-white text-sm font-medium rounded-lg hover:bg-[var(--brand-700)] transition-colors"
+        >
+          <Download size={14} /> Export Backup
+        </button>
+
+        <label className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+          <FolderOpen size={14} /> Import Backup
+          <input
+            ref={importRef}
+            type="file"
+            accept=".json,application/json"
+            className="hidden"
+            onChange={e => handleImport(e.target.files[0])}
+          />
+        </label>
+      </div>
+
+      {importStatus && (
+        <div className={`mt-3 flex items-start gap-2 rounded-lg px-3 py-2 text-sm ${
+          importStatus === 'ok' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+        }`}>
+          {importStatus === 'error' && <AlertTriangle size={15} className="shrink-0 mt-0.5" />}
+          {importStatus === 'ok'    && <CheckCircle  size={15} className="shrink-0 mt-0.5" />}
+          {importMsg}
+        </div>
+      )}
     </div>
   )
 }
@@ -241,6 +334,9 @@ export default function Settings() {
               Reset to Defaults
             </button>
           </div>
+
+          {/* Data backup / restore */}
+          <DataManagement />
         </div>
 
         {/* Right: live preview */}

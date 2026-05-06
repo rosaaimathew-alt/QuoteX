@@ -229,6 +229,25 @@ export const useStore = create(
       deleteProposal: (id) =>
         set((s) => ({ proposals: s.proposals.filter((p) => p.id !== id) })),
 
+      // ── Import (from backup JSON) ─────────────────────────────────────────
+      importCatalog: (items) => {
+        if (!Array.isArray(items) || items.length === 0) return
+        const maxId = items.reduce((m, i) => Math.max(m, i.id || 0), 0)
+        set({ catalog: items, nextCatalogId: maxId + 1 })
+      },
+
+      importProposals: (items) => {
+        if (!Array.isArray(items) || items.length === 0) return
+        const maxId = items.reduce((m, i) => Math.max(m, i.id || 0), 0)
+        set({ proposals: items, nextProposalId: maxId + 1 })
+      },
+
+      importTemplates: (items) => {
+        if (!Array.isArray(items) || items.length === 0) return
+        const maxId = items.reduce((m, i) => Math.max(m, i.id || 0), 0)
+        set({ templates: items, nextTemplateId: maxId + 1 })
+      },
+
       // ── Theme ────────────────────────────────────────────────────────────────
       theme: 'light',
       setTheme: (theme) => set({ theme }),
@@ -258,22 +277,32 @@ export const useStore = create(
       name: 'quotex-store',
       storage: createJSONStorage(() => localStorage),
       version: 4,
-      // IMPORTANT: merge persisted data ON TOP of defaults so that:
-      //   - New fields added in future versions get their default values
-      //   - Existing user data (catalog, proposals, etc.) is always preserved
-      //   - Version bumps never wipe the catalog again
-      migrate: (persisted) => ({
-        catalog: SEED_CATALOG,
-        nextCatalogId: SEED_CATALOG.length + 1,
-        templates: [],
-        nextTemplateId: 1,
-        proposals: [],
-        nextProposalId: 1,
-        readMessageIds: [],
-        theme: 'light',
-        branding: { companyName: 'QUOTEX', tagline: 'Smart Contractor Pricing', logo: null, primaryColor: null },
-        // Persisted data always wins — overwrites the defaults above
-        ...persisted,
+      migrate: (persisted) => {
+        const persistedCatalog = persisted?.catalog
+        // Preserve user catalog if it exists; fall back to seed only on fresh install
+        const catalog = Array.isArray(persistedCatalog) && persistedCatalog.length > 0
+          ? persistedCatalog
+          : SEED_CATALOG
+        const maxId = catalog.reduce((m, i) => Math.max(m, i.id || 0), 0)
+        return {
+          catalog,
+          nextCatalogId: Math.max(SEED_CATALOG.length + 1, maxId + 1, persisted?.nextCatalogId || 0),
+          templates:     persisted?.templates     || [],
+          nextTemplateId:persisted?.nextTemplateId|| 1,
+          proposals:     persisted?.proposals     || [],
+          nextProposalId:persisted?.nextProposalId|| 1,
+          readMessageIds:persisted?.readMessageIds|| [],
+          theme:         persisted?.theme         || 'light',
+          branding:      persisted?.branding      || { companyName: 'QUOTEX', tagline: 'Smart Contractor Pricing', logo: null, primaryColor: null },
+        }
+      },
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        ...persistedState,
+        // Catalog: always prefer stored data; only fall back to seed when truly empty
+        catalog: (persistedState?.catalog?.length > 0)
+          ? persistedState.catalog
+          : currentState.catalog,
       }),
     }
   )
