@@ -276,7 +276,7 @@ export default function ProposalView() {
         {/* Customer info */}
         {(client || email || phone || address) && (
           <div className="px-10 py-5 border-b border-gray-100">
-            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Prepared For</p>
+            <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: palette[700] }}>Prepared For</p>
             <div className="flex justify-between items-start flex-wrap gap-4">
               <div>
                 {client && <p className="font-semibold text-gray-900 text-lg">{client}</p>}
@@ -294,7 +294,7 @@ export default function ProposalView() {
 
         {/* Scope of Work */}
         <div className="px-10 py-7 border-b border-gray-100">
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-5">Scope of Work</p>
+          <p className="text-xs font-semibold uppercase tracking-widest mb-5" style={{ color: palette[700] }}>Scope of Work</p>
           <div className="space-y-7">
             {sectionOrder.map(key => {
               const items = sections[key]
@@ -322,12 +322,11 @@ export default function ProposalView() {
 
         {/* Pricing Table */}
         <div className="px-10 py-7">
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-4">Pricing</p>
+          <p className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: palette[700] }}>Pricing</p>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b-2 border-gray-200">
                 <th className="text-left pb-2 font-semibold text-gray-600 text-xs uppercase tracking-wider">Item</th>
-                <th className="text-left pb-2 font-semibold text-gray-600 text-xs uppercase tracking-wider">Description</th>
                 <th className="text-right pb-2 font-semibold text-gray-600 text-xs uppercase tracking-wider w-28">Price</th>
               </tr>
             </thead>
@@ -335,7 +334,6 @@ export default function ProposalView() {
               {lines.map((line, i) => (
                 <tr key={line.id} className={`border-b border-gray-50 ${i % 2 === 0 ? '' : 'bg-gray-50'}`}>
                   <td className="py-2.5 text-gray-800 font-medium">{line.name || '—'}</td>
-                  <td className="py-2.5 text-gray-500 text-xs">{line.description || '—'}</td>
                   <td className="py-2.5 text-right font-semibold text-gray-900">${fmt(line.qty * line.unitPrice)}</td>
                 </tr>
               ))}
