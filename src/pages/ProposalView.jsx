@@ -322,7 +322,6 @@ export default function ProposalView() {
 
         {/* Pricing Table */}
         <div className="px-10 py-7">
-          <p className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: palette[700] }}>Pricing</p>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b-2 border-gray-200">
