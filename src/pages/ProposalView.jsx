@@ -295,28 +295,15 @@ export default function ProposalView() {
         {/* Scope of Work */}
         <div className="px-10 py-7 border-b border-gray-100">
           <p className="text-xs font-semibold uppercase tracking-widest mb-5" style={{ color: palette[700] }}>Scope of Work</p>
-          <div className="space-y-7">
-            {sectionOrder.map(key => {
-              const items = sections[key]
-              return (
-                <div key={key}>
-                  <div className="flex items-center gap-3 mb-3">
-                    <span className="text-xs font-bold uppercase tracking-widest" style={{ color: palette[700] }}>{key}</span>
-                    <div className="flex-1 h-px" style={{ backgroundColor: palette[100] }} />
-                  </div>
-                  <div className="space-y-2 pl-0">
-                    {items.map(line => (
-                      <div key={line.id} className="border-l-2 border-gray-100 pl-3">
-                        <p className="text-sm font-semibold text-gray-800">{line.name}</p>
-                        {line.description && (
-                          <p className="text-sm text-gray-500 leading-relaxed mt-0.5">{line.description}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
+          <div className="space-y-2">
+            {lines.map(line => (
+              <div key={line.id} className="border-l-2 border-gray-100 pl-3">
+                <p className="text-sm font-semibold text-gray-800">{line.name}</p>
+                {line.description && (
+                  <p className="text-sm text-gray-500 leading-relaxed mt-0.5">{line.description}</p>
+                )}
+              </div>
+            ))}
           </div>
         </div>
 
