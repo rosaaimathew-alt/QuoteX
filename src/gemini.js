@@ -23,22 +23,30 @@ const VISION_MODEL = 'llava'
 const API_BASE     = '/api/ai'
 
 async function callOllama(model, messages, system, maxTokens = 4096) {
-  const res = await fetch(`${API_BASE}/chat/completions`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model,
-      messages: [
-        ...(system ? [{ role: 'system', content: system }] : []),
-        ...messages,
-      ],
-      max_tokens: maxTokens,
-      stream: false,
-    }),
-  })
+  let res
+  try {
+    res = await fetch(`${API_BASE}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        messages: [
+          ...(system ? [{ role: 'system', content: system }] : []),
+          ...messages,
+        ],
+        max_tokens: maxTokens,
+        stream: false,
+      }),
+    })
+  } catch {
+    throw new Error('AI is offline — open the Ollama app or run "ollama serve" in Terminal, then try again.')
+  }
+  if (res.status === 503) {
+    throw new Error('Ollama is not running. Open the Ollama app or run "ollama serve" in Terminal, then try again.')
+  }
   if (!res.ok) {
     const err = await res.text().catch(() => res.statusText)
-    throw new Error(`Ollama (${model}): ${err}`)
+    throw new Error(`Ollama error (${res.status}): ${err}`)
   }
   const data = await res.json()
   return data.choices[0].message.content
@@ -109,4 +117,3 @@ export function getAnalyzeModel(systemInstruction) {
     },
   }
 }
-

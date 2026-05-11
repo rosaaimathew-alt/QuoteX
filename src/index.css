@@ -2,5 +2,46 @@
 
 @media print {
   .no-print { display: none !important; }
-  body { background: white; }
+
+  /* ── Always print in light mode regardless of dark mode theme ── */
+  html, body {
+    background: #ffffff !important;
+    color: #111827 !important;
+    color-scheme: light !important;
+  }
+
+  /* Reset dark-mode background overrides */
+  html.dark .bg-white,
+  html.dark .bg-gray-50,
+  html.dark .bg-gray-100,
+  html.dark .bg-blue-50,
+  html.dark .bg-green-50,
+  html.dark .bg-red-50,
+  html.dark .bg-amber-50,
+  html.dark .bg-purple-50,
+  html.dark .bg-sky-50  { background-color: #ffffff !important; }
+
+  /* Reset dark-mode text overrides */
+  html.dark .text-gray-900 { color: #111827 !important; }
+  html.dark .text-gray-800 { color: #1f2937 !important; }
+  html.dark .text-gray-700 { color: #374151 !important; }
+  html.dark .text-gray-600 { color: #4b5563 !important; }
+  html.dark .text-gray-500 { color: #6b7280 !important; }
+  html.dark .text-gray-400 { color: #9ca3af !important; }
+  html.dark .text-gray-300 { color: #d1d5db !important; }
+
+  /* Reset dark-mode border overrides */
+  html.dark .border-gray-100 { border-color: #f3f4f6 !important; }
+  html.dark .border-gray-200 { border-color: #e5e7eb !important; }
+  html.dark .border-gray-300 { border-color: #d1d5db !important; }
+  html.dark .divide-gray-50 > :not([hidden]) ~ :not([hidden]) { border-color: #f9fafb !important; }
+
+  /* Reset dark-mode input overrides */
+  html.dark input, html.dark textarea, html.dark select {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    border-color: #e5e7eb !important;
+  }
+
+  * { box-shadow: none !important; }
 }
