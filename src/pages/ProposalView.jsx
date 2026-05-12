@@ -40,6 +40,7 @@ export default function ProposalView() {
           expiration: parsed.expiration,
           total: parsed.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0),
           lines: parsed.lines,
+          isAlaCarte: parsed.isAlaCarte || false,
           status: 'Draft',
           parentId: parsed.parentId || null,
         })
@@ -61,7 +62,7 @@ export default function ProposalView() {
     )
   }
 
-  const { client, email, phone, address, expiration, lines } = data
+  const { client, email, phone, address, expiration, lines, isAlaCarte } = data
   const subtotal = lines.reduce((s, l) => s + l.qty * l.unitPrice, 0)
   const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
   const expirationFormatted = expiration
@@ -105,12 +106,13 @@ export default function ProposalView() {
       scopeText,
       '',
       '─'.repeat(60),
-      'PRICING',
+      isAlaCarte ? 'OPTIONS & PRICING' : 'PRICING',
       '─'.repeat(60),
+      isAlaCarte ? 'Please indicate which options you would like to proceed with.' : '',
       '',
       pricingText,
       '',
-      `TOTAL: $${fmt(subtotal)}`,
+      isAlaCarte ? '' : `TOTAL: $${fmt(subtotal)}`,
     ].filter(Boolean).join('\n')
 
     navigator.clipboard.writeText(text).then(() => {
@@ -309,11 +311,21 @@ export default function ProposalView() {
 
         {/* Pricing Table */}
         <div className="px-10 py-7">
+          {isAlaCarte && (
+            <p className="text-xs text-gray-500 italic mb-4">
+              The following options are priced individually — please indicate which you would like to proceed with.
+            </p>
+          )}
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b-2 border-gray-200">
-                <th className="text-left pb-2 font-semibold text-gray-600 text-xs uppercase tracking-wider">Item</th>
+                <th className="text-left pb-2 font-semibold text-gray-600 text-xs uppercase tracking-wider">
+                  {isAlaCarte ? 'Option' : 'Item'}
+                </th>
                 <th className="text-right pb-2 font-semibold text-gray-600 text-xs uppercase tracking-wider w-28">Price</th>
+                {isAlaCarte && (
+                  <th className="text-right pb-2 font-semibold text-gray-600 text-xs uppercase tracking-wider w-20">Select</th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -321,17 +333,24 @@ export default function ProposalView() {
                 <tr key={line.id} className={`border-b border-gray-50 ${i % 2 === 0 ? '' : 'bg-gray-50'}`}>
                   <td className="py-2.5 text-gray-800 font-medium">{line.name || '—'}</td>
                   <td className="py-2.5 text-right font-semibold text-gray-900">${fmt(line.qty * line.unitPrice)}</td>
+                  {isAlaCarte && (
+                    <td className="py-2.5 text-right">
+                      <span className="inline-block w-4 h-4 border border-gray-400 rounded-sm" />
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
           </table>
-          {/* Total — always rendered after ALL rows, never mid-page */}
-          <div style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }} className="border-t-2 border-gray-300 mt-2 pt-4 flex justify-end">
-            <div className="text-right">
-              <span className="text-xs font-semibold uppercase tracking-widest text-gray-400 mr-4">Total</span>
-              <span className="text-xl font-bold" style={{ color: palette[700] }}>${fmt(subtotal)}</span>
+          {/* Total — only shown in summed mode */}
+          {!isAlaCarte && (
+            <div style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }} className="border-t-2 border-gray-300 mt-2 pt-4 flex justify-end">
+              <div className="text-right">
+                <span className="text-xs font-semibold uppercase tracking-widest text-gray-400 mr-4">Total</span>
+                <span className="text-xl font-bold" style={{ color: palette[700] }}>${fmt(subtotal)}</span>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Terms & Signature */}

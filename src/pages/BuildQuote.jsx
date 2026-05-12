@@ -23,6 +23,9 @@ export default function BuildQuote() {
   const [showMargin, setShowMargin] = useState(false)
 
   // Template modals
+  const [isAlaCarte, setIsAlaCarte] = useState(false)
+
+  // Template modals
   const [showSaveTemplate, setShowSaveTemplate] = useState(false)
   const [showLoadTemplate, setShowLoadTemplate] = useState(false)
   const [templateName, setTemplateName] = useState('')
@@ -41,6 +44,7 @@ export default function BuildQuote() {
     setAddress(d.address || '')
     setExpiration(d.expiration || '')
     setLines((d.lines || []).map(l => ({ ...l, id: Date.now() + Math.random() })))
+    setIsAlaCarte(d.isAlaCarte || false)
     setRevisingParentId(d.parentId || null)
   }, [])
 
@@ -102,7 +106,7 @@ export default function BuildQuote() {
 
   const goToProposal = () => {
     sessionStorage.setItem('proposal', JSON.stringify({
-      client, email, phone, address, expiration, lines, margin,
+      client, email, phone, address, expiration, lines, margin, isAlaCarte,
       ...(revisingParentId ? { parentId: revisingParentId } : {}),
     }))
     navigate('/proposal')
@@ -172,7 +176,21 @@ export default function BuildQuote() {
         )}
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <h2 className="text-2xl font-bold text-gray-900">Build Quote</h2>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {/* Summed / A La Carte toggle */}
+            <button
+              onClick={() => setIsAlaCarte(v => !v)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${
+                isAlaCarte
+                  ? 'bg-purple-50 border-purple-300 text-purple-700'
+                  : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <span className={`relative w-8 h-4 rounded-full transition-colors shrink-0 ${isAlaCarte ? 'bg-purple-500' : 'bg-gray-300'}`}>
+                <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform ${isAlaCarte ? 'translate-x-4' : 'translate-x-0.5'}`} />
+              </span>
+              {isAlaCarte ? 'A La Carte' : 'Summed Total'}
+            </button>
             {/* Template buttons */}
             {templates.length > 0 && (
               <button
