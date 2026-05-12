@@ -44,7 +44,6 @@ export default function BuildQuote() {
     setAddress(d.address || '')
     setExpiration(d.expiration || '')
     setLines((d.lines || []).map(l => ({ ...l, id: Date.now() + Math.random() })))
-    setIsAlaCarte(d.isAlaCarte || false)
     setRevisingParentId(d.parentId || null)
   }, [])
 
