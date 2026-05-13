@@ -22,8 +22,14 @@ export default function BuildQuote() {
   const [margin, setMargin] = useState(MARGIN_DEFAULT)
   const [showMargin, setShowMargin] = useState(false)
 
-  // Template modals
   const [isAlaCarte, setIsAlaCarte] = useState(false)
+  const [projectTypes, setProjectTypes] = useState([])
+  const [projectSummary, setProjectSummary] = useState('')
+
+  const PROJECT_TYPE_OPTIONS = ['Deck', 'Screened Porch', 'Sunroom', 'Pergola', 'Gazebo', 'Open Porch']
+  const toggleProjectType = (t) => setProjectTypes(prev =>
+    prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]
+  )
 
   // Template modals
   const [showSaveTemplate, setShowSaveTemplate] = useState(false)
@@ -105,7 +111,7 @@ export default function BuildQuote() {
 
   const goToProposal = () => {
     sessionStorage.setItem('proposal', JSON.stringify({
-      client, email, phone, address, expiration, lines, margin, isAlaCarte,
+      client, email, phone, address, expiration, lines, margin, isAlaCarte, projectTypes, projectSummary,
       ...(revisingParentId ? { parentId: revisingParentId } : {}),
     }))
     navigate('/proposal')
@@ -240,6 +246,25 @@ export default function BuildQuote() {
             <div className="col-span-2 sm:col-span-1">
               <label className="text-xs font-medium text-gray-500 block mb-1">Quote Expiration Date</label>
               <input type="date" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" value={expiration} onChange={e => setExpiration(e.target.value)} />
+            </div>
+            <div className="col-span-2">
+              <label className="text-xs font-medium text-gray-500 block mb-1">Project Type <span className="text-gray-400">(multi-select — used on contract)</span></label>
+              <div className="flex flex-wrap gap-1.5">
+                {PROJECT_TYPE_OPTIONS.map(t => (
+                  <button key={t} type="button" onClick={() => toggleProjectType(t)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                      projectTypes.includes(t)
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'
+                    }`}>
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="col-span-2">
+              <label className="text-xs font-medium text-gray-500 block mb-1">Project Summary <span className="text-gray-400">(optional — appears on scope of work)</span></label>
+              <textarea rows={2} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none" placeholder="e.g. 16'x16' Gable Roof Eze-Breeze Porch with vaulted ceilings…" value={projectSummary} onChange={e => setProjectSummary(e.target.value)} />
             </div>
           </div>
         </div>

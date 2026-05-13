@@ -11,6 +11,7 @@ import InboxPage from './pages/Inbox'
 import AiChat from './pages/AiChat'
 import SettingsPage from './pages/Settings'
 import ClientList from './pages/ClientList'
+import ContractView from './pages/ContractView'
 import { useStore } from './store'
 import { applyBrandStyles, applyTheme, DEFAULT_BRAND_COLOR } from './brand'
 
@@ -280,6 +281,7 @@ function AppShell() {
             <Route path="/tracker"  element={<ProposalTracker />} />
             <Route path="/inbox"    element={<InboxPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/contract" element={<ContractView />} />
           </Routes>
         </main>
       </div>

@@ -1,7 +1,10 @@
 @import "tailwindcss";
 
+.print-only { display: none; }
+
 @media print {
   .no-print { display: none !important; }
+  .print-only { display: block !important; }
 
   /* ── Always print in light mode regardless of dark mode theme ── */
   html, body {

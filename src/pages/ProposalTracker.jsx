@@ -7,7 +7,7 @@ import {
   Bell, Trash2, X, CheckCircle, AlertCircle, Clock, TrendingUp,
   DollarSign, FileText, Plus, ChevronDown, ChevronUp, MessageSquare,
   Phone, Mail, Users, BarChart2, Columns, List, Award, ThumbsDown,
-  Eye, Copy, GitBranch,
+  Eye, Copy, GitBranch, FileSignature,
 } from 'lucide-react'
 
 // Group proposals into root → revisions trees
@@ -252,7 +252,7 @@ function bestInGroup(all) {
   return all.reduce((b, p) => (STATUS_RANK[p.status] || 0) > (STATUS_RANK[b.status] || 0) ? p : b)
 }
 
-function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onOpen, onRevise }) {
+function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onOpen, onRevise, onGenerateContract }) {
   const { deleteProposal } = useStore()
   const [expandedLog, setExpandedLog] = useState(null)   // proposal id with activity log open
   const [expandedAlts, setExpandedAlts] = useState(null) // root id with alts expanded
@@ -324,6 +324,11 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
               <button onClick={() => onRevise(p)} className="p-1.5 rounded text-gray-300 hover:text-purple-600 hover:bg-purple-50" title="Create revision">
                 <Copy size={13} />
               </button>
+              {p.status === 'Won' && (
+                <button onClick={() => onGenerateContract(p)} className="p-1.5 rounded text-gray-300 hover:text-green-600 hover:bg-green-50" title="Generate Contract">
+                  <FileSignature size={13} />
+                </button>
+              )}
               <button onClick={() => setExpandedLog(expandedLog === p.id ? null : p.id)} className="p-1.5 rounded text-gray-300 hover:text-blue-500 hover:bg-blue-50" title="Activity log">
                 {expandedLog === p.id ? <ChevronUp size={13} /> : <MessageSquare size={13} />}
               </button>
@@ -649,6 +654,24 @@ export default function ProposalTracker() {
     navigate('/proposal')
   }
 
+  // Generate contract package for a Won proposal
+  const handleGenerateContract = (proposal) => {
+    const contractNumber = `EOL${String(70000 + proposal.id).padStart(6, '0')}`
+    sessionStorage.setItem('contract', JSON.stringify({
+      client: proposal.client,
+      email: proposal.email,
+      phone: proposal.phone,
+      address: proposal.address,
+      total: proposal.total || 0,
+      lines: proposal.lines || [],
+      projectTypes: proposal.projectTypes || [],
+      projectSummary: proposal.projectSummary || '',
+      contractNumber,
+      salesperson: 'Mathew Rosa',
+    }))
+    navigate('/contract')
+  }
+
   // Open BuildQuote pre-filled to create a new revision
   const handleRevise = (proposal) => {
     const rootId = proposal.parentId || proposal.id
@@ -794,6 +817,7 @@ export default function ProposalTracker() {
           onReminderOpen={openReminder}
           onOpen={handleOpen}
           onRevise={handleRevise}
+          onGenerateContract={handleGenerateContract}
         />
       )}
       {tab === 'pipeline' && (

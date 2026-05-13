@@ -41,6 +41,8 @@ export default function ProposalView() {
           total: parsed.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0),
           lines: parsed.lines,
           isAlaCarte: parsed.isAlaCarte || false,
+          projectTypes: parsed.projectTypes || [],
+          projectSummary: parsed.projectSummary || '',
           status: 'Draft',
           parentId: parsed.parentId || null,
         })
