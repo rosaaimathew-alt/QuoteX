@@ -43,10 +43,10 @@ const ordinal = (n) => {
 }
 
 const SigBlock = ({ label, date = true }) => (
-  <div className="mt-8">
+  <div className="mt-5">
     <div className="flex gap-8 items-end">
-      <div className="flex-1 border-b border-gray-500 pb-7" />
-      {date && <div className="w-40 border-b border-gray-500 pb-7" />}
+      <div className="flex-1 border-b border-gray-500 pb-5" />
+      {date && <div className="w-40 border-b border-gray-500 pb-5" />}
     </div>
     <p className="text-xs text-gray-500 mt-1">{label}{date ? ' / Date' : ''}</p>
   </div>
@@ -132,6 +132,8 @@ export default function ContractView() {
   }
 
   const { client, email, phone, address, total, projectTypes = [], contractNumber, salesperson } = data
+  const logo = branding?.logo || null
+  const companyName = branding?.companyName || 'Ebony Outdoor Living'
   const now    = new Date()
   const today  = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
   const todayS = now.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })
@@ -210,7 +212,7 @@ export default function ContractView() {
     lineHeight: '1.55',
     color:      '#1a1a1a',
   }
-  const bodyPad = 'px-12 py-10'
+  const bodyPad = 'px-12 py-6'
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -394,7 +396,13 @@ export default function ContractView() {
           {/* ── PAGE 1 · Contract opening + payment schedule ─────── */}
           <div className={bodyPad}>
             <div className="flex justify-between items-start mb-1">
-              <div className="text-2xl font-bold" style={{ fontFamily: 'Arial, sans-serif' }}>CONTRACT</div>
+              <div>
+                {logo
+                  ? <img src={logo} alt="logo" className="h-14 object-contain mb-1" />
+                  : <div className="text-xl font-black tracking-widest leading-tight" style={{ fontFamily: 'Arial, sans-serif' }}>{companyName}</div>
+                }
+                <div className="text-2xl font-bold mt-1" style={{ fontFamily: 'Arial, sans-serif' }}>CONTRACT</div>
+              </div>
               <div style={{ fontFamily: 'Arial, sans-serif', fontSize: '10pt' }}>
                 <strong>Contract # </strong>{contractNumber}
               </div>
@@ -458,26 +466,26 @@ export default function ContractView() {
             <p className="mb-3 text-justify text-sm"><strong>6. a.</strong> The WORK will be warranted by BUILDER. Existing structures to which the WORK may be affixed or interconnected are not part of the WORK and will not be covered under the Warranty. This Warrant is issued to and only applicable to the PURCHASER after payment in full of the TOTAL CONTRACT SUM.</p>
             <p className="mb-3 text-justify text-sm"><strong>B.</strong> As General contractors we have <strong>All-In-One Solutions</strong> that operate as part of Ebony Outdoor Living team. All-In-One Solutions serves as the licensed General Contractor and is responsible for maintaining the applicable licenses and overall legal and regulatory compliance required for the project. All-In-One Solutions also acts as a general supervisor of the project, performing occasional site visits during the progress of the work for purposes of overall oversight and supervision. However, All-In-One Solutions is not involved in the daily management of the job site, operational coordination of crews, or direct execution of the services.</p>
             <p className="mb-4 text-sm"><strong>7.</strong> This CONTRACT shall not be effective and binding upon BUILDER until countersigned by BUILDER and GENERAL CONTRACTOR.</p>
-            <p className="text-center font-bold mb-6">ADDITIONAL TERMS ON NEXT PAGE</p>
+            <p className="text-center font-bold mb-3">ADDITIONAL TERMS ON NEXT PAGE</p>
 
-            <div className="grid grid-cols-2 gap-10 mt-4">
+            <div className="grid grid-cols-2 gap-8 mt-2">
               <div>
-                <p className="font-bold underline mb-4">PURCHASER</p>
-                <div className="border-b border-gray-500 mb-1 pb-8" /><p className="text-xs text-gray-500 mb-5">(Signature)</p>
-                <div className="border-b border-gray-500 mb-1 pb-8" /><p className="text-xs text-gray-500">(Print Name)</p>
+                <p className="font-bold underline mb-2">PURCHASER</p>
+                <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500 mb-3">(Signature)</p>
+                <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500">(Print Name)</p>
               </div>
               <div>
-                <p className="font-bold underline mb-4">BUILDER: EBONY OUTDOOR LIVING</p>
-                <div className="border-b border-gray-500 mb-1 pb-8" /><p className="text-xs text-gray-500 mb-5">(Signature)</p>
-                <div className="border-b border-gray-500 mb-1 pb-8" /><p className="text-xs text-gray-500 mb-5">(Print Name)</p>
-                <p className="font-bold mt-3">GENERAL CONTRACTOR: ALL IN ONE SOLUTIONS</p>
-                <div className="border-b border-gray-500 mb-1 pb-8 mt-4" /><p className="text-xs text-gray-500 mb-4">(Signature)</p>
-                <div className="border-b border-gray-500 mb-1 pb-8" /><p className="text-xs text-gray-500">(Print Name)</p>
+                <p className="font-bold underline mb-2">BUILDER: EBONY OUTDOOR LIVING</p>
+                <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500 mb-3">(Signature)</p>
+                <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500 mb-3">(Print Name)</p>
+                <p className="font-bold mt-2">GENERAL CONTRACTOR: ALL IN ONE SOLUTIONS</p>
+                <div className="border-b border-gray-500 mb-1 pb-5 mt-2" /><p className="text-xs text-gray-500 mb-2">(Signature)</p>
+                <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500">(Print Name)</p>
               </div>
             </div>
 
-            <p className="mt-5 text-sm underline">115 Unionville Indian Trail Road, Indian Trail, NC 28079 Unit B15</p>
-            <p className="text-xs text-gray-500 mb-5">(Builder Address)</p>
+            <p className="mt-3 text-sm underline">115 Unionville Indian Trail Road, Indian Trail, NC 28079 Unit B15</p>
+            <p className="text-xs text-gray-500 mb-3">(Builder Address)</p>
 
             <p className="mb-3 text-justify text-sm"><strong>8.</strong> BUILDER shall obtain applicable permits and inspections. Unless agreed otherwise in writing signed by the parties, or required by local code to be provided by BUILDER, PURCHASER shall be responsible for any additional approvals and processes (such as homeowner associations, special tax district, wetlands, endangered species, variances, or historic preservation). PURCHASER shall provide BUILDER with an accurate plat of PURCHASER's property.</p>
             <p className="text-justify text-sm"><strong>9.</strong> PURCHASER shall provide sufficient electricity for the continuous operation of BUILDER's equipment. There may be an additional charge if BUILDER is required to provide electricity.</p>
@@ -511,7 +519,7 @@ export default function ContractView() {
             <p className="mb-3 text-justify text-sm"><strong>19.</strong> This CONTRACT is made and shall be construed under the laws of the State set forth in the first paragraph hereof. Except as set forth below, if any controversy or claim arises out of or relates to this CONTRACT, or the breach thereof, and if said controversy or claim cannot be settled through direct discussions, the parties agree to first endeavor to settle the controversy or claim in an amicable manner by mediation administered by the American Arbitration Association under its Construction Industry Mediation Rules, before resorting to arbitration. Thereafter, any unresolved controversy or claim arising out of or relating to this CONTRACT, or breach thereof, shall be settled by arbitration administered by the American Arbitration Association in accordance with its Construction Industry Arbitration Rules, and judgment upon the award rendered by the arbitrator(s) may be entered in any court having jurisdiction thereof. The parties may agree to mediation and arbitration by the Better Business Bureau (if applicable) in lieu of the foregoing. It is further agreed that any efforts by BUILDER to collect the TOTAL CONTRACT SUM or any part thereof will not be subject to the mediation and arbitration provisions set forth above. PURCHASER will pay any collection expense, court costs, and reasonable attorney's fees which may be incurred in such collection efforts. PURCHASER hereby waives any and all rights PURCHASER may have to a jury in any suit hereunder.</p>
             <p className="mb-3 text-justify text-sm"><strong>20.</strong> Should PURCHASER fail to fulfill its obligations under this CONTRACT in addition to any other remedy at law or in equity that BUILDER may have or otherwise provided herein, BUILDER may retain as liquidated damages and not as a penalty, all consideration paid by PURCHASER to BUILDER, including, but not limited to the Down Payment referenced above.</p>
             <p className="mb-3 text-justify text-sm"><strong>21.</strong> BUILDER'S failure to exercise a right or remedy, or BUILDER's acceptance of a partial or delinquent payment, will not operate as a waiver of any of BUILDER's rights, or PURCHASER's obligations, under this CONTRACT and will not constitute a waiver of BUILDER's right to declare an immediate or a subsequent default of this CONTRACT.</p>
-            <p className="mb-8 text-justify text-sm"><strong>22.</strong> This CONTRACT contains the entire understanding and agreement between the parties with respect to the WORK and supersedes all prior or contemporaneous written and oral agreements and understandings with respect to the subject matter hereof. NO ORAL PROMISES OR AGREEMENTS ARE A PART OF THIS CONTRACT.</p>
+            <p className="mb-4 text-justify text-sm"><strong>22.</strong> This CONTRACT contains the entire understanding and agreement between the parties with respect to the WORK and supersedes all prior or contemporaneous written and oral agreements and understandings with respect to the subject matter hereof. NO ORAL PROMISES OR AGREEMENTS ARE A PART OF THIS CONTRACT.</p>
 
             <SigBlock label="Client Signature" />
             <SigBlock label="Builder Signature" />
@@ -534,8 +542,8 @@ export default function ContractView() {
                 'Duration of construction projects is often unpredictable due to weather, inspections, change orders, material availability, etc. There is NO discount for job duration. A reasonable time frame will be established for each job, and every effort will be made to adhere to that time frame.',
               ].map((t, i) => <li key={i} className="flex gap-2"><span>●</span><span>{t}</span></li>)}
             </ul>
-            <p className="font-bold text-center mb-8">I HAVE READ AND UNDERSTAND THE ABOVE SCOPE OF WORK AND FINAL PAYMENT CLARIFICATION.</p>
-            <div className="border-b border-gray-500 w-56 mt-10" />
+            <p className="font-bold text-center mb-4">I HAVE READ AND UNDERSTAND THE ABOVE SCOPE OF WORK AND FINAL PAYMENT CLARIFICATION.</p>
+            <div className="border-b border-gray-500 w-56 mt-5" />
             <p className="text-xs text-gray-500 mt-1">Signature</p>
           </div>
           <PageBreak />
@@ -564,10 +572,10 @@ export default function ContractView() {
                 "Pressure-treated wood comes from a Southern Yellow Pine Tree where sap/resin is prevalent. It is not uncommon for resin to seep from decking boards, especially during the warmer, sunny months. Sap is an uncontrollable and unpredictable characteristic and is not a warrantable item.",
               ].map((t, i) => <li key={i} className="flex gap-2"><span>●</span><span>{t}</span></li>)}
             </ul>
-            <p className="font-bold text-center mt-5 mb-6">I HAVE READ AND UNDERSTAND THE ABOVE CHARACTERISTICS OF PRESSURE TREATED WOOD.</p>
-            <div className="flex gap-8 mt-8">
-              <div><div className="border-b border-gray-500 w-48 pb-6" /><p className="text-xs text-gray-500 mt-1">Signature</p></div>
-              <div><div className="border-b border-gray-500 w-36 pb-6" /><p className="text-xs text-gray-500 mt-1">Date</p></div>
+            <p className="font-bold text-center mt-3 mb-3">I HAVE READ AND UNDERSTAND THE ABOVE CHARACTERISTICS OF PRESSURE TREATED WOOD.</p>
+            <div className="flex gap-8 mt-4">
+              <div><div className="border-b border-gray-500 w-48 pb-5" /><p className="text-xs text-gray-500 mt-1">Signature</p></div>
+              <div><div className="border-b border-gray-500 w-36 pb-5" /><p className="text-xs text-gray-500 mt-1">Date</p></div>
             </div>
           </div>
           <PageBreak />
@@ -636,10 +644,10 @@ export default function ContractView() {
                 Site diagram<br />(mark lumber drop with X, power with P)
               </div>
             </div>
-            <div className="border-b border-gray-200 mb-6" />
-            <div className="flex gap-8 mt-8">
-              <div><div className="border-b border-gray-500 w-48 pb-6" /><p className="text-xs text-gray-500 mt-1">Client Signature</p></div>
-              <div><div className="border-b border-gray-500 w-36 pb-6" /><p className="text-xs text-gray-500 mt-1">Date</p></div>
+            <div className="border-b border-gray-200 mb-3" />
+            <div className="flex gap-8 mt-4">
+              <div><div className="border-b border-gray-500 w-48 pb-5" /><p className="text-xs text-gray-500 mt-1">Client Signature</p></div>
+              <div><div className="border-b border-gray-500 w-36 pb-5" /><p className="text-xs text-gray-500 mt-1">Date</p></div>
             </div>
           </div>
           <PageBreak />
@@ -667,9 +675,12 @@ export default function ContractView() {
 
           {/* ── SCOPE PAGE 1 · Header + Scope Bullets ──────────────── */}
           <div className={bodyPad}>
-            <div className="flex justify-between items-start mb-1">
+            <div className="flex justify-between items-center mb-1">
+              {logo
+                ? <img src={logo} alt="logo" className="h-12 object-contain" />
+                : <div className="text-lg font-black tracking-widest" style={{ fontFamily: 'Arial, sans-serif' }}>{companyName}</div>
+              }
               <div className="text-lg font-bold" style={{ fontFamily: 'Arial, sans-serif' }}>SCOPE OF WORK</div>
-              <div className="text-right text-sm font-bold" style={{ fontFamily: 'Arial, sans-serif' }}>— EBONY —<br /><span className="text-xs font-normal text-gray-600">Outdoor Living</span></div>
             </div>
             <div className="border-b border-gray-400 mb-4" />
 
@@ -851,11 +862,14 @@ export default function ContractView() {
               <div className={bodyPad}>
 
                 {/* Header */}
-                <div className="flex justify-between items-start mb-1">
-                  <div style={{ fontFamily: 'Arial, sans-serif' }}>
-                    <div className="text-2xl font-black tracking-widest leading-tight">—EBONY—</div>
-                    <div className="text-sm font-semibold" style={{ color: '#2563eb' }}>Outdoor Living</div>
-                  </div>
+                <div className="flex justify-between items-center mb-1">
+                  {logo
+                    ? <img src={logo} alt="logo" className="h-12 object-contain" />
+                    : <div style={{ fontFamily: 'Arial, sans-serif' }}>
+                        <div className="text-2xl font-black tracking-widest leading-tight">—EBONY—</div>
+                        <div className="text-sm font-semibold" style={{ color: '#2563eb' }}>Outdoor Living</div>
+                      </div>
+                  }
                   <div className="text-xl font-bold" style={{ fontFamily: 'Arial, sans-serif' }}>ELECTRICAL SPECIFICATION</div>
                 </div>
                 <div className="border-b border-gray-400 mb-4" />
@@ -952,21 +966,21 @@ export default function ContractView() {
                 </ul>
 
                 {/* Signature block */}
-                <div className="grid grid-cols-2 gap-10 mt-10">
+                <div className="grid grid-cols-2 gap-10 mt-5">
                   <div>
-                    <div className="border-b border-gray-500 pb-8" />
+                    <div className="border-b border-gray-500 pb-5" />
                     <div className="flex gap-6 mt-1">
                       <p className="text-xs text-gray-600">CUSTOMER(S) SIGNATURE</p>
                       <p className="text-xs text-gray-600">DATE</p>
                     </div>
-                    <div className="border-b border-gray-500 pb-8 mt-6" />
+                    <div className="border-b border-gray-500 pb-5 mt-4" />
                     <div className="flex gap-6 mt-1">
                       <p className="text-xs text-gray-600">CUSTOMER(S) SIGNATURE</p>
                       <p className="text-xs text-gray-600">DATE</p>
                     </div>
                   </div>
                   <div>
-                    <div className="border-b border-gray-500 pb-8" />
+                    <div className="border-b border-gray-500 pb-5" />
                     <div className="flex gap-6 mt-1">
                       <p className="text-xs text-gray-600">BUILDER SIGNATURE</p>
                       <p className="text-xs text-gray-600">DATE</p>
