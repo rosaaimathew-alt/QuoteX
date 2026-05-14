@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Printer, Copy, ArrowLeft, CheckCircle, Send, X, Loader } from 'lucide-react'
 import { useStore } from '../store'
 import { generatePalette, DEFAULT_BRAND_COLOR } from '../brand'
-import html2canvas from 'html2canvas'
+import { toCanvas } from 'html-to-image'
 import jsPDF from 'jspdf'
 
 const fmt = (n) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -132,23 +132,9 @@ export default function ProposalView() {
     try {
       // Generate PDF from the rendered proposal element
       const element = proposalDocRef.current
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        onclone: (_clonedDoc, clonedEl) => {
-          // html2canvas can't parse oklch (Tailwind v4 default) — copy browser-resolved
-          // RGB values from the live DOM onto the clone so colors render correctly.
-          const liveEls   = element.querySelectorAll('*')
-          const cloneEls  = clonedEl.querySelectorAll('*')
-          const props = ['color','backgroundColor','borderTopColor','borderBottomColor','borderLeftColor','borderRightColor']
-          liveEls.forEach((live, i) => {
-            if (!cloneEls[i]) return
-            const cs = window.getComputedStyle(live)
-            props.forEach(p => { cloneEls[i].style[p] = cs[p] })
-          })
-        },
-      })
+      // html-to-image uses SVG foreignObject so the browser handles oklch natively —
+      // no custom CSS parser means no oklch errors.
+      const canvas = await toCanvas(element, { pixelRatio: 2 })
       const imgData = canvas.toDataURL('image/jpeg', 0.92)
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' })
       const pageW = pdf.internal.pageSize.getWidth()
