@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Printer, Send, ChevronDown, ChevronUp, Lock, Sparkles, Loader2, X, Save } from 'lucide-react'
+import { ArrowLeft, Printer, Send, ChevronDown, ChevronUp, Lock, Sparkles, Loader2, X, Save, BookOpen } from 'lucide-react'
 import { useStore } from '../store'
 import { generatePalette, DEFAULT_BRAND_COLOR } from '../brand'
 
@@ -236,6 +236,27 @@ export default function ContractView() {
 
   const addLine = () =>
     setScopeLines(prev => [...prev, { id: Date.now(), name: '', text: '' }])
+
+  const fillFromPastContracts = () => {
+    if (!scopeExamples.length) return
+    const score = (itemName, ex) => {
+      const a = itemName.toLowerCase()
+      const b = (ex.itemName || '').toLowerCase()
+      if (a === b) return 100
+      const words = a.split(/\s+/).filter(w => w.length > 2)
+      return words.filter(w => b.includes(w)).length / Math.max(words.length, 1)
+    }
+    setScopeLines(prev => prev.map(line => {
+      const best = scopeExamples
+        .map(ex => ({ ex, s: score(line.name || line.text, ex) }))
+        .filter(({ s }) => s > 0)
+        .sort((a, b) => {
+          if (b.s !== a.s) return b.s - a.s
+          return new Date(b.ex.savedAt) - new Date(a.ex.savedAt)
+        })[0]
+      return best ? { ...line, text: best.ex.bulletText } : line
+    }))
+  }
 
   const generateSuggestions = async () => {
     if (!data?.lines?.length) return
@@ -967,24 +988,33 @@ export default function ContractView() {
             </div>
 
             {/* Scope bullets */}
-            <div className="no-print mb-2 flex items-center justify-between gap-2">
+            <div className="no-print mb-2 flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-1.5 text-xs text-blue-600">
-                <span>✏️</span><span>Click any bullet to edit the wording for this client's scope.</span>
-              </div>
-              <div className="flex items-center gap-2">
+                <span>✏️</span><span>Click any bullet to edit.</span>
                 {scopeExamples.length > 0 && (
-                  <span className="text-xs text-purple-500 font-medium">
-                    {scopeExamples.length} example{scopeExamples.length !== 1 ? 's' : ''} learned
+                  <span className="text-purple-500 font-medium ml-1">
+                    · {scopeExamples.length} example{scopeExamples.length !== 1 ? 's' : ''} learned
                   </span>
                 )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={fillFromPastContracts}
+                  disabled={scopeExamples.length === 0}
+                  title={scopeExamples.length === 0 ? 'Save a contract draft first to build your example library' : 'Fill from your past contracts — no AI needed'}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <BookOpen size={12} /> Fill from Past Contracts
+                </button>
                 <button
                   onClick={generateSuggestions}
                   disabled={isGenerating}
+                  title="Uses Ollama (local AI, free) to generate and style bullets from your examples"
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {isGenerating
                     ? <><Loader2 size={12} className="animate-spin" /> Generating…</>
-                    : <><Sparkles size={12} /> Suggest from Proposal</>}
+                    : <><Sparkles size={12} /> AI Suggest</>}
                 </button>
               </div>
             </div>
