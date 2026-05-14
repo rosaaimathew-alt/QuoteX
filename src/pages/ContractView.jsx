@@ -40,7 +40,7 @@ const GENERAL_NOTES = [
   { text: 'Homeowner responsible to pay any costs associated with a sub panel if it is required to complete the electrical work', bold: false },
   { text: 'Homeowner responsible to check Impervious area of the property', bold: false },
   { text: 'Homeowner responsible to call 811 to mark the utilities', bold: false, highlight: true },
-  { text: 'Homeowner to provide 1 ceiling fan with downrod', bold: false },
+  { text: 'Homeowner to provide 1 ceiling fan with downrod', bold: false, editable: true },
 ]
 
 const ordinal = (n) => {
@@ -109,6 +109,7 @@ export default function ContractView() {
   const [scopeLines,      setScopeLines]      = useState([])
   const [isGenerating,    setIsGenerating]    = useState(false)
   const [aiError,         setAiError]         = useState('')
+  const [ceilingFanNote,  setCeilingFanNote]  = useState('Homeowner to provide 1 ceiling fan with downrod')
 
 
   useEffect(() => {
@@ -803,7 +804,19 @@ export default function ContractView() {
               {GENERAL_NOTES.map((n, i) => (
                 <li key={i} className={`flex gap-2 ${n.highlight ? 'bg-yellow-50 -mx-1 px-1 rounded' : ''}`}>
                   <span>●</span>
-                  <span className={n.bold ? 'font-bold' : ''}>{n.text}</span>
+                  {n.editable ? (
+                    <>
+                      <textarea
+                        className="no-print flex-1 border border-blue-200 bg-blue-50 rounded px-1 py-0.5 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-300 leading-snug"
+                        rows={2}
+                        value={ceilingFanNote}
+                        onChange={e => setCeilingFanNote(e.target.value)}
+                      />
+                      <span className="print-only">{ceilingFanNote}</span>
+                    </>
+                  ) : (
+                    <span className={n.bold ? 'font-bold' : ''}>{n.text}</span>
+                  )}
                 </li>
               ))}
             </ul>
