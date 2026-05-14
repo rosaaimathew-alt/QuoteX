@@ -86,5 +86,10 @@ export default defineConfig({
   plugins: [react(), tailwindcss(), localStorePlugin()],
   server: {
     host: true,
+    proxy: {
+      '/api/send-email':    'http://localhost:3001',
+      '/api/messages':      'http://localhost:3001',
+      '/api/inbound-email': 'http://localhost:3001',
+    },
   },
 })
