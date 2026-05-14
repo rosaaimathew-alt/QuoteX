@@ -49,7 +49,7 @@ const ordinal = (n) => {
 }
 
 const SigBlock = ({ label, date = true }) => (
-  <div className="mt-5">
+  <div className="mt-5" style={{ pageBreakInside: 'avoid' }}>
     <div className="flex gap-8 items-end">
       <div className="flex-1 border-b border-gray-500 pb-5" />
       {date && <div className="w-40 border-b border-gray-500 pb-5" />}
@@ -565,11 +565,8 @@ export default function ContractView() {
             <p className="text-sm text-justify">
               <strong>5.</strong> Modification to the WORK or CONTRACT will be made only when a written addendum describing such modification has been signed by both PURCHASER and BUILDER. There may be an additional charge for any changes.
             </p>
-          </div>
-          <PageBreak />
 
           {/* ── PAGE 2 · Clauses 6-9 + Signature Block 1 ──────────── */}
-          <div className={bodyPad}>
             <p className="mb-3 text-justify text-sm"><strong>6. a.</strong> The WORK will be warranted by BUILDER. Existing structures to which the WORK may be affixed or interconnected are not part of the WORK and will not be covered under the Warranty. This Warrant is issued to and only applicable to the PURCHASER after payment in full of the TOTAL CONTRACT SUM.</p>
             {!isSmallContract && (
               <p className="mb-3 text-justify text-sm"><strong>B.</strong> As General contractors we have <strong>All-In-One Solutions</strong> that operate as part of Ebony Outdoor Living team. All-In-One Solutions serves as the licensed General Contractor and is responsible for maintaining the applicable licenses and overall legal and regulatory compliance required for the project. All-In-One Solutions also acts as a general supervisor of the project, performing occasional site visits during the progress of the work for purposes of overall oversight and supervision. However, All-In-One Solutions is not involved in the daily management of the job site, operational coordination of crews, or direct execution of the services.</p>
@@ -579,7 +576,7 @@ export default function ContractView() {
 
             {isSmallContract ? (
               /* ── Under $40K: PURCHASER (2 lines) + BUILDER only, no GC ── */
-              <div className="grid grid-cols-2 gap-8 mt-2">
+              <div className="grid grid-cols-2 gap-8 mt-2" style={{ pageBreakInside: 'avoid' }}>
                 <div>
                   <p className="font-bold underline mb-2">PURCHASER</p>
                   <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500 mb-3">(Signature)</p>
@@ -595,7 +592,7 @@ export default function ContractView() {
               </div>
             ) : (
               /* ── Over $40K: PURCHASER + BUILDER + GC ── */
-              <div className="grid grid-cols-2 gap-8 mt-2">
+              <div className="grid grid-cols-2 gap-8 mt-2" style={{ pageBreakInside: 'avoid' }}>
                 <div>
                   <p className="font-bold underline mb-2">PURCHASER</p>
                   <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500 mb-3">(Signature)</p>
@@ -617,11 +614,8 @@ export default function ContractView() {
 
             <p className="mb-3 text-justify text-sm"><strong>8.</strong> BUILDER shall obtain applicable permits and inspections. Unless agreed otherwise in writing signed by the parties, or required by local code to be provided by BUILDER, PURCHASER shall be responsible for any additional approvals and processes (such as homeowner associations, special tax district, wetlands, endangered species, variances, or historic preservation). PURCHASER shall provide BUILDER with an accurate plat of PURCHASER's property.</p>
             <p className="text-justify text-sm"><strong>9.</strong> PURCHASER shall provide sufficient electricity for the continuous operation of BUILDER's equipment. There may be an additional charge if BUILDER is required to provide electricity.</p>
-          </div>
-          <PageBreak />
 
           {/* ── PAGE 3 · Clauses 10-18 ─────────────────────────────── */}
-          <div className={bodyPad}>
             {[
               ['10. a.', "PURCHASER agrees that should BUILDER encounter unforeseen site conditions on the PREMISES (including for example unsound roof shingles, buried storage tanks, solid rock, high water table, unsound house framing, or unsound or uncompacted soil conditions all the footing depth described on the Ebony Outdoor Living Specification Sheet, etc.) which would substantially interfere with BUILDER's completion of the WORK, BUILDER may require that PURCHASER and BUILDER execute an addendum to this CONTRACT describing the additional work that must be performed and setting forth the price at which BUILDER will perform such additional work. BUILDER shall not be obligated to continue the WORK if an addendum is not executed, if, in BUILDER's sole judgment, continuing the WORK as specified herein without any modifications would cause such WORK to not meet applicable local building code requirements or not meet BUILDER's construction standards."],
               ['b.', "PURCHASER agrees that BUILDER shall not be responsible for unforeseen site conditions on the PREMISES discovered or occurring after completion of the WORK."],
@@ -639,11 +633,8 @@ export default function ContractView() {
             ].map(([num, text]) => (
               <p key={num} className="mb-3 text-justify text-sm"><strong>{num}</strong> {text}</p>
             ))}
-          </div>
-          <PageBreak />
 
           {/* ── PAGE 4 · Clauses 19-22 + final sigs ───────────────── */}
-          <div className={bodyPad}>
             <p className="mb-3 text-justify text-sm"><strong>19.</strong> This CONTRACT is made and shall be construed under the laws of the State set forth in the first paragraph hereof. Except as set forth below, if any controversy or claim arises out of or relates to this CONTRACT, or the breach thereof, and if said controversy or claim cannot be settled through direct discussions, the parties agree to first endeavor to settle the controversy or claim in an amicable manner by mediation administered by the American Arbitration Association under its Construction Industry Mediation Rules, before resorting to arbitration. Thereafter, any unresolved controversy or claim arising out of or relating to this CONTRACT, or breach thereof, shall be settled by arbitration administered by the American Arbitration Association in accordance with its Construction Industry Arbitration Rules, and judgment upon the award rendered by the arbitrator(s) may be entered in any court having jurisdiction thereof. The parties may agree to mediation and arbitration by the Better Business Bureau (if applicable) in lieu of the foregoing. It is further agreed that any efforts by BUILDER to collect the TOTAL CONTRACT SUM or any part thereof will not be subject to the mediation and arbitration provisions set forth above. PURCHASER will pay any collection expense, court costs, and reasonable attorney's fees which may be incurred in such collection efforts. PURCHASER hereby waives any and all rights PURCHASER may have to a jury in any suit hereunder.</p>
             <p className="mb-3 text-justify text-sm"><strong>20.</strong> Should PURCHASER fail to fulfill its obligations under this CONTRACT in addition to any other remedy at law or in equity that BUILDER may have or otherwise provided herein, BUILDER may retain as liquidated damages and not as a penalty, all consideration paid by PURCHASER to BUILDER, including, but not limited to the Down Payment referenced above.</p>
             <p className="mb-3 text-justify text-sm"><strong>21.</strong> BUILDER'S failure to exercise a right or remedy, or BUILDER's acceptance of a partial or delinquent payment, will not operate as a waiver of any of BUILDER's rights, or PURCHASER's obligations, under this CONTRACT and will not constitute a waiver of BUILDER's right to declare an immediate or a subsequent default of this CONTRACT.</p>
