@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox,
   MessageSquareMore, DollarSign, TrendingUp, Award, Package,
-  Plus, ArrowRight, Bell, AlertCircle, Clock, ChevronRight,
+  Plus, ArrowRight, Bell, AlertCircle, Clock, ChevronRight, CalendarDays,
 } from 'lucide-react'
 import { useStore } from '../store'
 
@@ -110,6 +110,21 @@ export default function Dashboard() {
   const pipeline    = active.reduce((s, p) => s + (p.total || 0), 0)
   const winRate     = closed.length > 0 ? Math.round(won.length / closed.length * 100) : null
 
+  // YTD bid tally
+  const currentYear = new Date().getFullYear()
+  const ytdProposals = proposals.filter(p => p.createdAt && new Date(p.createdAt).getFullYear() === currentYear)
+  const ytdTotal     = ytdProposals.reduce((s, p) => s + (p.total || 0), 0)
+  const ytdMonths    = Array.from({ length: 12 }, (_, i) => {
+    const mps = ytdProposals.filter(p => new Date(p.createdAt).getMonth() === i)
+    return {
+      month: new Date(currentYear, i).toLocaleDateString('en-US', { month: 'short' }),
+      total: mps.reduce((s, p) => s + (p.total || 0), 0),
+      won:   mps.filter(p => p.status === 'Won').reduce((s, p) => s + (p.total || 0), 0),
+      count: mps.length,
+    }
+  })
+  const ytdMonthMax = Math.max(...ytdMonths.map(m => m.total), 1)
+
   // Recent proposals (latest 6)
   const recent = [...proposals]
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
@@ -167,7 +182,7 @@ export default function Dashboard() {
       </div>
 
       {/* KPI strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <KpiCard
           icon={DollarSign} label="Won Revenue" color="bg-green-500"
           value={`$${fmt(wonRevenue)}`}
@@ -192,6 +207,66 @@ export default function Dashboard() {
           sub={`${new Set(catalog.map(c => c.category)).size} categories`}
           onClick={() => navigate('/catalog')}
         />
+        <KpiCard
+          icon={CalendarDays} label={`${currentYear} Total Bids`} color="bg-indigo-500"
+          value={fmtSh(ytdTotal)}
+          sub={`${ytdProposals.length} proposal${ytdProposals.length !== 1 ? 's' : ''} this year`}
+          onClick={() => navigate('/tracker')}
+        />
+      </div>
+
+      {/* Year at a Glance */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-sm font-semibold text-gray-800">{currentYear} — Year at a Glance</p>
+            <p className="text-xs text-gray-400 mt-0.5">Total bid: <span className="font-semibold text-indigo-600">${fmt(ytdTotal)}</span> across {ytdProposals.length} proposals</p>
+          </div>
+          <div className="flex items-center gap-4 text-xs">
+            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-indigo-200 inline-block" /> Bid</span>
+            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-400 inline-block" /> Won</span>
+          </div>
+        </div>
+        <div className="flex items-end gap-1.5 h-28">
+          {ytdMonths.map((m, i) => {
+            const isCurrentMonth = i === new Date().getMonth()
+            const bidH  = ytdMonthMax > 0 ? (m.total / ytdMonthMax) * 100 : 0
+            const wonH  = ytdMonthMax > 0 ? (m.won   / ytdMonthMax) * 100 : 0
+            return (
+              <div key={m.month} className="flex-1 flex flex-col items-center gap-1 group relative">
+                {/* Tooltip */}
+                {m.count > 0 && (
+                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs rounded-lg px-2.5 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 shadow-lg">
+                    <p className="font-semibold">{m.month}</p>
+                    <p>Bid: ${fmt(m.total)}</p>
+                    <p>Won: ${fmt(m.won)}</p>
+                    <p>{m.count} proposal{m.count !== 1 ? 's' : ''}</p>
+                  </div>
+                )}
+                {/* Bar */}
+                <div className="w-full flex flex-col justify-end relative" style={{ height: '88px' }}>
+                  {m.total > 0 ? (
+                    <>
+                      <div
+                        className={`w-full rounded-t-sm transition-all ${isCurrentMonth ? 'bg-indigo-400' : 'bg-indigo-200'}`}
+                        style={{ height: `${bidH}%` }}
+                      />
+                      {m.won > 0 && (
+                        <div
+                          className="w-full bg-green-400 absolute bottom-0 rounded-t-sm"
+                          style={{ height: `${wonH}%` }}
+                        />
+                      )}
+                    </>
+                  ) : (
+                    <div className="w-full bg-gray-50 rounded-sm" style={{ height: '100%' }} />
+                  )}
+                </div>
+                <p className={`text-xs ${isCurrentMonth ? 'font-bold text-indigo-600' : 'text-gray-400'}`}>{m.month}</p>
+              </div>
+            )
+          })}
+        </div>
       </div>
 
       {/* Main grid */}
