@@ -71,6 +71,8 @@ export default function ContractView() {
   const branding           = useStore(s => s.branding)
   const proposals          = useStore(s => s.proposals)
   const saveContractDraft  = useStore(s => s.saveContractDraft)
+  const scopeExamples      = useStore(s => s.scopeExamples)
+  const saveScopeExamples  = useStore(s => s.saveScopeExamples)
   const palette            = generatePalette(branding?.primaryColor || DEFAULT_BRAND_COLOR)
   const [savedAt,          setSavedAt]         = useState(null)
 
@@ -243,6 +245,26 @@ export default function ContractView() {
       const itemList = (data.lines || []).map(l =>
         `- ${l.name}${l.description ? ': ' + l.description : ''}${l.qty && l.unit ? ` (${l.qty} ${l.unit})` : ''}`
       ).join('\n')
+
+      // Retrieve past scope examples that match any of the current line items
+      const findRelevant = (itemName) => {
+        const words = itemName.toLowerCase().split(/\s+/).filter(w => w.length > 3)
+        return scopeExamples
+          .filter(ex => words.some(w => ex.itemName?.toLowerCase().includes(w) || ex.bulletText?.toLowerCase().includes(w)))
+          .sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt))
+          .slice(0, 2)
+      }
+      const seen = new Set()
+      const relevant = (data.lines || []).flatMap(l => findRelevant(l.name))
+        .filter(ex => { if (seen.has(ex.id)) return false; seen.add(ex.id); return true })
+        .slice(0, 10)
+
+      const styleContext = relevant.length > 0
+        ? `\n\nIMPORTANT — You have written scope bullets for this contractor before. Study these EXACT past examples and match the writing style, line breaks, indentation, and level of detail PRECISELY. Replicate how sentences are broken up, what details are included, and any multi-line formatting:\n\n${
+            relevant.map(ex => `[${ex.itemName}]\n${ex.bulletText}`).join('\n\n')
+          }\n\nWrite the new bullets in this SAME style.`
+        : ''
+
       const res = await fetch('/api/ai/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -251,7 +273,7 @@ export default function ContractView() {
           messages: [
             {
               role: 'system',
-              content: 'You are a professional scope of work writer for Ebony Outdoor Living, an outdoor construction company specializing in decks, porches, pergolas, sunrooms, and outdoor structures. Write clear, professional, complete scope of work bullet points.',
+              content: `You are a professional scope of work writer for Ebony Outdoor Living, an outdoor construction company specializing in decks, porches, pergolas, sunrooms, and outdoor structures. Write clear, professional, complete scope of work bullet points.${styleContext}`,
             },
             {
               role: 'user',
@@ -332,6 +354,11 @@ export default function ContractView() {
               homePhone, cellPhone, elecItems, projectSummary, scopeLines,
               ceilingFanNote, milestoneLabels,
             })
+            // Learn from scope bullets written for this contract
+            const examples = scopeLines
+              .filter(l => l.text?.trim())
+              .map(l => ({ itemName: l.name || l.text.split('\n')[0].slice(0, 60), bulletText: l.text }))
+            if (examples.length > 0) saveScopeExamples(data.proposalId, examples)
             setSavedAt(new Date().toISOString())
           }}
           className="flex items-center gap-1.5 px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700"
@@ -944,15 +971,22 @@ export default function ContractView() {
               <div className="flex items-center gap-1.5 text-xs text-blue-600">
                 <span>✏️</span><span>Click any bullet to edit the wording for this client's scope.</span>
               </div>
-              <button
-                onClick={generateSuggestions}
-                disabled={isGenerating}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isGenerating
-                  ? <><Loader2 size={12} className="animate-spin" /> Generating…</>
-                  : <><Sparkles size={12} /> Suggest from Proposal</>}
-              </button>
+              <div className="flex items-center gap-2">
+                {scopeExamples.length > 0 && (
+                  <span className="text-xs text-purple-500 font-medium">
+                    {scopeExamples.length} example{scopeExamples.length !== 1 ? 's' : ''} learned
+                  </span>
+                )}
+                <button
+                  onClick={generateSuggestions}
+                  disabled={isGenerating}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isGenerating
+                    ? <><Loader2 size={12} className="animate-spin" /> Generating…</>
+                    : <><Sparkles size={12} /> Suggest from Proposal</>}
+                </button>
+              </div>
             </div>
             {aiError && (
               <div className="no-print mb-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">

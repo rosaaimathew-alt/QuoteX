@@ -308,6 +308,21 @@ export const useStore = create(
           ),
         })),
 
+      // ── Scope Examples (learned from past contracts) ──────────────────────
+      scopeExamples: [],
+
+      saveScopeExamples: (contractId, examples) =>
+        set((s) => {
+          const updated = [...s.scopeExamples]
+          examples.forEach(ex => {
+            if (!ex.itemName || !ex.bulletText?.trim()) return
+            const idx = updated.findIndex(e => e.itemName === ex.itemName && e.contractId === contractId)
+            if (idx >= 0) updated[idx] = { ...updated[idx], ...ex }
+            else updated.push({ id: `${contractId}-${ex.itemName}`, contractId, savedAt: new Date().toISOString(), ...ex })
+          })
+          return { scopeExamples: updated }
+        }),
+
       // ── Import (from backup JSON) ─────────────────────────────────────────
       importCatalog: (items) => {
         if (!Array.isArray(items) || items.length === 0) return
@@ -373,6 +388,7 @@ export const useStore = create(
           readMessageIds:persisted?.readMessageIds|| [],
           theme:         persisted?.theme         || 'light',
           branding:      persisted?.branding      || { companyName: 'QUOTEX', tagline: 'Smart Contractor Pricing', logo: null, primaryColor: null },
+          scopeExamples: persisted?.scopeExamples || [],
         }
       },
       merge: (persistedState, currentState) => ({
