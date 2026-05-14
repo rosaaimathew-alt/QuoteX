@@ -6,6 +6,18 @@
   .no-print { display: none !important; }
   .print-only { display: block !important; }
 
+  /* Fix overflow clipping — allows full document to print, not just the scrollable viewport */
+  html, body, #root,
+  .flex-1, main, aside,
+  [class*="overflow"] {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  /* Ensure the full page width prints correctly */
+  body { width: 100% !important; }
+
   /* ── Always print in light mode regardless of dark mode theme ── */
   html, body {
     background: #ffffff !important;

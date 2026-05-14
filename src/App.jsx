@@ -271,7 +271,7 @@ function AppShell() {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto print:overflow-visible print:h-auto">
           <Routes>
             <Route path="/"         element={<Dashboard />} />
             <Route path="/analyze"  element={<Analyze />} />
