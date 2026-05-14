@@ -134,6 +134,9 @@ export default function ContractView() {
   const removeLine = (id) =>
     setScopeLines(prev => prev.filter(l => l.id !== id))
 
+  const addLine = () =>
+    setScopeLines(prev => [...prev, { id: Date.now(), name: '', text: '' }])
+
   const generateSuggestions = async () => {
     if (!data?.lines?.length) return
     setIsGenerating(true)
@@ -687,6 +690,12 @@ export default function ContractView() {
                 </li>
               ))}
             </ul>
+            <button
+              onClick={addLine}
+              className="no-print mt-3 flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded px-2 py-1.5 transition-colors"
+            >
+              <span className="text-base leading-none">+</span> Add bullet
+            </button>
           </div>
           <PageBreak />
 
