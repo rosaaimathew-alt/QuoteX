@@ -970,7 +970,7 @@ export default function ContractView() {
                       value={line.text}
                       onChange={e => updateLine(line.id, e.target.value)}
                     />
-                    <p className="print-only text-sm leading-snug">{line.text}</p>
+                    <p className="print-only text-sm leading-snug whitespace-pre-wrap">{line.text}</p>
                   </div>
                   <button
                     onClick={() => removeLine(line.id)}
