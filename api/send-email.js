@@ -20,7 +20,6 @@ function buildEmailHtml({ client, email, phone, address, expiration, lines, comp
   const lineRows = (lines || []).map((l, i) => `
     <tr style="background:${i % 2 === 0 ? '#ffffff' : '#f8fafc'};">
       <td style="padding:10px 16px;font-size:13px;color:#1e293b;font-weight:500;border-bottom:1px solid #f1f5f9;">${l.name || '—'}</td>
-      <td style="padding:10px 16px;font-size:13px;color:#475569;text-align:center;border-bottom:1px solid #f1f5f9;">${l.qty || 1} ${l.unit || ''}</td>
       <td style="padding:10px 16px;font-size:13px;font-weight:600;color:#1e293b;text-align:right;border-bottom:1px solid #f1f5f9;">$${fmt((l.qty || 1) * (l.unitPrice || 0))}</td>
     </tr>`).join('')
 
@@ -75,7 +74,6 @@ function buildEmailHtml({ client, email, phone, address, expiration, lines, comp
             <thead>
               <tr style="background:#f1f5f9;">
                 <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;">Item</th>
-                <th style="padding:10px 16px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;width:80px;">Qty</th>
                 <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;width:100px;">Amount</th>
               </tr>
             </thead>
