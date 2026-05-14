@@ -104,6 +104,15 @@ export default function ContractView() {
   const [isGenerating,    setIsGenerating]    = useState(false)
   const [aiError,         setAiError]         = useState('')
 
+  // Under-$40K flexible payment rows
+  const [customPayments, setCustomPayments] = useState([
+    { amount: '', milestone: '' },
+    { amount: '', milestone: '' },
+    { amount: '', milestone: '' },
+    { amount: '', milestone: '' },
+    { amount: '', milestone: '' },
+  ])
+
   useEffect(() => {
     const raw = sessionStorage.getItem('contract')
     if (!raw) return
@@ -143,6 +152,10 @@ export default function ContractView() {
   const city = addrParts.length >= 2 ? addrParts[addrParts.length - 2]?.trim() : ''
 
   const payments = PAYMENT_MILESTONES.map(p => ({ ...p, amount: total * p.pct }))
+  const isSmallContract = total < 40000
+  const downPayment = total * 0.20
+  const customTotal = customPayments.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0)
+  const substantialAmt = Math.max(0, total - downPayment - customTotal)
 
   const toggleMethod = (m) =>
     setPaymentMethods(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])
@@ -426,21 +439,63 @@ export default function ContractView() {
             </p>
 
             <p className="mb-1"><strong>2.</strong> THE TOTAL CONTRACT SUM shall be paid to BUILDER as follows:</p>
-            <p className="mb-1 font-bold">Down Payment (due at signing this CONTRACT) ${fmt(payments[0].amount)}</p>
-            <p className="mb-2 font-bold">Progress Payments:</p>
 
-            <table className="w-full text-sm mb-3">
-              <tbody>
-                {payments.slice(1).map((p, i) => (
-                  <tr key={i}>
-                    <td className="pr-4 pb-1.5 font-semibold w-36">${fmt(p.amount)}</td>
-                    <td className="pb-1.5 border-b border-gray-400 w-full">
-                      {['due after footing inspection / material drop','due upon roof completion','due at painting stage','due upon substantial completion of WORK'][i]}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {isSmallContract ? (
+              /* ── Under $40K: flexible payment rows ── */
+              <>
+                <p className="mb-1 font-bold">Down Payment (due at signing this CONTRACT) ${fmt(downPayment)}</p>
+                <p className="mb-1 font-bold">Progress Payments:</p>
+                <table className="w-full text-sm mb-2">
+                  <tbody>
+                    {customPayments.map((row, i) => (
+                      <tr key={i}>
+                        <td className="pr-3 pb-1.5 w-44">
+                          <div className="flex items-center gap-1">
+                            <span className="font-semibold">$</span>
+                            <input
+                              className="no-print w-full border border-gray-200 rounded px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-300"
+                              value={row.amount} placeholder="0.00"
+                              onChange={e => setCustomPayments(prev => prev.map((r, j) => j === i ? { ...r, amount: e.target.value } : r))}
+                            />
+                            <span className="print-only font-semibold">{row.amount}</span>
+                          </div>
+                        </td>
+                        <td className="pb-1.5 border-b border-gray-400 w-full">
+                          <input
+                            className="no-print w-full border border-gray-200 rounded px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-300"
+                            value={row.milestone} placeholder="due on…"
+                            onChange={e => setCustomPayments(prev => prev.map((r, j) => j === i ? { ...r, milestone: e.target.value } : r))}
+                          />
+                          <span className="print-only">{row.milestone || '_____________________________________'}</span>
+                        </td>
+                      </tr>
+                    ))}
+                    <tr>
+                      <td className="pr-3 pb-1.5 w-44 font-semibold">${fmt(substantialAmt)}</td>
+                      <td className="pb-1.5 border-b border-gray-400">due on substantial completion of WORK</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </>
+            ) : (
+              /* ── Over $40K: fixed percentage milestones ── */
+              <>
+                <p className="mb-1 font-bold">Down Payment (due at signing this CONTRACT) ${fmt(payments[0].amount)}</p>
+                <p className="mb-2 font-bold">Progress Payments:</p>
+                <table className="w-full text-sm mb-3">
+                  <tbody>
+                    {payments.slice(1).map((p, i) => (
+                      <tr key={i}>
+                        <td className="pr-4 pb-1.5 font-semibold w-36">${fmt(p.amount)}</td>
+                        <td className="pb-1.5 border-b border-gray-400 w-full">
+                          {['due after footing inspection / material drop','due upon roof completion','due at painting stage','due upon substantial completion of WORK'][i]}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
 
             <p className="mb-3">
               Down payment by{' '}
@@ -464,25 +519,46 @@ export default function ContractView() {
           {/* ── PAGE 2 · Clauses 6-9 + Signature Block 1 ──────────── */}
           <div className={bodyPad}>
             <p className="mb-3 text-justify text-sm"><strong>6. a.</strong> The WORK will be warranted by BUILDER. Existing structures to which the WORK may be affixed or interconnected are not part of the WORK and will not be covered under the Warranty. This Warrant is issued to and only applicable to the PURCHASER after payment in full of the TOTAL CONTRACT SUM.</p>
-            <p className="mb-3 text-justify text-sm"><strong>B.</strong> As General contractors we have <strong>All-In-One Solutions</strong> that operate as part of Ebony Outdoor Living team. All-In-One Solutions serves as the licensed General Contractor and is responsible for maintaining the applicable licenses and overall legal and regulatory compliance required for the project. All-In-One Solutions also acts as a general supervisor of the project, performing occasional site visits during the progress of the work for purposes of overall oversight and supervision. However, All-In-One Solutions is not involved in the daily management of the job site, operational coordination of crews, or direct execution of the services.</p>
+            {!isSmallContract && (
+              <p className="mb-3 text-justify text-sm"><strong>B.</strong> As General contractors we have <strong>All-In-One Solutions</strong> that operate as part of Ebony Outdoor Living team. All-In-One Solutions serves as the licensed General Contractor and is responsible for maintaining the applicable licenses and overall legal and regulatory compliance required for the project. All-In-One Solutions also acts as a general supervisor of the project, performing occasional site visits during the progress of the work for purposes of overall oversight and supervision. However, All-In-One Solutions is not involved in the daily management of the job site, operational coordination of crews, or direct execution of the services.</p>
+            )}
             <p className="mb-4 text-sm"><strong>7.</strong> This CONTRACT shall not be effective and binding upon BUILDER until countersigned by BUILDER and GENERAL CONTRACTOR.</p>
             <p className="text-center font-bold mb-3">ADDITIONAL TERMS ON NEXT PAGE</p>
 
-            <div className="grid grid-cols-2 gap-8 mt-2">
-              <div>
-                <p className="font-bold underline mb-2">PURCHASER</p>
-                <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500 mb-3">(Signature)</p>
-                <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500">(Print Name)</p>
+            {isSmallContract ? (
+              /* ── Under $40K: PURCHASER (2 lines) + BUILDER only, no GC ── */
+              <div className="grid grid-cols-2 gap-8 mt-2">
+                <div>
+                  <p className="font-bold underline mb-2">PURCHASER</p>
+                  <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500 mb-3">(Signature)</p>
+                  <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500 mb-3">(Print Name)</p>
+                  <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500 mb-3">(Signature)</p>
+                  <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500">(Print Name)</p>
+                </div>
+                <div>
+                  <p className="font-bold underline mb-2">BUILDER: EBONY OUTDOOR LIVING</p>
+                  <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500 mb-3">(Signature)</p>
+                  <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500">(Print Name)</p>
+                </div>
               </div>
-              <div>
-                <p className="font-bold underline mb-2">BUILDER: EBONY OUTDOOR LIVING</p>
-                <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500 mb-3">(Signature)</p>
-                <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500 mb-3">(Print Name)</p>
-                <p className="font-bold mt-2">GENERAL CONTRACTOR: ALL IN ONE SOLUTIONS</p>
-                <div className="border-b border-gray-500 mb-1 pb-5 mt-2" /><p className="text-xs text-gray-500 mb-2">(Signature)</p>
-                <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500">(Print Name)</p>
+            ) : (
+              /* ── Over $40K: PURCHASER + BUILDER + GC ── */
+              <div className="grid grid-cols-2 gap-8 mt-2">
+                <div>
+                  <p className="font-bold underline mb-2">PURCHASER</p>
+                  <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500 mb-3">(Signature)</p>
+                  <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500">(Print Name)</p>
+                </div>
+                <div>
+                  <p className="font-bold underline mb-2">BUILDER: EBONY OUTDOOR LIVING</p>
+                  <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500 mb-3">(Signature)</p>
+                  <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500 mb-3">(Print Name)</p>
+                  <p className="font-bold mt-2">GENERAL CONTRACTOR: ALL IN ONE SOLUTIONS</p>
+                  <div className="border-b border-gray-500 mb-1 pb-5 mt-2" /><p className="text-xs text-gray-500 mb-2">(Signature)</p>
+                  <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500">(Print Name)</p>
+                </div>
               </div>
-            </div>
+            )}
 
             <p className="mt-3 text-sm underline">115 Unionville Indian Trail Road, Indian Trail, NC 28079 Unit B15</p>
             <p className="text-xs text-gray-500 mb-3">(Builder Address)</p>
@@ -523,7 +599,7 @@ export default function ContractView() {
 
             <SigBlock label="Client Signature" />
             <SigBlock label="Builder Signature" />
-            <SigBlock label="GC Signature" />
+            {!isSmallContract && <SigBlock label="GC Signature" />}
           </div>
           <PageBreak />
 
@@ -652,22 +728,26 @@ export default function ContractView() {
           </div>
           <PageBreak />
 
-          {/* ── PAGE 9 · Client Acknowledgment ─────────────────────── */}
-          <div className={bodyPad}>
-            <h2 className="text-center font-bold text-base mb-5">Client Acknowledgment and Agreement</h2>
-            <div className="text-sm space-y-4">
-              <p>At <strong>Ebony Outdoor Living</strong>, we are committed to transparency, contractual clarity, and professional communication with our clients. This document is intended to formalize the understanding between the parties regarding the operational structure and distribution of responsibilities related to the contracted project. Ebony Outdoor Living and <strong>All-In-One Solutions</strong> operate collaboratively as part of the same project team. All-In-One Solutions serves as the licensed General Contractor and is responsible for maintaining the applicable licenses and overall legal and regulatory compliance required for the project.</p>
-              <p>Ebony Outdoor Living is solely responsible for the execution and management of the work, including, without limitation, project supervision, scheduling and timeline management, coordination of crews and subcontractors, and daily job site operations. The Client acknowledges and agrees that all communications, requests, clarifications, or questions related to project execution, timelines, scheduling, and operational responsibilities shall be directed exclusively to the official contacts provided to the Client upon receipt of the fully executed contract.</p>
-              <p>All-In-One Solutions also acts as a general supervisor of the project, performing occasional site visits during the progress of the work for purposes of overall oversight and supervision. However, All-In-One Solutions is not involved in the daily management of the job site, operational coordination of crews, or direct execution of the services.</p>
-              <p>This acknowledgment is supplementary in nature and forms part of the project's contractual documentation, without replacing or modifying the terms and conditions of the primary agreement previously executed between the parties.</p>
-              <p>By signing below, the Client confirms that they have read, understood, and fully agree with the information and distribution of responsibilities described in this document.</p>
-            </div>
-            <p className="text-sm mt-4"><strong>Project Address:</strong> {address}</p>
-            <SigBlock label="Client Signature" />
-            <SigBlock label="Builder Signature" />
-            <SigBlock label="General Contractor Signature" date={false} />
-          </div>
-          <PageBreak />
+          {/* ── PAGE 9 · Client Acknowledgment (over $40K only) ─────── */}
+          {!isSmallContract && (
+            <>
+              <div className={bodyPad}>
+                <h2 className="text-center font-bold text-base mb-5">Client Acknowledgment and Agreement</h2>
+                <div className="text-sm space-y-4">
+                  <p>At <strong>Ebony Outdoor Living</strong>, we are committed to transparency, contractual clarity, and professional communication with our clients. This document is intended to formalize the understanding between the parties regarding the operational structure and distribution of responsibilities related to the contracted project. Ebony Outdoor Living and <strong>All-In-One Solutions</strong> operate collaboratively as part of the same project team. All-In-One Solutions serves as the licensed General Contractor and is responsible for maintaining the applicable licenses and overall legal and regulatory compliance required for the project.</p>
+                  <p>Ebony Outdoor Living is solely responsible for the execution and management of the work, including, without limitation, project supervision, scheduling and timeline management, coordination of crews and subcontractors, and daily job site operations. The Client acknowledges and agrees that all communications, requests, clarifications, or questions related to project execution, timelines, scheduling, and operational responsibilities shall be directed exclusively to the official contacts provided to the Client upon receipt of the fully executed contract.</p>
+                  <p>All-In-One Solutions also acts as a general supervisor of the project, performing occasional site visits during the progress of the work for purposes of overall oversight and supervision. However, All-In-One Solutions is not involved in the daily management of the job site, operational coordination of crews, or direct execution of the services.</p>
+                  <p>This acknowledgment is supplementary in nature and forms part of the project's contractual documentation, without replacing or modifying the terms and conditions of the primary agreement previously executed between the parties.</p>
+                  <p>By signing below, the Client confirms that they have read, understood, and fully agree with the information and distribution of responsibilities described in this document.</p>
+                </div>
+                <p className="text-sm mt-4"><strong>Project Address:</strong> {address}</p>
+                <SigBlock label="Client Signature" />
+                <SigBlock label="Builder Signature" />
+                <SigBlock label="General Contractor Signature" date={false} />
+              </div>
+              <PageBreak />
+            </>
+          )}
 
           {/* ══════════════════════════════════════════════════════════
               DOCUMENT 2: SCOPE OF WORK
