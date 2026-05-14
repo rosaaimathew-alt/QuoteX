@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Printer, Send, ChevronDown, ChevronUp, Lock, Sparkles, Loader2 } from 'lucide-react'
+import { ArrowLeft, Printer, Send, ChevronDown, ChevronUp, Lock, Sparkles, Loader2, X } from 'lucide-react'
 import { useStore } from '../store'
 import { generatePalette, DEFAULT_BRAND_COLOR } from '../brand'
 
@@ -130,6 +130,9 @@ export default function ContractView() {
 
   const updateLine = (id, val) =>
     setScopeLines(prev => prev.map(l => l.id === id ? { ...l, text: val } : l))
+
+  const removeLine = (id) =>
+    setScopeLines(prev => prev.filter(l => l.id !== id))
 
   const generateSuggestions = async () => {
     if (!data?.lines?.length) return
@@ -663,7 +666,7 @@ export default function ContractView() {
             )}
             <ul className="text-sm space-y-2">
               {scopeLines.map(line => (
-                <li key={line.id} className="flex gap-2 items-start">
+                <li key={line.id} className="flex gap-2 items-start group">
                   <span className="mt-2 shrink-0 print:mt-0">●</span>
                   <div className="flex-1">
                     <textarea
@@ -674,6 +677,13 @@ export default function ContractView() {
                     />
                     <p className="print-only text-sm leading-snug">{line.text}</p>
                   </div>
+                  <button
+                    onClick={() => removeLine(line.id)}
+                    className="no-print mt-1.5 shrink-0 text-gray-200 hover:text-red-500 hover:bg-red-50 rounded p-0.5 opacity-0 group-hover:opacity-100 transition-all"
+                    title="Remove bullet"
+                  >
+                    <X size={13} />
+                  </button>
                 </li>
               ))}
             </ul>
