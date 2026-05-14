@@ -117,6 +117,7 @@ export default function ContractView() {
   const [city,            setCity]            = useState('')
   const [showItemPicker,  setShowItemPicker]  = useState(false)
   const [pickerSelection, setPickerSelection] = useState(new Set())
+  const [milestoneLabels, setMilestoneLabels] = useState([])
 
   useEffect(() => {
     const raw = sessionStorage.getItem('contract')
@@ -166,11 +167,15 @@ export default function ContractView() {
       })))
       setCeilingFanNote(draft.ceilingFanNote ?? 'Homeowner to provide 1 ceiling fan with downrod')
       setSavedAt(draft.savedAt ?? null)
+      const templateMs = d.total < 20000 ? PAYMENT_MILESTONES_UNDER20K : PAYMENT_MILESTONES
+      setMilestoneLabels(draft.milestoneLabels ?? templateMs.map(m => m.label))
     } else {
       // Fresh start
       setContractNum(d.contractNumber || '')
       const parts = (d.address || '').split(',')
       setCity(parts.length >= 2 ? parts[parts.length - 2]?.trim() : '')
+      const templateMs = d.total < 20000 ? PAYMENT_MILESTONES_UNDER20K : PAYMENT_MILESTONES
+      setMilestoneLabels(templateMs.map(m => m.label))
       setProjectSummary(d.projectSummary || '')
       if (d.isAlaCarte && (d.lines || []).length > 0) {
         // A La Carte — ask which items to include before building scope
@@ -209,7 +214,14 @@ export default function ContractView() {
   const isSmallContract = total < 40000
   const isUnder20K     = total < 20000
   const milestones     = isUnder20K ? PAYMENT_MILESTONES_UNDER20K : PAYMENT_MILESTONES
-  const payments       = milestones.map(p => ({ ...p, amount: total * p.pct }))
+  const payments       = milestones.map((m, i) => ({
+    ...m,
+    label:  milestoneLabels[i] ?? m.label,
+    amount: total * m.pct,
+  }))
+
+  const updateMilestoneLabel = (i, val) =>
+    setMilestoneLabels(prev => prev.map((l, idx) => idx === i ? val : l))
 
   const toggleMethod = (m) =>
     setPaymentMethods(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])
@@ -318,7 +330,7 @@ export default function ContractView() {
               specialInstructions, directions, lumberDrop, power, gateCode,
               paymentMethods, otherTerms, includesElectrical, recessedSize,
               homePhone, cellPhone, elecItems, projectSummary, scopeLines,
-              ceilingFanNote,
+              ceilingFanNote, milestoneLabels,
             })
             setSavedAt(new Date().toISOString())
           }}
@@ -619,14 +631,29 @@ export default function ContractView() {
 
             <p className="mb-1"><strong>2.</strong> THE TOTAL CONTRACT SUM shall be paid to BUILDER as follows:</p>
 
-            <p className="mb-1 font-bold">Down Payment (due at signing this CONTRACT) ${fmt(payments[0].amount)}</p>
+            <p className="mb-1 font-bold">
+              <input
+                className="no-print bg-transparent border-b border-transparent hover:border-blue-300 focus:border-blue-400 focus:outline-none font-bold text-sm py-0.5 transition-colors w-80"
+                value={payments[0]?.label ?? ''}
+                onChange={e => updateMilestoneLabel(0, e.target.value)}
+              />
+              <span className="print-only">{payments[0]?.label}</span>
+              {' '}${fmt(payments[0]?.amount ?? 0)}
+            </p>
             <p className="mb-2 font-bold">Progress Payments:</p>
             <table className="w-full text-sm mb-3">
               <tbody>
                 {payments.slice(1).map((p, i) => (
                   <tr key={i}>
                     <td className="pr-4 pb-1.5 font-semibold w-36">${fmt(p.amount)}</td>
-                    <td className="pb-1.5 border-b border-gray-400 w-full">{p.label}</td>
+                    <td className="pb-1.5 border-b border-gray-400 w-full">
+                      <input
+                        className="no-print w-full bg-transparent border-b border-transparent hover:border-blue-300 focus:border-blue-400 focus:outline-none text-sm py-0.5 transition-colors"
+                        value={p.label}
+                        onChange={e => updateMilestoneLabel(i + 1, e.target.value)}
+                      />
+                      <span className="print-only">{p.label}</span>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1045,7 +1072,14 @@ export default function ContractView() {
               <tbody>
                 {payments.map((p, i) => (
                   <tr key={i}>
-                    <td className="border border-gray-300 px-3 py-3">{p.label}</td>
+                    <td className="border border-gray-300 px-3 py-3">
+                      <input
+                        className="no-print w-full bg-transparent border-b border-transparent hover:border-blue-300 focus:border-blue-400 focus:outline-none text-sm py-0.5 transition-colors"
+                        value={p.label}
+                        onChange={e => updateMilestoneLabel(i, e.target.value)}
+                      />
+                      <span className="print-only">{p.label}</span>
+                    </td>
                     <td className="border border-gray-300 px-3 py-3 text-center">{Math.round(p.pct * 100)}%</td>
                     <td className="border border-gray-300 px-3 py-3"></td>
                     <td className="border border-gray-300 px-3 py-3 font-semibold underline">${fmt(p.amount)}</td>
