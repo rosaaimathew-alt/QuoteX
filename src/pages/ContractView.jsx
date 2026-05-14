@@ -111,6 +111,7 @@ export default function ContractView() {
   const [aiError,         setAiError]         = useState('')
   const [ceilingFanNote,  setCeilingFanNote]  = useState('Homeowner to provide 1 ceiling fan with downrod')
   const [contractNum,     setContractNum]     = useState('')
+  const [city,            setCity]            = useState('')
 
   useEffect(() => {
     const raw = sessionStorage.getItem('contract')
@@ -118,6 +119,10 @@ export default function ContractView() {
     const d = JSON.parse(raw)
     setData(d)
     setContractNum(d.contractNumber || '')
+    // Try to extract city from address (works with comma-separated addresses)
+    const parts = (d.address || '').split(',')
+    const parsed = parts.length >= 2 ? parts[parts.length - 2]?.trim() : ''
+    setCity(parsed)
     setProjectSummary(d.projectSummary || '')
     setScopeLines(
       (d.lines || []).map((l, i) => ({
@@ -146,10 +151,6 @@ export default function ContractView() {
   const now    = new Date()
   const today  = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
   const todayS = now.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })
-
-  // city from address (e.g. "123 Main St, Charlotte, NC 28205" → "Charlotte")
-  const addrParts = (address || '').split(',')
-  const city = addrParts.length >= 2 ? addrParts[addrParts.length - 2]?.trim() : ''
 
   const isSmallContract = total < 40000
   const isUnder20K     = total < 20000
@@ -235,14 +236,25 @@ export default function ContractView() {
           <ArrowLeft size={15} /> Back to Tracker
         </button>
         <div className="flex-1" />
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-gray-500 font-medium">Contract #</label>
-          <input
-            className="border border-gray-300 rounded px-2 py-1 text-sm font-mono w-36 focus:outline-none focus:ring-2 focus:ring-blue-300"
-            value={contractNum}
-            onChange={e => setContractNum(e.target.value)}
-            placeholder="e.g. EOL070308"
-          />
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-500 font-medium shrink-0">City / Town</label>
+            <input
+              className="border border-gray-300 rounded px-2 py-1 text-sm w-32 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              value={city}
+              onChange={e => setCity(e.target.value)}
+              placeholder="e.g. Charlotte"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-500 font-medium shrink-0">Contract #</label>
+            <input
+              className="border border-gray-300 rounded px-2 py-1 text-sm font-mono w-36 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              value={contractNum}
+              onChange={e => setContractNum(e.target.value)}
+              placeholder="e.g. EOL070308"
+            />
+          </div>
         </div>
         <button
           onClick={() => window.print()}
