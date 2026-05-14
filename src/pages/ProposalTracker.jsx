@@ -667,6 +667,7 @@ export default function ProposalTracker() {
       lines: proposal.lines || [],
       projectTypes: proposal.projectTypes || [],
       projectSummary: proposal.projectSummary || '',
+      isAlaCarte: proposal.isAlaCarte || false,
       contractNumber,
       salesperson: 'Mathew Rosa',
     }))
