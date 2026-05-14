@@ -110,13 +110,14 @@ export default function ContractView() {
   const [isGenerating,    setIsGenerating]    = useState(false)
   const [aiError,         setAiError]         = useState('')
   const [ceilingFanNote,  setCeilingFanNote]  = useState('Homeowner to provide 1 ceiling fan with downrod')
-
+  const [contractNum,     setContractNum]     = useState('')
 
   useEffect(() => {
     const raw = sessionStorage.getItem('contract')
     if (!raw) return
     const d = JSON.parse(raw)
     setData(d)
+    setContractNum(d.contractNumber || '')
     setProjectSummary(d.projectSummary || '')
     setScopeLines(
       (d.lines || []).map((l, i) => ({
@@ -234,7 +235,15 @@ export default function ContractView() {
           <ArrowLeft size={15} /> Back to Tracker
         </button>
         <div className="flex-1" />
-        <span className="text-xs text-gray-400 font-mono">{contractNumber}</span>
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-gray-500 font-medium">Contract #</label>
+          <input
+            className="border border-gray-300 rounded px-2 py-1 text-sm font-mono w-36 focus:outline-none focus:ring-2 focus:ring-blue-300"
+            value={contractNum}
+            onChange={e => setContractNum(e.target.value)}
+            placeholder="e.g. EOL070308"
+          />
+        </div>
         <button
           onClick={() => window.print()}
           className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
@@ -415,7 +424,7 @@ export default function ContractView() {
                 <div className="text-2xl font-bold mt-1" style={{ fontFamily: 'Arial, sans-serif' }}>CONTRACT</div>
               </div>
               <div style={{ fontFamily: 'Arial, sans-serif', fontSize: '10pt' }}>
-                <strong>Contract # </strong>{contractNumber}
+                <strong>Contract # </strong>{contractNum}
               </div>
             </div>
             <div className="border-b-2 border-gray-900 mb-5" />
@@ -643,7 +652,7 @@ export default function ContractView() {
               <div><strong>Date sold:</strong> {todayS}</div>
               <div><strong>Salesperson:</strong> {salesperson || 'Mathew Rosa'}</div>
               <div><strong>Job Name:</strong> {client}</div>
-              <div><strong>Contract #:</strong> {contractNumber}</div>
+              <div><strong>Contract #:</strong> {contractNum}</div>
               <div><strong>Address:</strong> {address}</div>
               <div><strong>Lot #:</strong> {lotNumber || '___________'}</div>
               <div><strong>Telephone:</strong> {phone}</div>
@@ -720,7 +729,7 @@ export default function ContractView() {
 
             <div className="text-sm mb-4 space-y-0.5">
               <p><strong>DATE:</strong> {today}</p>
-              <p><strong>CONTRACT #:</strong> {contractNumber}</p>
+              <p><strong>CONTRACT #:</strong> {contractNum}</p>
               <p><strong>CUSTOMER NAME:</strong> {client}</p>
               <p><strong>ADDRESS:</strong> {address}</p>
               <p><strong>EMAIL:</strong> {email}</p>
@@ -923,7 +932,7 @@ export default function ContractView() {
                 {/* Client info */}
                 <div className="grid grid-cols-2 gap-x-6 text-sm mb-4">
                   <div><strong>CUSTOMER NAME:</strong> {client}</div>
-                  <div><strong>CONTRACT #:</strong> {contractNumber}</div>
+                  <div><strong>CONTRACT #:</strong> {contractNum}</div>
                   <div className="col-span-2">
                     <strong>PHONE NUMBER:</strong>{' '}
                     {homePhone || phone}
