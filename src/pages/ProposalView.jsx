@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { Printer, Copy, ArrowLeft, CheckCircle, Send, X, Loader } from 'lucide-react'
 import { useStore } from '../store'
 import { generatePalette, DEFAULT_BRAND_COLOR } from '../brand'
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
 
 const fmt = (n) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -19,6 +21,7 @@ export default function ProposalView() {
   const [fromName, setFromName] = useState('')
   const [fromEmail, setFromEmail] = useState('')
 
+  const proposalDocRef = useRef(null)
   const proposalIdRef = useRef(null)
   const { saveProposal, markProposalSent } = useStore()
   const branding = useStore(s => s.branding)
@@ -127,6 +130,23 @@ export default function ProposalView() {
     setSending(true)
     setSendError('')
     try {
+      // Generate PDF from the rendered proposal element
+      const element = proposalDocRef.current
+      const canvas = await html2canvas(element, { scale: 2, useCORS: true, logging: false })
+      const imgData = canvas.toDataURL('image/jpeg', 0.92)
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' })
+      const pageW = pdf.internal.pageSize.getWidth()
+      const pageH = pdf.internal.pageSize.getHeight()
+      const imgW = pageW
+      const imgH = (canvas.height * pageW) / canvas.width
+      let y = 0
+      while (y < imgH) {
+        if (y > 0) pdf.addPage()
+        pdf.addImage(imgData, 'JPEG', 0, -y, imgW, imgH)
+        y += pageH
+      }
+      const pdfBase64 = pdf.output('datauristring').split(',')[1]
+
       const res = await fetch('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -134,11 +154,12 @@ export default function ProposalView() {
           proposal: { ...data },
           fromName,
           fromEmail,
+          pdfBase64,
+          pdfFilename: `Proposal-${(data.client || 'Client').replace(/\s+/g, '-')}.pdf`,
         }),
       })
       const result = await res.json()
       if (!res.ok) throw new Error(result.error || 'Failed to send.')
-      // Log as Sent in the CRM
       if (proposalIdRef.current) markProposalSent(proposalIdRef.current)
       setSendSuccess(true)
     } catch (err) {
@@ -247,7 +268,7 @@ export default function ProposalView() {
                     disabled={sending || !email}
                     className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {sending ? <><Loader size={14} className="animate-spin" /> Sending...</> : <><Send size={14} /> Send Proposal</>}
+                    {sending ? <><Loader size={14} className="animate-spin" /> Generating PDF...</> : <><Send size={14} /> Send Proposal</>}
                   </button>
                 </div>
               </>
@@ -257,7 +278,7 @@ export default function ProposalView() {
       )}
 
       {/* Proposal document */}
-      <div className="max-w-3xl mx-auto my-8 bg-white shadow-lg rounded-xl overflow-hidden print:shadow-none print:rounded-none print:my-0">
+      <div ref={proposalDocRef} className="max-w-3xl mx-auto my-8 bg-white shadow-lg rounded-xl overflow-hidden print:shadow-none print:rounded-none print:my-0">
 
         {/* Header */}
         <div className="text-white px-10 py-8" style={{ backgroundColor: palette[700] }}>

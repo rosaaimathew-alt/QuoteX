@@ -129,23 +129,63 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'RESEND_API_KEY not configured. Add it to your environment variables.' })
   }
 
-  const { proposal, fromName, fromEmail, replyText, inReplyTo, subject: customSubject } = req.body
+  const { proposal, fromName, fromEmail, replyText, inReplyTo, subject: customSubject, pdfBase64, pdfFilename } = req.body
 
-  // Support two modes:
-  // 1. Proposal send: { proposal, fromName, fromEmail }
-  // 2. Reply send:    { proposal: { email, client }, fromName, fromEmail, replyText, inReplyTo, subject }
+  // Support three modes:
+  // 1. Proposal send with PDF attachment: { proposal, fromName, fromEmail, pdfBase64, pdfFilename }
+  // 2. Proposal send HTML only:           { proposal, fromName, fromEmail }
+  // 3. Reply send:                        { proposal: { email, client }, fromName, fromEmail, replyText, inReplyTo, subject }
   const recipientEmail = proposal?.email
   if (!recipientEmail) {
     return res.status(400).json({ error: 'Recipient email is required.' })
   }
 
   const isReply = !!replyText
-  const html = isReply
-    ? `<div style="font-family:-apple-system,sans-serif;font-size:14px;line-height:1.6;color:#1e293b;max-width:600px;margin:0 auto;padding:24px;">${replyText.replace(/\n/g, '<br>')}</div>`
-    : buildEmailHtml({ ...proposal, fromName })
+  const company = proposal?.companyName || 'Ebony Outdoor Living'
+  const sender  = fromName || company
 
-  const subject = customSubject
-    || (isReply ? `Re: Your Proposal` : `Proposal for ${proposal.client || 'Your Project'}${proposal.expiration ? ` — Valid Until ${new Date(proposal.expiration + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}`)
+  let html, subject
+  if (isReply) {
+    html    = `<div style="font-family:-apple-system,sans-serif;font-size:14px;line-height:1.6;color:#1e293b;max-width:600px;margin:0 auto;padding:24px;">${replyText.replace(/\n/g, '<br>')}</div>`
+    subject = customSubject || `Re: Your Proposal`
+  } else if (pdfBase64) {
+    // PDF attachment mode — keep email body minimal
+    const client = proposal?.client || 'there'
+    const expLine = proposal?.expiration
+      ? `This proposal is valid until <strong>${new Date(proposal.expiration + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</strong>.`
+      : ''
+    html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:32px 16px;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden;">
+  <tr><td style="background:#0f172a;padding:28px 40px;">
+    <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;">${company}</p>
+    <p style="margin:6px 0 0;font-size:13px;color:#94a3b8;">Proposal</p>
+  </td></tr>
+  <tr><td style="padding:32px 40px;">
+    <p style="margin:0 0 14px;font-size:15px;color:#1e293b;">Hi ${client},</p>
+    <p style="margin:0 0 14px;font-size:14px;color:#475569;line-height:1.7;">
+      Thank you for the opportunity to work with you. Please find your project proposal attached as a PDF.
+      ${expLine}
+    </p>
+    <p style="margin:0;font-size:14px;color:#475569;line-height:1.7;">
+      To accept this proposal, simply reply to this email or give us a call. A 20% deposit is required to schedule your project.
+    </p>
+  </td></tr>
+  <tr><td style="background:#f8fafc;padding:20px 40px;border-top:1px solid #e2e8f0;">
+    <p style="margin:0;font-size:12px;color:#94a3b8;">
+      Sent by <strong style="color:#475569;">${sender}</strong>
+      ${fromEmail ? ` · <a href="mailto:${fromEmail}" style="color:#3b82f6;text-decoration:none;">${fromEmail}</a>` : ''}
+    </p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`
+    subject = customSubject || `Proposal for ${proposal.client || 'Your Project'}${proposal.expiration ? ` — Valid Until ${new Date(proposal.expiration + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}`
+  } else {
+    html    = buildEmailHtml({ ...proposal, fromName })
+    subject = customSubject || `Proposal for ${proposal.client || 'Your Project'}${proposal.expiration ? ` — Valid Until ${new Date(proposal.expiration + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}`
+  }
 
   const fromAddress = fromName && fromEmail
     ? `${fromName} <${fromEmail}>`
@@ -157,6 +197,9 @@ export default async function handler(req, res) {
       to: [recipientEmail],
       subject,
       html,
+    }
+    if (pdfBase64) {
+      payload.attachments = [{ filename: pdfFilename || 'Proposal.pdf', content: pdfBase64 }]
     }
     if (inReplyTo) {
       payload.headers = { 'In-Reply-To': inReplyTo, 'References': inReplyTo }
