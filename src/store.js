@@ -285,6 +285,13 @@ export const useStore = create(
       deleteProposal: (id) =>
         set((s) => ({ proposals: s.proposals.filter((p) => p.id !== id) })),
 
+      saveContractDraft: (proposalId, draft) =>
+        set((s) => ({
+          proposals: s.proposals.map((p) =>
+            p.id === proposalId ? { ...p, contractDraft: { ...draft, savedAt: new Date().toISOString() } } : p
+          ),
+        })),
+
       // ── Import (from backup JSON) ─────────────────────────────────────────
       importCatalog: (items) => {
         if (!Array.isArray(items) || items.length === 0) return

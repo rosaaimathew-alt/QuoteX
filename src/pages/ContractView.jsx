@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Printer, Send, ChevronDown, ChevronUp, Lock, Sparkles, Loader2, X } from 'lucide-react'
+import { ArrowLeft, Printer, Send, ChevronDown, ChevronUp, Lock, Sparkles, Loader2, X, Save } from 'lucide-react'
 import { useStore } from '../store'
 import { generatePalette, DEFAULT_BRAND_COLOR } from '../brand'
 
@@ -67,9 +67,12 @@ const CB = ({ checked }) => (
 )
 
 export default function ContractView() {
-  const navigate  = useNavigate()
-  const branding  = useStore(s => s.branding)
-  const palette   = generatePalette(branding?.primaryColor || DEFAULT_BRAND_COLOR)
+  const navigate           = useNavigate()
+  const branding           = useStore(s => s.branding)
+  const proposals          = useStore(s => s.proposals)
+  const saveContractDraft  = useStore(s => s.saveContractDraft)
+  const palette            = generatePalette(branding?.primaryColor || DEFAULT_BRAND_COLOR)
+  const [savedAt,          setSavedAt]         = useState(null)
 
   const [data, setData] = useState(null)
   const [showOptional, setShowOptional] = useState(true)
@@ -118,20 +121,63 @@ export default function ContractView() {
     if (!raw) return
     const d = JSON.parse(raw)
     setData(d)
-    setContractNum(d.contractNumber || '')
-    // Try to extract city from address (works with comma-separated addresses)
-    const parts = (d.address || '').split(',')
-    const parsed = parts.length >= 2 ? parts[parts.length - 2]?.trim() : ''
-    setCity(parsed)
-    setProjectSummary(d.projectSummary || '')
-    setScopeLines(
-      (d.lines || []).map((l, i) => ({
-        id:    l.id ?? i,
-        name:  l.name,
-        text:  l.description ? `${l.name} — ${l.description}` : l.name,
+
+    // Check for a saved draft on the proposal
+    const proposal = proposals.find(p => p.id === d.proposalId)
+    const draft    = proposal?.contractDraft
+
+    if (draft) {
+      // Restore all saved state from draft
+      setContractNum(draft.contractNum ?? d.contractNumber ?? '')
+      setCity(draft.city ?? '')
+      setLotNumber(draft.lotNumber ?? '')
+      setPermitNumber(draft.permitNumber ?? '')
+      setHoa(draft.hoa ?? null)
+      setPermitReq(draft.permitReq ?? null)
+      setSpecialInstructions(draft.specialInstructions ?? '')
+      setDirections(draft.directions ?? '')
+      setLumberDrop(draft.lumberDrop ?? null)
+      setPower(draft.power ?? null)
+      setGateCode(draft.gateCode ?? '')
+      setPaymentMethods(draft.paymentMethods ?? [])
+      setOtherTerms(draft.otherTerms ?? '')
+      setIncludesElectrical(draft.includesElectrical ?? false)
+      setRecessedSize(draft.recessedSize ?? '6')
+      setHomePhone(draft.homePhone ?? '')
+      setCellPhone(draft.cellPhone ?? '')
+      setElecItems(draft.elecItems ?? [
+        { id: 'fan',       label: 'Prewire for homeowner supplied fan',                    qty: '' },
+        { id: 'outlets',   label: 'Outlets - 120 Volt',                                    qty: '' },
+        { id: 'recessed',  label: 'Recessed can lighting',                                 qty: '', isRecessed: true },
+        { id: 'flood',     label: 'Flood light',                                           qty: '' },
+        { id: 'cable',     label: 'Cable jack and outlet combo',                           qty: '' },
+        { id: 'sconces',   label: 'Prewire for homeowner supplied sconces',                qty: '' },
+        { id: 'fireplace', label: 'Electric Fireplace Installation ONLY',                  qty: '' },
+        { id: 'dimmer',    label: 'Dimmer switch',                                         qty: '' },
+        { id: 'heater',    label: 'Provide and Install Innova Heater with Decorative Guard', qty: '' },
+      ])
+      setProjectSummary(draft.projectSummary ?? d.projectSummary ?? '')
+      setScopeLines(draft.scopeLines ?? (d.lines || []).map((l, i) => ({
+        id: l.id ?? i, name: l.name,
+        text: l.description ? `${l.name} — ${l.description}` : l.name,
         price: (l.qty || 1) * (l.unitPrice || 0),
-      }))
-    )
+      })))
+      setCeilingFanNote(draft.ceilingFanNote ?? 'Homeowner to provide 1 ceiling fan with downrod')
+      setSavedAt(draft.savedAt ?? null)
+    } else {
+      // Fresh start
+      setContractNum(d.contractNumber || '')
+      const parts = (d.address || '').split(',')
+      setCity(parts.length >= 2 ? parts[parts.length - 2]?.trim() : '')
+      setProjectSummary(d.projectSummary || '')
+      setScopeLines(
+        (d.lines || []).map((l, i) => ({
+          id: l.id ?? i, name: l.name,
+          text: l.description ? `${l.name} — ${l.description}` : l.name,
+          price: (l.qty || 1) * (l.unitPrice || 0),
+        }))
+      )
+    }
   }, [])
 
   if (!data) {
@@ -257,6 +303,27 @@ export default function ContractView() {
           </div>
         </div>
         <button
+          onClick={() => {
+            if (!data?.proposalId) return
+            saveContractDraft(data.proposalId, {
+              contractNum, city, lotNumber, permitNumber, hoa, permitReq,
+              specialInstructions, directions, lumberDrop, power, gateCode,
+              paymentMethods, otherTerms, includesElectrical, recessedSize,
+              homePhone, cellPhone, elecItems, projectSummary, scopeLines,
+              ceilingFanNote,
+            })
+            setSavedAt(new Date().toISOString())
+          }}
+          className="flex items-center gap-1.5 px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700"
+        >
+          <Save size={14} /> Save Draft
+        </button>
+        {savedAt && (
+          <span className="text-xs text-gray-400">
+            Saved {new Date(savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        )}
+        <button
           onClick={() => window.print()}
           className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
         >
@@ -270,6 +337,16 @@ export default function ContractView() {
           <Send size={14} /> Send for Signature
         </button>
       </div>
+
+      {/* ── Draft restored banner ────────────────────────────────────── */}
+      {savedAt && (
+        <div className="no-print max-w-4xl mx-auto mt-4 px-4">
+          <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2 text-sm text-emerald-700 flex items-center gap-2">
+            <Save size={13} />
+            Draft last saved {new Date(savedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} — all your edits have been restored.
+          </div>
+        </div>
+      )}
 
       {/* ── Optional fields panel ─────────────────────────────────── */}
       <div className="no-print max-w-4xl mx-auto mt-6 mb-2 px-4">

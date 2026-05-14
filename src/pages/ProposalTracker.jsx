@@ -658,6 +658,7 @@ export default function ProposalTracker() {
   const handleGenerateContract = (proposal) => {
     const contractNumber = `EOL${String(70000 + proposal.id).padStart(6, '0')}`
     sessionStorage.setItem('contract', JSON.stringify({
+      proposalId: proposal.id,
       client: proposal.client,
       email: proposal.email,
       phone: proposal.phone,
