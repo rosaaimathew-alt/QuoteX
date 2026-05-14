@@ -9,11 +9,17 @@ const fmt = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2,
 const PROJECT_TYPES = ['Deck', 'Screened Porch', 'Sunroom', 'Pergola', 'Gazebo', 'Open Porch']
 
 const PAYMENT_MILESTONES = [
-  { label: 'Schedule deposit — @ sign contract',         pct: 0.20 },
+  { label: 'Schedule deposit — @ sign contract',            pct: 0.20 },
   { label: 'Start payment — Material drop / Framing Start', pct: 0.30 },
-  { label: 'Roof Completion',                            pct: 0.40 },
-  { label: 'Paint Applied',                              pct: 0.05 },
-  { label: 'Substantial completion payment',             pct: 0.05 },
+  { label: 'Roof Completion',                               pct: 0.40 },
+  { label: 'Paint Applied',                                 pct: 0.05 },
+  { label: 'Substantial completion payment',                pct: 0.05 },
+]
+
+const PAYMENT_MILESTONES_UNDER20K = [
+  { label: 'Schedule deposit — @ sign contract', pct: 0.20 },
+  { label: 'Material drop / Framing Start',      pct: 0.40 },
+  { label: 'Substantial completion payment',     pct: 0.40 },
 ]
 
 // Locked disclosures — never editable
@@ -104,14 +110,6 @@ export default function ContractView() {
   const [isGenerating,    setIsGenerating]    = useState(false)
   const [aiError,         setAiError]         = useState('')
 
-  // Under-$40K flexible payment rows
-  const [customPayments, setCustomPayments] = useState([
-    { amount: '', milestone: '' },
-    { amount: '', milestone: '' },
-    { amount: '', milestone: '' },
-    { amount: '', milestone: '' },
-    { amount: '', milestone: '' },
-  ])
 
   useEffect(() => {
     const raw = sessionStorage.getItem('contract')
@@ -151,11 +149,10 @@ export default function ContractView() {
   const addrParts = (address || '').split(',')
   const city = addrParts.length >= 2 ? addrParts[addrParts.length - 2]?.trim() : ''
 
-  const payments = PAYMENT_MILESTONES.map(p => ({ ...p, amount: total * p.pct }))
   const isSmallContract = total < 40000
-  const downPayment = total * 0.20
-  const customTotal = customPayments.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0)
-  const substantialAmt = Math.max(0, total - downPayment - customTotal)
+  const isUnder20K     = total < 20000
+  const milestones     = isUnder20K ? PAYMENT_MILESTONES_UNDER20K : PAYMENT_MILESTONES
+  const payments       = milestones.map(p => ({ ...p, amount: total * p.pct }))
 
   const toggleMethod = (m) =>
     setPaymentMethods(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])
@@ -440,62 +437,18 @@ export default function ContractView() {
 
             <p className="mb-1"><strong>2.</strong> THE TOTAL CONTRACT SUM shall be paid to BUILDER as follows:</p>
 
-            {isSmallContract ? (
-              /* ── Under $40K: flexible payment rows ── */
-              <>
-                <p className="mb-1 font-bold">Down Payment (due at signing this CONTRACT) ${fmt(downPayment)}</p>
-                <p className="mb-1 font-bold">Progress Payments:</p>
-                <table className="w-full text-sm mb-2">
-                  <tbody>
-                    {customPayments.map((row, i) => (
-                      <tr key={i}>
-                        <td className="pr-3 pb-1.5 w-44">
-                          <div className="flex items-center gap-1">
-                            <span className="font-semibold">$</span>
-                            <input
-                              className="no-print w-full border border-gray-200 rounded px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-300"
-                              value={row.amount} placeholder="0.00"
-                              onChange={e => setCustomPayments(prev => prev.map((r, j) => j === i ? { ...r, amount: e.target.value } : r))}
-                            />
-                            <span className="print-only font-semibold">{row.amount}</span>
-                          </div>
-                        </td>
-                        <td className="pb-1.5 border-b border-gray-400 w-full">
-                          <input
-                            className="no-print w-full border border-gray-200 rounded px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-300"
-                            value={row.milestone} placeholder="due on…"
-                            onChange={e => setCustomPayments(prev => prev.map((r, j) => j === i ? { ...r, milestone: e.target.value } : r))}
-                          />
-                          <span className="print-only">{row.milestone || '_____________________________________'}</span>
-                        </td>
-                      </tr>
-                    ))}
-                    <tr>
-                      <td className="pr-3 pb-1.5 w-44 font-semibold">${fmt(substantialAmt)}</td>
-                      <td className="pb-1.5 border-b border-gray-400">due on substantial completion of WORK</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </>
-            ) : (
-              /* ── Over $40K: fixed percentage milestones ── */
-              <>
-                <p className="mb-1 font-bold">Down Payment (due at signing this CONTRACT) ${fmt(payments[0].amount)}</p>
-                <p className="mb-2 font-bold">Progress Payments:</p>
-                <table className="w-full text-sm mb-3">
-                  <tbody>
-                    {payments.slice(1).map((p, i) => (
-                      <tr key={i}>
-                        <td className="pr-4 pb-1.5 font-semibold w-36">${fmt(p.amount)}</td>
-                        <td className="pb-1.5 border-b border-gray-400 w-full">
-                          {['due after footing inspection / material drop','due upon roof completion','due at painting stage','due upon substantial completion of WORK'][i]}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </>
-            )}
+            <p className="mb-1 font-bold">Down Payment (due at signing this CONTRACT) ${fmt(payments[0].amount)}</p>
+            <p className="mb-2 font-bold">Progress Payments:</p>
+            <table className="w-full text-sm mb-3">
+              <tbody>
+                {payments.slice(1).map((p, i) => (
+                  <tr key={i}>
+                    <td className="pr-4 pb-1.5 font-semibold w-36">${fmt(p.amount)}</td>
+                    <td className="pb-1.5 border-b border-gray-400 w-full">{p.label}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
 
             <p className="mb-3">
               Down payment by{' '}
