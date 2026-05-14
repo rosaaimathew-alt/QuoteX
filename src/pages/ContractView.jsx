@@ -988,11 +988,8 @@ export default function ContractView() {
             >
               <span className="text-base leading-none">+</span> Add bullet
             </button>
-          </div>
-          <PageBreak />
 
           {/* ── SCOPE PAGE 2 · General Notes + Pricing Table ───────── */}
-          <div className={bodyPad}>
             {/* Locked disclosures */}
             <div className="no-print flex items-center gap-1.5 mb-2 text-xs text-amber-700 bg-amber-50 rounded px-2 py-1.5">
               <Lock size={11} />
@@ -1056,11 +1053,8 @@ export default function ContractView() {
                 </tr>
               </tbody>
             </table>
-          </div>
-          <PageBreak />
 
           {/* ── SCOPE PAGE 3 · Payment Schedule + Sigs ─────────────── */}
-          <div className={bodyPad}>
             <table className="w-full text-sm border-collapse mb-3">
               <thead>
                 <tr className="bg-blue-50">
