@@ -8,131 +8,115 @@ dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../.env'
 const fmt = (n) =>
   Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
-function buildEmailHtml({ client, email, phone, address, expiration, lines, companyName }) {
-  const today = new Date().toLocaleDateString('en-US', {
-    year: 'numeric', month: 'long', day: 'numeric',
-  })
+function buildEmailHtml({ client, email, phone, address, expiration, lines, companyName, fromName }) {
+  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
   const expirationFormatted = expiration
-    ? new Date(expiration + 'T00:00:00').toLocaleDateString('en-US', {
-        year: 'numeric', month: 'long', day: 'numeric',
-      })
+    ? new Date(expiration + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     : null
+  const subtotal = (lines || []).reduce((s, l) => s + (l.qty || 1) * (l.unitPrice || 0), 0)
+  const company  = companyName || 'Ebony Outdoor Living'
+  const sender   = fromName   || company
 
-  const subtotal = lines.reduce((s, l) => s + l.qty * l.unitPrice, 0)
-
-  // Group lines by section
-  const sectionOrder = []
-  const sections = {}
-  lines.forEach((l) => {
-    const key = (l.section || l.category || 'General').trim()
-    if (!sections[key]) { sections[key] = []; sectionOrder.push(key) }
-    sections[key].push(l)
-  })
-
-  const scopeRows = sectionOrder.map((key) => {
-    const items = sections[key]
-    const itemHtml = items.map((l) => `
-      <div style="margin-bottom:10px;padding-left:12px;border-left:3px solid #DBEAFE;">
-        <p style="margin:0;font-size:14px;font-weight:600;color:#1e293b;">${l.name}</p>
-        ${l.description ? `<p style="margin:4px 0 0;font-size:13px;color:#64748b;line-height:1.5;">${l.description}</p>` : ''}
-      </div>`).join('')
-    return `
-      <div style="margin-bottom:24px;">
-        <div style="display:flex;align-items:center;margin-bottom:10px;">
-          <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#1d4ed8;">${key}</span>
-          <div style="flex:1;height:1px;background:#DBEAFE;margin-left:10px;"></div>
-        </div>
-        ${itemHtml}
-      </div>`
-  }).join('')
-
-  const priceRows = lines.map((l, i) => `
+  const lineRows = (lines || []).map((l, i) => `
     <tr style="background:${i % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-      <td style="padding:10px 12px;font-size:13px;color:#1e293b;font-weight:500;">${l.name || '—'}</td>
-      <td style="padding:10px 12px;font-size:13px;color:#475569;text-align:center;">${l.qty}</td>
-      <td style="padding:10px 12px;font-size:12px;color:#94a3b8;text-align:center;">${l.unit}</td>
-      <td style="padding:10px 12px;font-size:13px;color:#475569;text-align:right;">$${fmt(l.unitPrice)}</td>
-      <td style="padding:10px 12px;font-size:13px;color:#1e293b;font-weight:600;text-align:right;">$${fmt(l.qty * l.unitPrice)}</td>
+      <td style="padding:10px 16px;font-size:13px;color:#1e293b;font-weight:500;border-bottom:1px solid #f1f5f9;">${l.name || '—'}</td>
+      <td style="padding:10px 16px;font-size:13px;color:#475569;text-align:center;border-bottom:1px solid #f1f5f9;">${l.qty || 1} ${l.unit || ''}</td>
+      <td style="padding:10px 16px;font-size:13px;font-weight:600;color:#1e293b;text-align:right;border-bottom:1px solid #f1f5f9;">$${fmt((l.qty || 1) * (l.unitPrice || 0))}</td>
     </tr>`).join('')
 
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-  <div style="max-width:680px;margin:32px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 16px;">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;">
 
-    <!-- Header -->
-    <div style="background:#1d4ed8;padding:36px 40px;">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-        <div>
-          <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:-0.02em;">PROPOSAL</h1>
-          <p style="margin:6px 0 0;color:#93c5fd;font-size:13px;">${today}</p>
-          ${expirationFormatted ? `<p style="margin:4px 0 0;color:#bfdbfe;font-size:13px;font-weight:500;">Valid Until: ${expirationFormatted}</p>` : ''}
-        </div>
-        <div style="text-align:right;">
-          <p style="margin:0;color:#ffffff;font-size:16px;font-weight:600;">${companyName || 'QUOTEX'}</p>
-          <p style="margin:4px 0 0;color:#93c5fd;font-size:13px;">Contractor Services</p>
-        </div>
-      </div>
-    </div>
+      <!-- Header -->
+      <tr>
+        <td style="background:#0f172a;padding:32px 40px;">
+          <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.02em;">${company}</p>
+          <p style="margin:6px 0 0;font-size:13px;color:#94a3b8;">Proposal · ${today}</p>
+        </td>
+      </tr>
 
-    <!-- Customer -->
-    ${client || email || phone || address ? `
-    <div style="padding:24px 40px;border-bottom:1px solid #f1f5f9;">
-      <p style="margin:0 0 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8;">Prepared For</p>
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-        <div>
-          ${client ? `<p style="margin:0;font-size:18px;font-weight:600;color:#0f172a;">${client}</p>` : ''}
-          ${address ? `<p style="margin:4px 0 0;font-size:13px;color:#64748b;">${address}</p>` : ''}
-        </div>
-        <div style="text-align:right;">
-          ${phone ? `<p style="margin:0;font-size:13px;color:#64748b;">${phone}</p>` : ''}
-          ${email ? `<p style="margin:4px 0 0;font-size:13px;color:#64748b;">${email}</p>` : ''}
-        </div>
-      </div>
-    </div>` : ''}
+      <!-- Greeting -->
+      <tr>
+        <td style="padding:32px 40px 24px;">
+          <p style="margin:0 0 12px;font-size:15px;color:#1e293b;">Hi ${client || 'there'},</p>
+          <p style="margin:0;font-size:14px;color:#475569;line-height:1.7;">
+            Thank you for the opportunity to work with you. Please find your project proposal below.
+            ${expirationFormatted ? `This proposal is valid until <strong>${expirationFormatted}</strong>.` : ''}
+            Feel free to reach out with any questions.
+          </p>
+        </td>
+      </tr>
 
-    <!-- Scope of Work -->
-    <div style="padding:28px 40px;border-bottom:1px solid #f1f5f9;">
-      <p style="margin:0 0 20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8;">Scope of Work</p>
-      ${scopeRows}
-    </div>
-
-    <!-- Pricing Table -->
-    <div style="padding:28px 40px;">
-      <p style="margin:0 0 16px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8;">Pricing</p>
-      <table style="width:100%;border-collapse:collapse;">
-        <thead>
-          <tr style="border-bottom:2px solid #e2e8f0;">
-            <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;">Item</th>
-            <th style="padding:8px 12px;text-align:center;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;width:50px;">Qty</th>
-            <th style="padding:8px 12px;text-align:center;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;width:50px;">Unit</th>
-            <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;width:100px;">Unit Price</th>
-            <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;width:100px;">Amount</th>
+      <!-- Project info -->
+      ${address ? `<tr><td style="padding:0 40px 20px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:8px;padding:16px;">
+          <tr>
+            <td style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;padding-bottom:8px;">Project Address</td>
           </tr>
-        </thead>
-        <tbody>
-          ${priceRows}
-        </tbody>
-        <tfoot>
-          <tr style="border-top:2px solid #cbd5e1;">
-            <td colspan="3"></td>
-            <td style="padding:16px 12px;text-align:right;font-size:13px;font-weight:600;color:#475569;">TOTAL</td>
-            <td style="padding:16px 12px;text-align:right;font-size:20px;font-weight:700;color:#1d4ed8;">$${fmt(subtotal)}</td>
+          <tr>
+            <td style="font-size:14px;color:#1e293b;">${address}</td>
           </tr>
-        </tfoot>
-      </table>
-    </div>
+        </table>
+      </td></tr>` : ''}
 
-    <!-- Terms -->
-    <div style="padding:0 40px 40px;">
-      <div style="background:#f8fafc;border-radius:8px;padding:16px;font-size:12px;color:#64748b;line-height:1.6;">
-        <p style="margin:0 0 4px;font-weight:600;color:#475569;">Terms &amp; Conditions</p>
-        <p style="margin:0;">${expirationFormatted ? `This proposal is valid until ${expirationFormatted}.` : 'This proposal is valid for 30 days from the date above.'} A 50% deposit is required to schedule work. Final payment is due upon completion. Pricing is based on normal site conditions; any unforeseen conditions may result in additional costs with prior approval.</p>
-      </div>
-    </div>
+      <!-- Divider -->
+      <tr><td style="padding:0 40px;"><hr style="border:none;border-top:1px solid #e2e8f0;margin:0;"></td></tr>
 
-  </div>
+      <!-- Line items -->
+      <tr>
+        <td style="padding:24px 40px 0;">
+          <p style="margin:0 0 16px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;">Proposal Summary</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+            <thead>
+              <tr style="background:#f1f5f9;">
+                <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;">Item</th>
+                <th style="padding:10px 16px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;width:80px;">Qty</th>
+                <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;width:100px;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>${lineRows}</tbody>
+            <tfoot>
+              <tr style="background:#0f172a;">
+                <td colspan="2" style="padding:14px 16px;font-size:13px;font-weight:700;color:#ffffff;letter-spacing:0.02em;">TOTAL INVESTMENT</td>
+                <td style="padding:14px 16px;text-align:right;font-size:18px;font-weight:700;color:#ffffff;">$${fmt(subtotal)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </td>
+      </tr>
+
+      <!-- CTA note -->
+      <tr>
+        <td style="padding:28px 40px;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#eff6ff;border-radius:8px;border-left:4px solid #3b82f6;">
+            <tr>
+              <td style="padding:16px 20px;font-size:13px;color:#1e40af;line-height:1.6;">
+                To accept this proposal, simply reply to this email or give us a call.
+                A ${Math.round(0.20 * 100)}% deposit is required to schedule your project.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <!-- Footer -->
+      <tr>
+        <td style="background:#f8fafc;padding:20px 40px;border-top:1px solid #e2e8f0;">
+          <p style="margin:0;font-size:12px;color:#94a3b8;">
+            Sent by <strong style="color:#475569;">${sender}</strong> via ${company}
+            ${email ? ` · <a href="mailto:${email}" style="color:#3b82f6;text-decoration:none;">${email}</a>` : ''}
+          </p>
+        </td>
+      </tr>
+
+    </table>
+  </td></tr>
+</table>
 </body>
 </html>`
 }
@@ -160,7 +144,7 @@ export default async function handler(req, res) {
   const isReply = !!replyText
   const html = isReply
     ? `<div style="font-family:-apple-system,sans-serif;font-size:14px;line-height:1.6;color:#1e293b;max-width:600px;margin:0 auto;padding:24px;">${replyText.replace(/\n/g, '<br>')}</div>`
-    : buildEmailHtml(proposal)
+    : buildEmailHtml({ ...proposal, fromName })
 
   const subject = customSubject
     || (isReply ? `Re: Your Proposal` : `Proposal for ${proposal.client || 'Your Project'}${proposal.expiration ? ` — Valid Until ${new Date(proposal.expiration + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}`)
