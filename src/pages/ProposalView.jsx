@@ -130,21 +130,23 @@ export default function ProposalView() {
     setSending(true)
     setSendError('')
     try {
-      // Clone the proposal card into an isolated off-screen container so the
-      // capture starts at (0,0) — no sidebar offset, no clipping on the right.
+      // Render the proposal in an invisible overlay at viewport origin (0,0)
+      // so there is no sidebar offset in the captured image.
+      // opacity:0 hides it from the user; html-to-image makes its own fresh
+      // clone for the SVG foreignObject so the output is at full opacity.
       const LETTER_PX = 816 // 8.5in @ 96dpi
       const original = proposalDocRef.current
-      const wrapper = document.createElement('div')
-      wrapper.style.cssText = `position:fixed;top:0;left:-9999px;width:${LETTER_PX}px;background:#ffffff;`
+      const overlay = document.createElement('div')
+      overlay.style.cssText = `position:fixed;top:0;left:0;z-index:99999;width:${LETTER_PX}px;opacity:0;pointer-events:none;`
       const clone = original.cloneNode(true)
       clone.style.cssText = `width:${LETTER_PX}px;max-width:${LETTER_PX}px;margin:0;border-radius:0;box-shadow:none;overflow:visible;`
-      wrapper.appendChild(clone)
-      document.body.appendChild(wrapper)
-      // Give browser one tick to finish layout on the clone
-      await new Promise(r => setTimeout(r, 120))
+      overlay.appendChild(clone)
+      document.body.appendChild(overlay)
+      // Let browser finish layout before capturing
+      await new Promise(r => setTimeout(r, 150))
 
-      const canvas = await toCanvas(wrapper, { pixelRatio: 2, backgroundColor: '#ffffff' })
-      document.body.removeChild(wrapper)
+      const canvas = await toCanvas(clone, { pixelRatio: 2, backgroundColor: '#ffffff' })
+      document.body.removeChild(overlay)
 
       const imgData = canvas.toDataURL('image/jpeg', 0.92)
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' })
