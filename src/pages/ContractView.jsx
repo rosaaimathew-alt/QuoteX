@@ -81,6 +81,23 @@ export default function ContractView() {
   const [paymentMethods,     setPaymentMethods]      = useState([])
   const [otherTerms,         setOtherTerms]          = useState('')
 
+  // Electrical spec sheet
+  const [includesElectrical, setIncludesElectrical]  = useState(false)
+  const [recessedSize,       setRecessedSize]        = useState('6')
+  const [homePhone,          setHomePhone]            = useState('')
+  const [cellPhone,          setCellPhone]            = useState('')
+  const [elecItems,          setElecItems]            = useState([
+    { id: 'fan',       label: 'Prewire for homeowner supplied fan',                    qty: '' },
+    { id: 'outlets',   label: 'Outlets - 120 Volt',                                    qty: '' },
+    { id: 'recessed',  label: 'Recessed can lighting',                                 qty: '', isRecessed: true },
+    { id: 'flood',     label: 'Flood light',                                           qty: '' },
+    { id: 'cable',     label: 'Cable jack and outlet combo',                           qty: '' },
+    { id: 'sconces',   label: 'Prewire for homeowner supplied sconces',                qty: '' },
+    { id: 'fireplace', label: 'Electric Fireplace Installation ONLY',                  qty: '' },
+    { id: 'dimmer',    label: 'Dimmer switch',                                         qty: '' },
+    { id: 'heater',    label: 'Provide and Install Innova Heater with Decorative Guard', qty: '' },
+  ])
+
   // Editable scope
   const [projectSummary,  setProjectSummary]  = useState('')
   const [scopeLines,      setScopeLines]      = useState([])
@@ -325,6 +342,37 @@ export default function ContractView() {
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Gate Code <span className="font-normal text-gray-400">(optional)</span></label>
                 <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                   value={gateCode} onChange={e => setGateCode(e.target.value)} />
+              </div>
+
+              {/* Electrical work toggle */}
+              <div className="col-span-2 border-t border-gray-100 pt-4">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-2">Includes Electrical Work?</label>
+                <div className="flex gap-2 mb-3">
+                  {['yes','no'].map(v => (
+                    <button key={v} onClick={() => setIncludesElectrical(v === 'yes')}
+                      className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+                        (v === 'yes') === includesElectrical
+                          ? 'bg-yellow-500 text-white border-yellow-500'
+                          : 'bg-white text-gray-600 border-gray-300'
+                      }`}>
+                      {v.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+                {includesElectrical && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Home Phone <span className="font-normal text-gray-400">(optional)</span></label>
+                      <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                        value={homePhone} onChange={e => setHomePhone(e.target.value)} placeholder={phone} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Cell Phone <span className="font-normal text-gray-400">(optional)</span></label>
+                      <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                        value={cellPhone} onChange={e => setCellPhone(e.target.value)} />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Scope edit note */}
@@ -792,6 +840,143 @@ export default function ContractView() {
             <SigBlock label="Client signature" />
             <SigBlock label="Builder signature" />
           </div>
+
+          {/* ══════════════════════════════════════════════════════════
+              DOCUMENT 3: ELECTRICAL SPECIFICATION SHEET
+              (only rendered when job includes electrical work)
+          ══════════════════════════════════════════════════════════ */}
+          {includesElectrical && (
+            <>
+              <PageBreak />
+              <div className={bodyPad}>
+
+                {/* Header */}
+                <div className="flex justify-between items-start mb-1">
+                  <div style={{ fontFamily: 'Arial, sans-serif' }}>
+                    <div className="text-2xl font-black tracking-widest leading-tight">—EBONY—</div>
+                    <div className="text-sm font-semibold" style={{ color: '#2563eb' }}>Outdoor Living</div>
+                  </div>
+                  <div className="text-xl font-bold" style={{ fontFamily: 'Arial, sans-serif' }}>ELECTRICAL SPECIFICATION</div>
+                </div>
+                <div className="border-b border-gray-400 mb-4" />
+
+                {/* Client info */}
+                <div className="grid grid-cols-2 gap-x-6 text-sm mb-4">
+                  <div><strong>CUSTOMER NAME:</strong> {client}</div>
+                  <div><strong>CONTRACT #:</strong> {contractNumber}</div>
+                  <div className="col-span-2">
+                    <strong>PHONE NUMBER:</strong>{' '}
+                    {homePhone || phone}
+                    {cellPhone ? ` | ${cellPhone}` : ''}
+                    {' '}&nbsp;&nbsp; <strong>HOME:</strong> {homePhone || '___________'} &nbsp;&nbsp; <strong>CELL:</strong> {cellPhone || '___________'}
+                  </div>
+                </div>
+
+                {/* Included items table */}
+                <p className="text-sm font-bold mb-2">THE FOLLOWING ELECTRICAL ITEMS ARE INCLUDED IN YOUR ABOVE REFERENCE CONTRACT:</p>
+                <table className="w-full text-sm border-collapse mb-0">
+                  <thead>
+                    <tr>
+                      <th className="border border-gray-400 px-3 py-2 text-left font-bold w-5/6">ELECTRICAL ITEM</th>
+                      <th className="border border-gray-400 px-3 py-2 text-center font-bold w-1/6">QTY</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="border border-gray-400 px-3 py-2">
+                        <p className="font-bold">Standard electrical package:</p>
+                        <p>Prewire for (1) homeowner supplied a fan with a switch, (1) outlet and (1) flood light with a switch.</p>
+                        <p className="italic text-gray-500">*Dimmer switch available for additional cost</p>
+                      </td>
+                      <td className="border border-gray-400 px-3 py-2 text-center font-semibold">1</td>
+                    </tr>
+                    <tr>
+                      <td colSpan={2} className="border border-gray-400 px-3 py-2 font-bold bg-gray-50">ADDITIONAL ELECTRICAL ITEMS AVAILABLE</td>
+                    </tr>
+                    {elecItems.map(item => (
+                      <tr key={item.id}>
+                        <td className="border border-gray-400 px-3 py-2">
+                          {item.isRecessed ? (
+                            <div className="flex items-center gap-4">
+                              <span>{item.label}</span>
+                              <div className="no-print flex items-center gap-3 text-xs">
+                                {['6','4'].map(s => (
+                                  <button key={s} onClick={() => setRecessedSize(s)}
+                                    className={`px-2 py-0.5 rounded border font-medium ${recessedSize === s ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}>
+                                    ({s === recessedSize ? 'X' : ' '}) {s}"
+                                  </button>
+                                ))}
+                              </div>
+                              <span className="print-only text-xs">
+                                ({recessedSize === '6' ? 'X' : ' '}) 6" &nbsp; ({recessedSize === '4' ? 'X' : ' '}) 4"
+                              </span>
+                            </div>
+                          ) : item.label}
+                        </td>
+                        <td className="border border-gray-400 px-3 py-2 text-center">
+                          <input
+                            className="no-print w-full text-center border border-gray-200 rounded px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-300"
+                            value={item.qty}
+                            onChange={e => setElecItems(prev => prev.map(i => i.id === item.id ? { ...i, qty: e.target.value } : i))}
+                            placeholder="—"
+                          />
+                          <span className="print-only">{item.qty || ''}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {/* Addendum note */}
+                <p className="text-sm mt-4 mb-4">
+                  If you would like any additional electrical performance, you can add it at the time we are building your project through an addendum to your contract. The Builder can process this for you.
+                </p>
+
+                {/* Disclosure bullets */}
+                <ul className="text-sm space-y-2 mb-8">
+                  {[
+                    { text: 'Mounting and installation of your TV and/or speakers is not included.', red: false },
+                    { text: 'Cable TV connections in some cases may need to be connected through your cable provider.', red: false },
+                    { text: 'The electrical wiring provided may require exposed conduit piping. We will minimize this when possible. If you have any question, please do not hesitate to discuss them with the builder or you may call at (704) 776-2210', red: false },
+                    { text: 'Due Breaker capacity plug-in heaters cannot be used. Please discuss if an additional heater circuit is desired.', red: false },
+                    { text: 'The Outlets installed are a common household outlet, typically designed to handle 15 or 20 amps of current at 120 volts, yielding a maximum capacity of 1800 or 2400 watts, respectively. This capacity is suitable for most everyday appliances and devices such as lamps, chargers, computers, and TVs. NOT PLUG-IN HEATERS.', red: true },
+                    { text: 'Ebony is not responsible for the cost of reconnecting any cables, security system, alarms, etc in case it was disconnected during the construction process. The homeowner is responsible to inform the builder the existence and location of possible wires prior to starting the work.', red: false },
+                    { text: 'Due to recent code changes and grossly varying inspector interpretations, some are considering the EzeBreeze system as the same as a traditional window and a year-round usable living space, which falls under the 6/12 outlet spacing code.', red: false },
+                    { text: 'Homeowners are responsible for costs of an extra Sub panel if required to perform the work.', red: true },
+                  ].map((d, i) => (
+                    <li key={i} className={`flex gap-2 ${d.red ? 'text-red-600' : ''}`}>
+                      <span className="shrink-0">●</span>
+                      <span>{d.text}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                {/* Signature block */}
+                <div className="grid grid-cols-2 gap-10 mt-10">
+                  <div>
+                    <div className="border-b border-gray-500 pb-8" />
+                    <div className="flex gap-6 mt-1">
+                      <p className="text-xs text-gray-600">CUSTOMER(S) SIGNATURE</p>
+                      <p className="text-xs text-gray-600">DATE</p>
+                    </div>
+                    <div className="border-b border-gray-500 pb-8 mt-6" />
+                    <div className="flex gap-6 mt-1">
+                      <p className="text-xs text-gray-600">CUSTOMER(S) SIGNATURE</p>
+                      <p className="text-xs text-gray-600">DATE</p>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="border-b border-gray-500 pb-8" />
+                    <div className="flex gap-6 mt-1">
+                      <p className="text-xs text-gray-600">BUILDER SIGNATURE</p>
+                      <p className="text-xs text-gray-600">DATE</p>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </>
+          )}
 
         </div>
       </div>
