@@ -292,6 +292,22 @@ export const useStore = create(
           ),
         })),
 
+      markContractSigned: (proposalId, signed) =>
+        set((s) => ({
+          proposals: s.proposals.map((p) =>
+            p.id === proposalId
+              ? {
+                  ...p,
+                  contractDraft: {
+                    ...(p.contractDraft || {}),
+                    signed,
+                    signedAt: signed ? new Date().toISOString() : null,
+                  },
+                }
+              : p
+          ),
+        })),
+
       // ── Import (from backup JSON) ─────────────────────────────────────────
       importCatalog: (items) => {
         if (!Array.isArray(items) || items.length === 0) return
