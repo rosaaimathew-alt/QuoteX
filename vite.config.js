@@ -90,6 +90,8 @@ export default defineConfig({
       '/api/send-email':    'http://localhost:3001',
       '/api/messages':      'http://localhost:3001',
       '/api/inbound-email': 'http://localhost:3001',
+      '/api/google-auth':   'http://localhost:3001',
+      '/api/drive':         'http://localhost:3001',
     },
   },
 })
