@@ -482,7 +482,7 @@ export default function ContractView() {
         </button>
         <button
           onClick={() => { setSignResult(null); setSignError(''); setShowSignModal(true) }}
-          className="flex items-center gap-1.5 px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
+          style={{ background: '#16a34a', color: '#fff', borderRadius: '8px', padding: '6px 16px', fontSize: '14px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', border: 'none' }}
         >
           <Send size={14} /> Send for Signature
         </button>
