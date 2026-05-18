@@ -45,7 +45,7 @@ app.get('/api/google-auth/callback', async (req, res) => {
   if (!code) return res.status(400).send('Missing code')
   try {
     await handleCallback(code)
-    res.redirect('http://localhost:5173/contract?google=connected')
+    res.redirect('http://localhost:5174/contract?google=connected')
   } catch (err) {
     res.redirect(`http://localhost:5173/contract?google=error&msg=${encodeURIComponent(err.message)}`)
   }
