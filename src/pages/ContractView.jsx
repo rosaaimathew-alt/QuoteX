@@ -284,19 +284,27 @@ export default function ContractView() {
       const LETTER_PX = 816
       const original  = contractDocRef.current
       const overlay   = document.createElement('div')
-      overlay.style.cssText = `position:fixed;top:0;left:0;z-index:99999;width:${LETTER_PX}px;opacity:0;pointer-events:none;`
+      overlay.style.cssText = `position:fixed;top:0;left:0;z-index:99999;width:${LETTER_PX}px;opacity:0;pointer-events:none;background:#ffffff;`
       const clone = original.cloneNode(true)
-      clone.style.cssText = `width:${LETTER_PX}px;max-width:${LETTER_PX}px;margin:0;border-radius:0;box-shadow:none;overflow:visible;`
+      clone.style.cssText = `width:${LETTER_PX}px;max-width:${LETTER_PX}px;margin:0;border-radius:0;box-shadow:none;overflow:visible;background:#ffffff;`
       clone.querySelectorAll('.no-print').forEach(el => el.remove())
       overlay.appendChild(clone)
       document.body.appendChild(overlay)
-      await new Promise(r => setTimeout(r, 200))
 
-      const canvas  = await toCanvas(clone, { pixelRatio: 1, backgroundColor: '#ffffff' })
+      await Promise.all(
+        Array.from(clone.querySelectorAll('img')).map(img =>
+          img.complete && img.naturalWidth > 0
+            ? Promise.resolve()
+            : new Promise(resolve => { img.onload = img.onerror = resolve })
+        )
+      )
+      await new Promise(r => setTimeout(r, 300))
+
+      const canvas  = await toCanvas(clone, { pixelRatio: 1.5, backgroundColor: '#ffffff', cacheBust: true })
       document.body.removeChild(overlay)
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.7)
-      const pdf     = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' })
+      const imgData = canvas.toDataURL('image/jpeg', 0.75)
+      const pdf     = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter', compress: true })
       const pageW   = pdf.internal.pageSize.getWidth()
       const pageH   = pdf.internal.pageSize.getHeight()
       const imgW    = pageW
