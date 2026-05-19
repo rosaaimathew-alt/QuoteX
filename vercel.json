@@ -11,8 +11,7 @@
     "api/google-auth/status.js":   { "maxDuration": 10 },
     "api/google-auth/callback.js": { "maxDuration": 10 },
     "api/drive/upload.js":          { "maxDuration": 60 },
-    "api/sign/create.js":           { "maxDuration": 10 },
-    "api/sign/token.js":            { "maxDuration": 10 }
+    "api/sign/token.js":             { "maxDuration": 10 }
   },
   "rewrites": [
     { "source": "/api/sign/:token", "destination": "/api/sign/token" }

@@ -81,11 +81,10 @@ app.post('/api/drive/upload', async (req, res) => {
 })
 
 // ── Signing links ─────────────────────────────────────────────────────────
-import signCreateHandler from './sign/create.js'
-import signTokenHandler  from './sign/token.js'
-app.post('/api/sign/create',   (req, res) => signCreateHandler(req, res))
-app.get('/api/sign/:token',    (req, res) => { req.query.token = req.params.token; signTokenHandler(req, res) })
-app.post('/api/sign/:token',   (req, res) => { req.query.token = req.params.token; signTokenHandler(req, res) })
+import signTokenHandler from './sign/token.js'
+app.post('/api/sign/create',  (req, res) => { req.query.token = 'create';        signTokenHandler(req, res) })
+app.get('/api/sign/:token',   (req, res) => { req.query.token = req.params.token; signTokenHandler(req, res) })
+app.post('/api/sign/:token',  (req, res) => { req.query.token = req.params.token; signTokenHandler(req, res) })
 
 const PORT = process.env.API_PORT || 3001
 app.listen(PORT, () => {
