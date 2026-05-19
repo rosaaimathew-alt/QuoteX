@@ -32,8 +32,8 @@ app.post('/api/inbound-email', (req, res) => inboundHandler(req, res))
 app.post('/api/ai-chat',       (req, res) => aiChatHandler(req, res))
 
 // ── Google Drive OAuth ────────────────────────────────────────────────────
-app.get('/api/google-auth/status', (req, res) => {
-  res.json({ authenticated: isAuthenticated() })
+app.get('/api/google-auth/status', async (req, res) => {
+  res.json({ authenticated: await isAuthenticated() })
 })
 
 app.get('/api/google-auth/start', (req, res) => {

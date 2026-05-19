@@ -203,7 +203,7 @@ export default function ContractView() {
   }, [])
 
   useEffect(() => {
-    fetch(`http://${window.location.hostname}:3001/api/google-auth/status`)
+    fetch(`/api/google-auth/status`)
       .then(r => r.json())
       .then(d => setGoogleAuthed(d.authenticated))
       .catch(() => {})
@@ -257,7 +257,7 @@ export default function ContractView() {
   const addLine = () =>
     setScopeLines(prev => [...prev, { id: Date.now(), name: '', text: '' }])
 
-  const apiBase = `http://${window.location.hostname}:3001`
+  const apiBase = ''
 
   const handleConnectGoogle = async () => {
     try {
