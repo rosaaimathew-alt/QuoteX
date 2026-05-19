@@ -203,7 +203,7 @@ export default function ContractView() {
   }, [])
 
   useEffect(() => {
-    fetch('/api/google-auth/status')
+    fetch('http://localhost:3001/api/google-auth/status')
       .then(r => r.json())
       .then(d => setGoogleAuthed(d.authenticated))
       .catch(() => {})
@@ -259,7 +259,7 @@ export default function ContractView() {
 
   const handleConnectGoogle = async () => {
     try {
-      const res = await fetch('/api/google-auth/start')
+      const res = await fetch('http://localhost:3001/api/google-auth/start')
       const { url } = await res.json()
       window.location.href = url
     } catch {
@@ -305,7 +305,7 @@ export default function ContractView() {
       const clientName = data?.client || 'Client'
       const fileName   = `Contract-${clientName.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.pdf`
 
-      const res = await fetch('/api/drive/upload', {
+      const res = await fetch('http://localhost:3001/api/drive/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pdfBase64, fileName }),
