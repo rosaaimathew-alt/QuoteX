@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, NavLink, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon, Sun, Moon, Users, FileSignature, LogOut } from 'lucide-react'
-import { useEffect, useState, useRef } from 'react'
+import { Component, useEffect, useState, useRef } from 'react'
 import Dashboard from './pages/Dashboard'
 import Analyze from './pages/Analyze'
 import ItemCatalog from './pages/ItemCatalog'
@@ -304,13 +304,27 @@ function AppShell() {
   )
 }
 
+class SignBoundary extends Component {
+  state = { err: null }
+  static getDerivedStateFromError(e) { return { err: e } }
+  render() {
+    if (this.state.err) return (
+      <div style={{ padding: '2rem', fontFamily: 'monospace', color: '#dc2626' }}>
+        <strong>Sign page error:</strong> {this.state.err.message}
+        <pre style={{ fontSize: 12, marginTop: 8, whiteSpace: 'pre-wrap' }}>{this.state.err.stack}</pre>
+      </div>
+    )
+    return this.props.children
+  }
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/login"       element={<Login />} />
-        <Route path="/sign/:token" element={<SignPage />} />
-        <Route path="/*"           element={<AuthGuard><AppShell /></AuthGuard>} />
+        <Route path="/sign/:token" element={<SignBoundary><SignPage /></SignBoundary>} />
+        <Route path="*"            element={<AuthGuard><AppShell /></AuthGuard>} />
       </Routes>
     </BrowserRouter>
   )
