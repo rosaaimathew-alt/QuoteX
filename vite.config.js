@@ -87,6 +87,7 @@ export default defineConfig({
   server: {
     host: true,
     proxy: {
+      '/api/auth':          'http://localhost:3001',
       '/api/send-email':    'http://localhost:3001',
       '/api/messages':      'http://localhost:3001',
       '/api/inbound-email': 'http://localhost:3001',

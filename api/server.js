@@ -12,6 +12,7 @@ import messagesHandler from './messages.js'
 import inboundHandler from './inbound-email.js'
 import aiChatHandler from './ai-chat.js'
 import { getAuthUrl, handleCallback, isAuthenticated, uploadToDrive } from './google-drive.js'
+import { createHmac } from 'crypto'
 
 const app = express()
 app.use((req, res, next) => {
@@ -30,6 +31,21 @@ app.post('/api/messages',      (req, res) => messagesHandler(req, res))
 app.delete('/api/messages',    (req, res) => messagesHandler(req, res))
 app.post('/api/inbound-email', (req, res) => inboundHandler(req, res))
 app.post('/api/ai-chat',       (req, res) => aiChatHandler(req, res))
+
+// ── Auth ─────────────────────────────────────────────────────────────────
+app.post('/api/auth/login', (req, res) => {
+  const { email, password } = req.body || {}
+  const adminEmail    = process.env.ADMIN_EMAIL
+  const adminPassword = process.env.ADMIN_PASSWORD
+  const secret        = process.env.SESSION_SECRET || 'dev-secret-change-me'
+  if (!adminEmail || !adminPassword) return res.status(500).json({ error: 'Auth not configured' })
+  if (email?.toLowerCase() === adminEmail.toLowerCase() && password === adminPassword) {
+    const payload = JSON.stringify({ email, exp: Date.now() + 30 * 24 * 60 * 60 * 1000 })
+    const sig     = createHmac('sha256', secret).update(payload).digest('hex')
+    return res.json({ token: Buffer.from(payload).toString('base64') + '.' + sig })
+  }
+  return res.status(401).json({ error: 'Invalid email or password' })
+})
 
 // ── Google Drive OAuth ────────────────────────────────────────────────────
 app.get('/api/google-auth/status', async (req, res) => {
