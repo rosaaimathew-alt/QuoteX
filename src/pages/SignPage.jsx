@@ -55,17 +55,22 @@ export default function SignPage() {
   }
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="text-gray-400 text-sm">Loading contract…</div>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
+      <div className="text-center">
+        <div className="text-4xl mb-3">📄</div>
+        <div className="text-gray-700 text-lg font-semibold mb-1">Loading contract…</div>
+        <div className="text-gray-400 text-xs font-mono">token: {token?.slice(0, 12)}…</div>
+      </div>
     </div>
   )
 
   if (error) return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="text-center px-6">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
+      <div className="max-w-md text-center bg-white rounded-2xl border border-red-200 p-6 shadow-sm">
         <div className="text-4xl mb-3">⚠️</div>
-        <p className="text-red-600 font-semibold">{error}</p>
-        <p className="text-gray-400 text-sm mt-1">This link may have expired or is invalid.</p>
+        <p className="text-red-600 font-bold text-lg mb-2">Can't load contract</p>
+        <p className="text-gray-700 text-sm font-mono bg-red-50 rounded-lg p-3 text-left break-all">{error}</p>
+        <p className="text-gray-400 text-xs mt-3">Token: {token}</p>
       </div>
     </div>
   )
