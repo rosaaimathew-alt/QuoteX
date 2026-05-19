@@ -58,7 +58,7 @@ const SigBlock = ({ label, date = true }) => (
   </div>
 )
 
-const PageBreak = () => <div style={{ pageBreakAfter: 'always' }} />
+const PageBreak = () => <div className="pdf-page-break" style={{ pageBreakAfter: 'always', height: 0, overflow: 'hidden' }} />
 
 const CB = ({ checked }) => (
   <span className="inline-block w-3.5 h-3.5 border border-gray-700 mr-1 align-middle text-center text-xs leading-none">
@@ -300,6 +300,14 @@ export default function ContractView() {
       )
       await new Promise(r => setTimeout(r, 300))
 
+      // Measure page-break positions before capturing canvas
+      const cloneTop    = clone.getBoundingClientRect().top
+      const contentH    = Math.max(clone.scrollHeight, clone.getBoundingClientRect().height)
+      const breakYsPx   = Array.from(clone.querySelectorAll('.pdf-page-break'))
+        .map(el => el.getBoundingClientRect().top - cloneTop)
+        .filter(y => y > 1)
+        .sort((a, b) => a - b)
+
       const canvas  = await toCanvas(clone, { pixelRatio: 1.5, backgroundColor: '#ffffff', cacheBust: true })
       document.body.removeChild(overlay)
 
@@ -309,11 +317,30 @@ export default function ContractView() {
       const pageH   = pdf.internal.pageSize.getHeight()
       const imgW    = pageW
       const imgH    = (canvas.height * pageW) / canvas.width
-      let y = 0
-      while (y < imgH) {
-        if (y > 0) pdf.addPage()
-        pdf.addImage(imgData, 'JPEG', 0, -y, imgW, imgH)
-        y += pageH
+
+      // Scale DOM-pixel break positions to PDF points
+      const pxToPt    = imgH / contentH
+      const breakYsPt = breakYsPx.map(y => y * pxToPt)
+      const boundaries = [0, ...breakYsPt, imgH]
+
+      let isFirst = true
+      for (let i = 0; i < boundaries.length - 1; i++) {
+        const sectionStart = boundaries[i]
+        const sectionEnd   = boundaries[i + 1]
+        let y = sectionStart
+        while (y < sectionEnd) {
+          if (!isFirst) pdf.addPage()
+          isFirst = false
+          pdf.addImage(imgData, 'JPEG', 0, -y, imgW, imgH)
+          // White out any bleed from the next section
+          const sliceBottom = y + pageH
+          if (sliceBottom > sectionEnd) {
+            const coverTop = sectionEnd - y
+            pdf.setFillColor(255, 255, 255)
+            pdf.rect(0, coverTop, pageW, pageH - coverTop + 2, 'F')
+          }
+          y += pageH
+        }
       }
       const pdfBase64 = pdf.output('datauristring').split(',')[1]
       const clientName = data?.client || 'Client'
@@ -817,6 +844,7 @@ export default function ContractView() {
               <strong>4.</strong> THE Down Payment may be used to purchase material necessary for performance of the WORK. BUILDER shall be entitled to final payment upon substantial completion of the WORK. The WORK is substantially complete when all items described in this CONTRACT have been constructed or installed. Substantial completion shall not include adjustment, repair, replacement or cleaning of any item so constructed or installed or final inspection by code official. PURCHASER shall be entitled to one punch list prior to final payment. Requests for adjustment, repair, replacement or cleaning of any constructed or installed item shall not be cause for delay of final payment, but rather shall be considered warranty items. After five business days from substantial completion, the unpaid balance of the TOTAL CONTRACT SUM may be subject to interest charges as allowed by applicable state law. PURCHASER acknowledges and agrees that this CONTRACT shall serve as the invoice for the TOTAL CONTRACT SUM and that no additional invoice will be provided to PURCHASER for any part thereof.
             </p>
 
+            <PageBreak />
             <p className="text-sm text-justify">
               <strong>5.</strong> Modification to the WORK or CONTRACT will be made only when a written addendum describing such modification has been signed by both PURCHASER and BUILDER. There may be an additional charge for any changes.
             </p>
@@ -873,6 +901,13 @@ export default function ContractView() {
           {/* ── PAGE 3 · Clauses 10-18 ─────────────────────────────── */}
             {[
               ['10. a.', "PURCHASER agrees that should BUILDER encounter unforeseen site conditions on the PREMISES (including for example unsound roof shingles, buried storage tanks, solid rock, high water table, unsound house framing, or unsound or uncompacted soil conditions all the footing depth described on the Ebony Outdoor Living Specification Sheet, etc.) which would substantially interfere with BUILDER's completion of the WORK, BUILDER may require that PURCHASER and BUILDER execute an addendum to this CONTRACT describing the additional work that must be performed and setting forth the price at which BUILDER will perform such additional work. BUILDER shall not be obligated to continue the WORK if an addendum is not executed, if, in BUILDER's sole judgment, continuing the WORK as specified herein without any modifications would cause such WORK to not meet applicable local building code requirements or not meet BUILDER's construction standards."],
+            ].map(([num, text]) => (
+              <p key={num} className="mb-3 text-justify text-sm"><strong>{num}</strong> {text}</p>
+            ))}
+
+            <PageBreak />
+
+            {[
               ['b.', "PURCHASER agrees that BUILDER shall not be responsible for unforeseen site conditions on the PREMISES discovered or occurring after completion of the WORK."],
               ['c.', 'PURCHASER shall mark the location of underground drain lines, sprinkler systems, septic tanks, septic fields or other obstructions.'],
               ['11.', "BUILDER is not responsible or liable for delays in the commencement or completion of the WORK that are result of conditions beyond BUILDER's control (including for example weather, strikes, supplier's inability to obtain materials, or a third party's inability to comply with the terms of this CONTRACT, etc.). If PURCHASER fails to make a scheduled progress payment, BUILDER may elect to postpone its performance of the WORK and schedule continuance of the WORK at its discretion after receipt of all due and payable progress payments. Delays caused by such events do not constitute abandonment and are not included in calculating time frames for payment or performance. PURCHASER has the right to terminate CONTRACT upon BUILDER default. Default means unreasonable delay, poor/defective work, consistent failure to perform according to schedule, failure to pay subcontractors, use of inferior material, failure to communicate."],
@@ -884,10 +919,13 @@ export default function ContractView() {
               ['15.', "PURCHASER agrees that materials required for the completion of the WORK be delivered and stored at the PREMISES at a location reasonably determined by BUILDER to be efficient for the purpose of construction of the WORK. PURCHASER further agrees that any material not required for completion of the WORK shall, notwithstanding delivery to or storage at the PREMISES, be and remain the sole property of BUILDER, and PURCHASER shall not have any right or interest therein."],
               ['16.', "PURCHASER recognizes and acknowledges that during the performance of the WORK, certain hazardous conditions could exist in the area of the WORK. BUILDER agrees to take all reasonable steps necessary to make such conditions known and obvious to PURCHASER and to prevent PURCHASER and others from entering hazardous areas. PURCHASER shall indemnify and hold BUILDER harmless from any liability, damage, claim or expense arising out of the PURCHASER's or a third party's disregard of a clear, open and obvious danger in the WORK area."],
               ['17.', "BUILDER is independently owned. PURCHASER acknowledges and agrees that this CONTRACT is made solely with BUILDER."],
-              ['18.', 'If any provision, sentence, phrase or word of this CONTRACT or the application thereof to any person or circumstance shall be held invalid, the remainder of the CONTRACT, or the application of such provision, sentence, phrase or word to persons or circumstances other than those as to which it is held invalid shall not be affected thereby.'],
             ].map(([num, text]) => (
               <p key={num} className="mb-3 text-justify text-sm"><strong>{num}</strong> {text}</p>
             ))}
+
+            <PageBreak />
+
+            <p className="mb-3 text-justify text-sm"><strong>18.</strong> If any provision, sentence, phrase or word of this CONTRACT or the application thereof to any person or circumstance shall be held invalid, the remainder of the CONTRACT, or the application of such provision, sentence, phrase or word to persons or circumstances other than those as to which it is held invalid shall not be affected thereby.</p>
 
           {/* ── PAGE 4 · Clauses 19-22 + final sigs ───────────────── */}
             <p className="mb-3 text-justify text-sm"><strong>19.</strong> This CONTRACT is made and shall be construed under the laws of the State set forth in the first paragraph hereof. Except as set forth below, if any controversy or claim arises out of or relates to this CONTRACT, or the breach thereof, and if said controversy or claim cannot be settled through direct discussions, the parties agree to first endeavor to settle the controversy or claim in an amicable manner by mediation administered by the American Arbitration Association under its Construction Industry Mediation Rules, before resorting to arbitration. Thereafter, any unresolved controversy or claim arising out of or relating to this CONTRACT, or breach thereof, shall be settled by arbitration administered by the American Arbitration Association in accordance with its Construction Industry Arbitration Rules, and judgment upon the award rendered by the arbitrator(s) may be entered in any court having jurisdiction thereof. The parties may agree to mediation and arbitration by the Better Business Bureau (if applicable) in lieu of the foregoing. It is further agreed that any efforts by BUILDER to collect the TOTAL CONTRACT SUM or any part thereof will not be subject to the mediation and arbitration provisions set forth above. PURCHASER will pay any collection expense, court costs, and reasonable attorney's fees which may be incurred in such collection efforts. PURCHASER hereby waives any and all rights PURCHASER may have to a jury in any suit hereunder.</p>
