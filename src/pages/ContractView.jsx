@@ -123,6 +123,7 @@ export default function ContractView() {
 
   const contractDocRef = useRef(null)
   const [showSignModal, setShowSignModal] = useState(false)
+  const [googleAuthed,  setGoogleAuthed]  = useState(false)
   const [signing,       setSigning]       = useState(false)
   const [signResult,    setSignResult]    = useState(null)
   const [signError,     setSignError]     = useState('')
@@ -201,6 +202,18 @@ export default function ContractView() {
     }
   }, [])
 
+  useEffect(() => {
+    fetch(`http://${window.location.hostname}:3001/api/google-auth/status`)
+      .then(r => r.json())
+      .then(d => setGoogleAuthed(d.authenticated))
+      .catch(() => {})
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('google') === 'connected') {
+      window.history.replaceState({}, '', window.location.pathname)
+      setGoogleAuthed(true)
+      setShowSignModal(true)
+    }
+  }, [])
 
   if (!data) {
     return (
@@ -245,6 +258,16 @@ export default function ContractView() {
     setScopeLines(prev => [...prev, { id: Date.now(), name: '', text: '' }])
 
   const apiBase = `http://${window.location.hostname}:3001`
+
+  const handleConnectGoogle = async () => {
+    try {
+      const res = await fetch(`${apiBase}/api/google-auth/start`)
+      const { url } = await res.json()
+      window.location.href = url
+    } catch {
+      setSignError('Could not reach the API server. Make sure it is running on port 3001.')
+    }
+  }
 
   const handleUploadToDrive = async () => {
     setSigning(true)
@@ -1382,7 +1405,20 @@ export default function ContractView() {
             </div>
 
             <div className="px-6 py-5 space-y-4">
-              {signResult ? (
+              {!googleAuthed ? (
+                <>
+                  <p className="text-sm text-gray-600">
+                    Connect your Google account once so QuoteX can upload the contract PDF to your Drive. You'll then open it in Drive to send the eSignature request.
+                  </p>
+                  {signError && <p className="text-sm text-red-600">{signError}</p>}
+                  <button
+                    onClick={handleConnectGoogle}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors"
+                  >
+                    Connect Google Drive
+                  </button>
+                </>
+              ) : signResult ? (
                 <>
                   <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-4 py-3 rounded-xl text-sm font-medium">
                     ✓ Contract uploaded to Google Drive

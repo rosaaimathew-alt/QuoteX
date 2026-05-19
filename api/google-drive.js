@@ -5,22 +5,58 @@ import { fileURLToPath } from 'url'
 import { Readable } from 'stream'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const KEY_FILE = path.resolve(__dirname, 'service-account-key.json')
+const TOKEN_FILE  = path.resolve(__dirname, '../google-tokens.json')
+const REDIRECT_URI = 'http://localhost:3001/api/google-auth/callback'
 const SCOPES = ['https://www.googleapis.com/auth/drive.file']
 
-function getAuth() {
-  if (!fs.existsSync(KEY_FILE)) {
-    throw new Error(
-      'api/service-account-key.json not found. ' +
-      'Download your service account key from Google Cloud Console and save it there.'
-    )
-  }
-  return new google.auth.GoogleAuth({ keyFile: KEY_FILE, scopes: SCOPES })
+function makeClient() {
+  return new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    REDIRECT_URI
+  )
+}
+
+function loadTokens() {
+  try {
+    if (fs.existsSync(TOKEN_FILE)) return JSON.parse(fs.readFileSync(TOKEN_FILE, 'utf-8'))
+  } catch {}
+  return null
+}
+
+function saveTokens(tokens) {
+  fs.writeFileSync(TOKEN_FILE, JSON.stringify(tokens, null, 2))
+}
+
+export function getAuthUrl() {
+  return makeClient().generateAuthUrl({
+    access_type: 'offline',
+    scope: SCOPES,
+    prompt: 'consent',
+  })
+}
+
+export async function handleCallback(code) {
+  const client = makeClient()
+  const { tokens } = await client.getToken(code)
+  saveTokens(tokens)
+  return tokens
+}
+
+export function isAuthenticated() {
+  const t = loadTokens()
+  return !!(t && (t.refresh_token || t.access_token))
 }
 
 export async function uploadToDrive({ pdfBase64, fileName }) {
-  const auth  = getAuth()
-  const drive = google.drive({ version: 'v3', auth })
+  const tokens = loadTokens()
+  if (!tokens) throw new Error('Not authenticated with Google Drive')
+
+  const client = makeClient()
+  client.setCredentials(tokens)
+  client.on('tokens', updated => saveTokens({ ...tokens, ...updated }))
+
+  const drive = google.drive({ version: 'v3', auth: client })
   const buffer = Buffer.from(pdfBase64, 'base64')
 
   const file = await drive.files.create({
@@ -29,19 +65,8 @@ export async function uploadToDrive({ pdfBase64, fileName }) {
     fields:      'id,name,webViewLink',
   })
 
-  const fileId    = file.data.id
-  const userEmail = process.env.GOOGLE_USER_EMAIL
-
-  if (userEmail) {
-    await drive.permissions.create({
-      fileId,
-      requestBody: { type: 'user', role: 'writer', emailAddress: userEmail },
-      sendNotificationEmail: false,
-    })
-  }
-
   return {
-    fileId,
+    fileId:    file.data.id,
     fileName:  file.data.name,
     driveLink: file.data.webViewLink,
   }
