@@ -261,7 +261,8 @@ export default function ContractView() {
 
   const handleConnectGoogle = async () => {
     try {
-      const res = await fetch(`${apiBase}/api/google-auth/start`)
+      const origin = window.location.origin
+      const res = await fetch(`${apiBase}/api/google-auth/start?origin=${encodeURIComponent(origin)}`)
       const { url } = await res.json()
       window.location.href = url
     } catch {

@@ -37,16 +37,16 @@ app.get('/api/google-auth/status', (req, res) => {
 })
 
 app.get('/api/google-auth/start', (req, res) => {
-  res.json({ url: getAuthUrl() })
+  const origin = req.query.origin || 'http://localhost:5173'
+  res.json({ url: getAuthUrl(origin) })
 })
 
-// Google redirects the browser here after consent — this is on port 3001 directly
 app.get('/api/google-auth/callback', async (req, res) => {
-  const { code } = req.query
+  const { code, state } = req.query
   if (!code) return res.status(400).send('Missing code')
   try {
-    await handleCallback(code)
-    res.redirect('http://localhost:5173/contract?google=connected')
+    const origin = await handleCallback(code, state)
+    res.redirect(`${origin}/contract?google=connected`)
   } catch (err) {
     res.redirect(`http://localhost:5173/contract?google=error&msg=${encodeURIComponent(err.message)}`)
   }
