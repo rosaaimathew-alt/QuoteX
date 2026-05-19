@@ -267,6 +267,14 @@ export default function ContractView() {
     setLinkLoading(true)
     setSignError('')
     try {
+      // Strip large base64 logo — Vercel Hobby caps request body at 4.5MB and a
+      // typical logo data URL alone can blow past that. SignPage falls back to
+      // the company name text when no logo is present.
+      const textBranding = {
+        companyName: branding?.companyName,
+        tagline:     branding?.tagline,
+        primaryColor:branding?.primaryColor,
+      }
       const contractData = {
         ...data,
         scopeBullets:      scopeLines,
@@ -279,17 +287,22 @@ export default function ContractView() {
         otherTerms,
         includesElectrical,
         projectSummary,
-        branding,
+        branding: textBranding,
+      }
+      const bodyJson = JSON.stringify({ contractData, contractNum })
+      const sizeMB   = (bodyJson.length / 1024 / 1024).toFixed(2)
+      if (bodyJson.length > 4_000_000) {
+        throw new Error(`Contract data too large (${sizeMB}MB). Vercel limits requests to 4.5MB. Remove large images from scope or branding.`)
       }
       const res  = await fetch(`${apiBase}/api/sign/create`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ contractData, contractNum }),
+        body:    bodyJson,
       })
       const text = await res.text()
       let result
       try { result = JSON.parse(text) }
-      catch { throw new Error(`Server returned non-JSON (HTTP ${res.status}): ${text.slice(0, 300)}`) }
+      catch { throw new Error(`Server returned non-JSON (HTTP ${res.status}, body ${sizeMB}MB): ${text.slice(0, 300)}`) }
       if (!res.ok || result.error) throw new Error(result.error || `HTTP ${res.status}`)
       if (!result.links) throw new Error('No links in response: ' + JSON.stringify(result).slice(0, 200))
       setSigningLinks(result.links)
