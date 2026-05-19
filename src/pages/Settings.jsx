@@ -59,12 +59,16 @@ function DataManagement() {
 
   const handleExport = () => {
     const data = {
-      exportedAt: new Date().toISOString(),
-      catalog:    store.catalog,
-      proposals:  store.proposals,
-      templates:  store.templates,
-      branding:   store.branding,
-      theme:      store.theme,
+      exportedAt:     new Date().toISOString(),
+      catalog:        store.catalog,
+      proposals:      store.proposals,
+      templates:      store.templates,
+      branding:       store.branding,
+      theme:          store.theme,
+      readMessageIds: store.readMessageIds,
+      nextCatalogId:  store.nextCatalogId,
+      nextProposalId: store.nextProposalId,
+      nextTemplateId: store.nextTemplateId,
     }
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
     const url  = URL.createObjectURL(blob)
@@ -80,7 +84,11 @@ function DataManagement() {
     const reader = new FileReader()
     reader.onload = (e) => {
       try {
-        const data = JSON.parse(e.target.result)
+        const parsed = JSON.parse(e.target.result)
+
+        // Support both QuoteX backup format and raw quotex-data.json (zustand) format
+        const data = parsed.state ? parsed.state : parsed
+
         if (!data.catalog && !data.proposals) throw new Error('Unrecognized backup file.')
 
         if (Array.isArray(data.catalog))   store.importCatalog(data.catalog)
