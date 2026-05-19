@@ -89,12 +89,19 @@ export default function SignPage() {
     </div>
   )
 
-  const { contractData: d, contractNum, role } = record || {}
-  const total    = (d?.lines || []).reduce((s, l) => s + Number(l.qty || 0) * Number(l.price || 0), 0)
-  const payments = d?.payments || []
+  let d, contractNum, role, total = 0, payments = []
+  let renderError = null
+  try {
+    ;({ contractData: d, contractNum, role } = record || {})
+    total    = (d?.lines || []).reduce((s, l) => s + Number(l.qty || 0) * Number(l.price || 0), 0)
+    payments = Array.isArray(d?.payments) ? d.payments : []
+  } catch (e) { renderError = e.message }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-16">
+      <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2 text-xs text-yellow-800 font-mono">
+        ✓ Loaded · role={String(role)} · keys={Object.keys(record || {}).join(',')} · client={String(d?.client)} · lines={Array.isArray(d?.lines) ? d.lines.length : 'n/a'} {renderError && `· ERR ${renderError}`}
+      </div>
       <div className="bg-white border-b border-gray-200 px-4 py-4 sticky top-0 z-10">
         <div className="max-w-2xl mx-auto flex justify-between items-center">
           <div>
