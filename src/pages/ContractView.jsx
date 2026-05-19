@@ -325,6 +325,9 @@ export default function ContractView() {
       const clone = original.cloneNode(true)
       clone.style.cssText = `width:${LETTER_PX}px;max-width:${LETTER_PX}px;margin:0;border-radius:0;box-shadow:none;overflow:visible;background:#ffffff;`
       clone.querySelectorAll('.no-print').forEach(el => el.remove())
+      clone.querySelectorAll('.print-only').forEach(el => {
+        el.style.display = el.tagName === 'SPAN' ? 'inline' : 'block'
+      })
       overlay.appendChild(clone)
       document.body.appendChild(overlay)
 
