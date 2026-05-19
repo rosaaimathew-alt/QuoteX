@@ -292,10 +292,10 @@ export default function ContractView() {
       document.body.appendChild(overlay)
       await new Promise(r => setTimeout(r, 200))
 
-      const canvas  = await toCanvas(clone, { pixelRatio: 2, backgroundColor: '#ffffff' })
+      const canvas  = await toCanvas(clone, { pixelRatio: 1, backgroundColor: '#ffffff' })
       document.body.removeChild(overlay)
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.92)
+      const imgData = canvas.toDataURL('image/jpeg', 0.7)
       const pdf     = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' })
       const pageW   = pdf.internal.pageSize.getWidth()
       const pageH   = pdf.internal.pageSize.getHeight()
