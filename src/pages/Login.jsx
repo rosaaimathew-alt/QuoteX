@@ -41,7 +41,7 @@ export default function Login() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <input
-              type="email"
+              type="text"
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
