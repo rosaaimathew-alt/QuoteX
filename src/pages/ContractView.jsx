@@ -281,13 +281,17 @@ export default function ContractView() {
         projectSummary,
         branding,
       }
-      const res    = await fetch(`${apiBase}/api/sign/create`, {
+      const res  = await fetch(`${apiBase}/api/sign/create`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ contractData, contractNum }),
       })
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.error || 'Failed to create signing link')
+      const text = await res.text()
+      let result
+      try { result = JSON.parse(text) }
+      catch { throw new Error(`Server returned non-JSON (HTTP ${res.status}): ${text.slice(0, 300)}`) }
+      if (!res.ok || result.error) throw new Error(result.error || `HTTP ${res.status}`)
+      if (!result.links) throw new Error('No links in response: ' + JSON.stringify(result).slice(0, 200))
       setSigningLinks(result.links)
     } catch (err) {
       setSignError(err.message)
