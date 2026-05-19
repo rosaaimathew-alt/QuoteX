@@ -6,7 +6,7 @@ import { Readable } from 'stream'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const TOKEN_FILE  = path.resolve(__dirname, '../google-tokens.json')
-const REDIRECT_URI = 'http://localhost:3001/api/google-auth/callback'
+const REDIRECT_URI = 'http://localhost:5173/api/google-auth/callback'
 const SCOPES = ['https://www.googleapis.com/auth/drive.file']
 
 function makeClient() {
