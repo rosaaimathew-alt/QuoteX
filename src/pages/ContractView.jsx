@@ -421,6 +421,7 @@ export default function ContractView() {
 
   return (
     <div className="min-h-screen bg-gray-100">
+      <div style={{background:'red',color:'white',padding:'8px',textAlign:'center',fontWeight:'bold'}}>✅ UPDATED VERSION LOADING</div>
 
       {/* ── Toolbar ──────────────────────────────────────────────── */}
       <div className="no-print bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-3 sticky top-0 z-10">
