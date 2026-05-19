@@ -4,38 +4,28 @@ import SignaturePad from '../components/SignaturePad'
 
 const fmt = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
-const ROLES = [
-  { key: 'client',  label: 'Client Signature' },
-  { key: 'builder', label: 'Builder – Ebony Outdoor Living' },
-  { key: 'gc',      label: 'General Contractor – All-In-One Solutions', optional: true },
-]
+const ROLE_LABEL = {
+  client:  'Client Signature',
+  builder: 'Builder Signature — Ebony Outdoor Living',
+  gc:      'General Contractor Signature — All-In-One Solutions',
+}
 
 export default function SignPage() {
-  const { token }    = useParams()
-  const [record, setRecord]       = useState(null)
-  const [loading, setLoading]     = useState(true)
-  const [error, setError]         = useState('')
-  const [activeRole, setActiveRole] = useState('client')
+  const { token }             = useParams()
+  const sigRef                = useRef(null)
+  const [record, setRecord]   = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState('')
   const [printedName, setPrintedName] = useState('')
   const [submitting, setSubmitting]   = useState(false)
-  const [localSigs, setLocalSigs]     = useState({})  // role → true when submitted
-  const sigRef = useRef(null)
+  const [done, setDone]               = useState(false)
 
   useEffect(() => {
     fetch(`/api/sign/${token}`)
       .then(r => r.json())
       .then(d => {
         if (d.error) setError(d.error)
-        else {
-          setRecord(d)
-          // pre-fill which roles are already signed
-          const done = {}
-          Object.keys(d.signatures || {}).forEach(r => { done[r] = true })
-          setLocalSigs(done)
-          // advance to first unsigned role
-          const next = ROLES.find(r => !done[r.key])
-          if (next) setActiveRole(next.key)
-        }
+        else setRecord(d)
         setLoading(false)
       })
       .catch(() => { setError('Failed to load contract'); setLoading(false) })
@@ -47,21 +37,14 @@ export default function SignPage() {
     setSubmitting(true)
     try {
       const signatureDataUrl = sigRef.current.toDataURL()
-      const res = await fetch(`/api/sign/${token}`, {
+      const res    = await fetch(`/api/sign/${token}`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ role: activeRole, signatureDataUrl, printedName }),
+        body:    JSON.stringify({ signatureDataUrl, printedName }),
       })
       const result = await res.json()
       if (!res.ok) throw new Error(result.error)
-      const newSigs = { ...localSigs, [activeRole]: true }
-      setLocalSigs(newSigs)
-      setPrintedName('')
-      sigRef.current?.clear()
-      // advance to next unsigned role
-      const next = ROLES.find(r => !newSigs[r.key] && !r.optional)
-      if (next) setActiveRole(next.key)
-      else setActiveRole('done')
+      setDone(true)
     } catch (err) {
       alert(err.message)
     } finally {
@@ -85,34 +68,32 @@ export default function SignPage() {
     </div>
   )
 
-  const allRequiredSigned = ROLES.filter(r => !r.optional).every(r => localSigs[r.key])
-
-  if (activeRole === 'done' || allRequiredSigned) return (
+  if (done || record?.alreadySigned) return (
     <div className="min-h-screen flex items-center justify-center bg-green-50">
       <div className="text-center px-6 max-w-sm">
         <div className="text-6xl mb-4">✓</div>
-        <h1 className="text-2xl font-bold text-green-700 mb-2">Contract Signed</h1>
-        <p className="text-gray-500">All required signatures have been collected. The builder will upload the completed contract to Google Drive.</p>
+        <h1 className="text-2xl font-bold text-green-700 mb-2">{done ? 'Signed Successfully' : 'Already Signed'}</h1>
+        <p className="text-gray-500">
+          {done
+            ? `Thank you ${printedName || ''}. Your signature has been recorded with audit trail.`
+            : 'This party has already signed this contract.'}
+        </p>
       </div>
     </div>
   )
 
-  const { contractData: d, contractNum } = record || {}
+  const { contractData: d, contractNum, role } = record || {}
   const total    = (d?.lines || []).reduce((s, l) => s + Number(l.qty || 0) * Number(l.price || 0), 0)
   const payments = d?.payments || []
 
-  const currentRoleInfo = ROLES.find(r => r.key === activeRole)
-
   return (
     <div className="min-h-screen bg-gray-50 pb-16">
-      {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-4 sticky top-0 z-10">
         <div className="max-w-2xl mx-auto flex justify-between items-center">
           <div>
             {d?.branding?.logo
               ? <img src={d.branding.logo} alt="logo" className="h-8 object-contain" />
-              : <span className="font-black tracking-widest text-sm">EBONY OUTDOOR LIVING</span>
-            }
+              : <span className="font-black tracking-widest text-sm">EBONY OUTDOOR LIVING</span>}
           </div>
           <div className="text-xs text-gray-400">Contract #{contractNum}</div>
         </div>
@@ -120,21 +101,6 @@ export default function SignPage() {
 
       <div className="max-w-2xl mx-auto px-4 pt-6 space-y-4">
 
-        {/* Signing progress */}
-        <div className="flex gap-2">
-          {ROLES.map(r => (
-            <div key={r.key} className={`flex-1 text-center text-xs py-1.5 rounded-full font-medium transition-colors
-              ${localSigs[r.key]
-                ? 'bg-green-100 text-green-700'
-                : r.key === activeRole
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-400'}`}>
-              {localSigs[r.key] ? '✓ ' : ''}{r.label.split('–')[0].trim()}
-            </div>
-          ))}
-        </div>
-
-        {/* Contract summary */}
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <h2 className="font-bold text-sm uppercase tracking-wider text-gray-400 mb-3">Contract Summary</h2>
           <div className="grid grid-cols-2 gap-3 text-sm mb-4">
@@ -173,11 +139,11 @@ export default function SignPage() {
           )}
         </div>
 
-        {/* Signature section */}
         <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h2 className="font-bold text-base mb-1">{currentRoleInfo?.label}</h2>
+          <div className="mb-1 text-xs font-semibold text-blue-600 uppercase tracking-wider">{role && `Signing as ${role}`}</div>
+          <h2 className="font-bold text-base mb-1">{ROLE_LABEL[role] || 'Signature'}</h2>
           <p className="text-sm text-gray-500 mb-4">
-            By signing, you confirm you have read and agree to all terms of this contract.
+            By signing below, you confirm you have read and agree to all terms of this contract.
           </p>
 
           <div className="mb-4">
@@ -194,33 +160,16 @@ export default function SignPage() {
             <label className="block text-sm font-semibold text-gray-600 mb-1">Signature</label>
             <SignaturePad ref={sigRef} />
           </div>
-          <button
-            className="text-xs text-gray-400 underline mt-1 mb-4 block"
-            onClick={() => sigRef.current?.clear()}
-          >Clear</button>
+          <button className="text-xs text-gray-400 underline mt-1 mb-4 block" onClick={() => sigRef.current?.clear()}>Clear</button>
 
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="w-full bg-gray-900 text-white font-bold py-3 rounded-xl hover:bg-gray-700 disabled:opacity-50 transition-colors"
-          >
-            {submitting ? 'Submitting…' : `Sign as ${currentRoleInfo?.label.split('–')[0].trim()}`}
+          <button onClick={handleSubmit} disabled={submitting}
+            className="w-full bg-gray-900 text-white font-bold py-3 rounded-xl hover:bg-gray-700 disabled:opacity-50 transition-colors">
+            {submitting ? 'Submitting…' : 'Sign & Submit'}
           </button>
           <p className="text-xs text-gray-400 text-center mt-3">
             Your IP address, timestamp, and device info are recorded as your legal audit trail.
           </p>
         </div>
-
-        {/* Optional GC block */}
-        {!localSigs['gc'] && ROLES.find(r => r.key === 'gc')?.optional && localSigs['builder'] && (
-          <div className="bg-gray-50 rounded-xl border border-dashed border-gray-300 p-5 text-center">
-            <p className="text-sm text-gray-500 mb-3">General Contractor signature is optional — skip or sign below.</p>
-            <button
-              onClick={() => setActiveRole('gc')}
-              className="text-sm text-blue-600 underline"
-            >Add GC Signature</button>
-          </div>
-        )}
       </div>
     </div>
   )

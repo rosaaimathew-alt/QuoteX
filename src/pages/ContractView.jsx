@@ -128,9 +128,9 @@ export default function ContractView() {
   const [signResult,    setSignResult]    = useState(null)
   const [signError,     setSignError]     = useState('')
   const [signTab,       setSignTab]       = useState('link') // 'link' | 'drive'
-  const [signingLink,   setSigningLink]   = useState('')
+  const [signingLinks,  setSigningLinks]  = useState(null)   // { client, builder, gc }
   const [linkLoading,   setLinkLoading]   = useState(false)
-  const [linkCopied,    setLinkCopied]    = useState(false)
+  const [copiedRole,    setCopiedRole]    = useState('')
 
   useEffect(() => {
     const raw = sessionStorage.getItem('contract')
@@ -288,7 +288,7 @@ export default function ContractView() {
       })
       const result = await res.json()
       if (!res.ok) throw new Error(result.error || 'Failed to create signing link')
-      setSigningLink(result.url)
+      setSigningLinks(result.links)
     } catch (err) {
       setSignError(err.message)
     } finally {
@@ -1483,7 +1483,7 @@ export default function ContractView() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
             <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
               <h2 className="text-base font-bold text-gray-900">Send for Signature</h2>
-              <button onClick={() => { setShowSignModal(false); setSigningLink(''); setSignResult(null); setSignError('') }} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => { setShowSignModal(false); setSigningLinks(null); setSignResult(null); setSignError('') }} className="text-gray-400 hover:text-gray-600">
                 <X size={18} />
               </button>
             </div>
@@ -1500,34 +1500,42 @@ export default function ContractView() {
 
             <div className="px-6 py-5 space-y-4">
               {signTab === 'link' ? (
-                signingLink ? (
+                signingLinks ? (
                   <>
                     <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-4 py-3 rounded-xl text-sm font-medium">
-                      ✓ Signing link created
+                      ✓ 3 unique signing links generated
                     </div>
-                    <p className="text-sm text-gray-500">Send this link to your client. They can sign on any device — no account needed.</p>
-                    <div className="flex gap-2">
-                      <input readOnly value={signingLink}
-                        className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-600 bg-gray-50 select-all" />
-                      <button
-                        onClick={() => { navigator.clipboard.writeText(signingLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000) }}
-                        className="px-3 py-2 bg-gray-900 text-white rounded-lg text-xs font-semibold hover:bg-gray-700 whitespace-nowrap">
-                        {linkCopied ? 'Copied!' : 'Copy'}
-                      </button>
-                    </div>
-                    <button onClick={() => setSigningLink('')} className="text-xs text-gray-400 underline">Generate new link</button>
+                    <p className="text-sm text-gray-500">Send each link to the right party — they can only sign their own section.</p>
+                    {[
+                      { role: 'client',  label: 'Client',                color: 'bg-blue-50 border-blue-200' },
+                      { role: 'builder', label: 'Builder (Ebony)',       color: 'bg-emerald-50 border-emerald-200' },
+                      { role: 'gc',      label: 'GC (All-In-One)',       color: 'bg-amber-50 border-amber-200' },
+                    ].map(({ role, label, color }) => (
+                      <div key={role} className={`border rounded-xl p-3 ${color}`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-bold uppercase tracking-wider text-gray-600">{label}</span>
+                          <button
+                            onClick={() => { navigator.clipboard.writeText(signingLinks[role]); setCopiedRole(role); setTimeout(() => setCopiedRole(''), 2000) }}
+                            className="px-2.5 py-1 bg-gray-900 text-white rounded-md text-[11px] font-semibold hover:bg-gray-700">
+                            {copiedRole === role ? 'Copied!' : 'Copy Link'}
+                          </button>
+                        </div>
+                        <div className="text-[11px] text-gray-600 break-all bg-white/50 rounded px-2 py-1 select-all">{signingLinks[role]}</div>
+                      </div>
+                    ))}
+                    <button onClick={() => setSigningLinks(null)} className="text-xs text-gray-400 underline">Generate new set of links</button>
                   </>
                 ) : (
                   <>
-                    <p className="text-sm text-gray-600">Generate a secure link to send to your client. They'll see the contract summary, draw or type their signature, and submit — client, builder, and GC each sign in sequence.</p>
-                    <p className="text-xs text-gray-400">IP address + timestamp recorded automatically for legal audit trail.</p>
+                    <p className="text-sm text-gray-600">Generate three separate signing links — one for the Client, one for the Builder, and one for the GC. Each link only lets the assigned party sign their own section.</p>
+                    <p className="text-xs text-gray-400">IP address + timestamp recorded for legal audit trail.</p>
                     {signError && <p className="text-sm text-red-600">{signError}</p>}
                     <button
                       onClick={handleGetSigningLink}
                       disabled={linkLoading}
                       className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-900 text-white rounded-xl text-sm font-semibold hover:bg-gray-700 disabled:opacity-50 transition-colors"
                     >
-                      {linkLoading ? <><Loader2 size={15} className="animate-spin" /> Creating link…</> : 'Generate Signing Link'}
+                      {linkLoading ? <><Loader2 size={15} className="animate-spin" /> Creating links…</> : 'Generate Signing Links'}
                     </button>
                   </>
                 )

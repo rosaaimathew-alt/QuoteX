@@ -3,6 +3,8 @@ import { uploadToDrive } from '../google-drive.js'
 
 export const config = { api: { bodyParser: { sizeLimit: '10mb' } } }
 
+const ROLES = ['client', 'builder', 'gc']
+
 export default async function handler(req, res) {
   const token = req.query.token
   if (!token) return res.status(400).json({ error: 'Missing token' })
@@ -10,46 +12,70 @@ export default async function handler(req, res) {
   try {
     const { kv } = await import('@vercel/kv')
 
-    // ── CREATE new signing link ──────────────────────────────────────
+    // ── CREATE new signing request with 3 role-specific links ────────
     if (token === 'create') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
       const { contractData, contractNum } = req.body || {}
       if (!contractData) return res.status(400).json({ error: 'Missing contractData' })
 
-      const newToken = crypto.randomUUID()
-      await kv.set(`sign:${newToken}`, {
+      const recordId    = crypto.randomUUID()
+      const roleTokens  = {
+        client:  crypto.randomUUID(),
+        builder: crypto.randomUUID(),
+        gc:      crypto.randomUUID(),
+      }
+      const ttl = 60 * 60 * 24 * 60
+
+      await kv.set(`sign:${recordId}`, {
         contractData,
         contractNum: contractNum || '',
         status:      'pending',
         createdAt:   Date.now(),
         signatures:  {},
-      }, { ex: 60 * 60 * 24 * 60 })
+      }, { ex: ttl })
+
+      await Promise.all(ROLES.map(role =>
+        kv.set(`link:${roleTokens[role]}`, { recordId, role }, { ex: ttl })
+      ))
 
       const host  = req.headers['x-forwarded-host'] || req.headers.host || 'quotexsolutions.com'
       const proto = host.includes('localhost') ? 'http' : 'https'
-      return res.json({ token: newToken, url: `${proto}://${host}/sign/${newToken}` })
+      return res.json({
+        recordId,
+        links: {
+          client:  `${proto}://${host}/sign/${roleTokens.client}`,
+          builder: `${proto}://${host}/sign/${roleTokens.builder}`,
+          gc:      `${proto}://${host}/sign/${roleTokens.gc}`,
+        },
+      })
     }
 
-    // ── EXISTING token: GET status, POST signature ───────────────────
-    const record = await kv.get(`sign:${token}`)
-    if (!record) return res.status(404).json({ error: 'Signing link not found or expired' })
+    // ── Existing role-specific token ──────────────────────────────────
+    const link = await kv.get(`link:${token}`)
+    if (!link) return res.status(404).json({ error: 'Signing link not found or expired' })
+
+    const record = await kv.get(`sign:${link.recordId}`)
+    if (!record) return res.status(404).json({ error: 'Contract record not found' })
 
     if (req.method === 'GET') {
       return res.json({
+        role:         link.role,
         contractData: record.contractData,
         contractNum:  record.contractNum,
         status:       record.status,
         signatures:   record.signatures || {},
-        createdAt:    record.createdAt,
+        alreadySigned: !!(record.signatures && record.signatures[link.role]),
       })
     }
 
     if (req.method === 'POST') {
-      const { role, signatureDataUrl, printedName, pdfBase64, fileName } = req.body || {}
-      if (!role || !signatureDataUrl) return res.status(400).json({ error: 'Missing role or signature' })
+      const { signatureDataUrl, printedName, pdfBase64, fileName } = req.body || {}
+      if (!signatureDataUrl) return res.status(400).json({ error: 'Missing signature' })
 
       const signatures = record.signatures || {}
-      signatures[role] = {
+      if (signatures[link.role]) return res.status(409).json({ error: `Already signed as ${link.role}` })
+
+      signatures[link.role] = {
         signatureDataUrl,
         printedName: printedName || '',
         signedAt:    Date.now(),
@@ -59,14 +85,17 @@ export default async function handler(req, res) {
 
       const required  = ['client', 'builder']
       const allSigned = required.every(r => signatures[r])
-      const updated   = { ...record, signatures, status: allSigned ? 'signed' : 'partial' }
-      await kv.set(`sign:${token}`, updated, { ex: 60 * 60 * 24 * 60 })
+      const ttl       = 60 * 60 * 24 * 60
+      await kv.set(`sign:${link.recordId}`, {
+        ...record,
+        signatures,
+        status: allSigned ? 'signed' : 'partial',
+      }, { ex: ttl })
 
       let driveResult = null
       if (pdfBase64 && fileName) {
         try { driveResult = await uploadToDrive({ pdfBase64, fileName }) } catch {}
       }
-
       return res.json({ ok: true, allSigned, driveResult })
     }
 
