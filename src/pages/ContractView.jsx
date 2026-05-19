@@ -262,11 +262,14 @@ export default function ContractView() {
   const handleConnectGoogle = async () => {
     try {
       const origin = window.location.origin
-      const res = await fetch(`${apiBase}/api/google-auth/start?origin=${encodeURIComponent(origin)}`)
-      const { url } = await res.json()
-      window.location.href = url
-    } catch {
-      setSignError('Could not reach the API server. Make sure it is running on port 3001.')
+      const res  = await fetch(`${apiBase}/api/google-auth/start?origin=${encodeURIComponent(origin)}`)
+      const text = await res.text()
+      let data
+      try { data = JSON.parse(text) } catch { throw new Error(`Server error: ${text.slice(0, 200)}`) }
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+      window.location.href = data.url
+    } catch (err) {
+      setSignError(err.message)
     }
   }
 
