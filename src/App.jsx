@@ -14,6 +14,7 @@ import ClientList from './pages/ClientList'
 import ContractView from './pages/ContractView'
 import ContractsList from './pages/ContractsList'
 import Login from './pages/Login'
+import SignPage from './pages/SignPage'
 import AuthGuard, { logout } from './components/AuthGuard'
 import { useStore } from './store'
 import { applyBrandStyles, applyTheme, DEFAULT_BRAND_COLOR } from './brand'
@@ -307,8 +308,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/*" element={<AuthGuard><AppShell /></AuthGuard>} />
+        <Route path="/login"       element={<Login />} />
+        <Route path="/sign/:token" element={<SignPage />} />
+        <Route path="/*"           element={<AuthGuard><AppShell /></AuthGuard>} />
       </Routes>
     </BrowserRouter>
   )

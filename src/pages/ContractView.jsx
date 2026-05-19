@@ -127,6 +127,10 @@ export default function ContractView() {
   const [signing,       setSigning]       = useState(false)
   const [signResult,    setSignResult]    = useState(null)
   const [signError,     setSignError]     = useState('')
+  const [signTab,       setSignTab]       = useState('link') // 'link' | 'drive'
+  const [signingLink,   setSigningLink]   = useState('')
+  const [linkLoading,   setLinkLoading]   = useState(false)
+  const [linkCopied,    setLinkCopied]    = useState(false)
 
   useEffect(() => {
     const raw = sessionStorage.getItem('contract')
@@ -258,6 +262,39 @@ export default function ContractView() {
     setScopeLines(prev => [...prev, { id: Date.now(), name: '', text: '' }])
 
   const apiBase = ''
+
+  const handleGetSigningLink = async () => {
+    setLinkLoading(true)
+    setSignError('')
+    try {
+      const contractData = {
+        ...data,
+        scopeBullets:      scopeLines,
+        payments,
+        projectTypes,
+        lumberDrop,
+        power,
+        gateCode,
+        paymentMethods,
+        otherTerms,
+        includesElectrical,
+        projectSummary,
+        branding,
+      }
+      const res    = await fetch(`${apiBase}/api/sign/create`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ contractData, contractNum }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Failed to create signing link')
+      setSigningLink(result.url)
+    } catch (err) {
+      setSignError(err.message)
+    } finally {
+      setLinkLoading(false)
+    }
+  }
 
   const handleConnectGoogle = async () => {
     try {
@@ -1445,61 +1482,87 @@ export default function ContractView() {
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-6 no-print">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
             <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-bold text-gray-900">Send for Signature</h2>
-                <p className="text-sm text-gray-500 mt-0.5">Upload contract to Google Drive</p>
-              </div>
-              <button onClick={() => setShowSignModal(false)} className="text-gray-400 hover:text-gray-600">
+              <h2 className="text-base font-bold text-gray-900">Send for Signature</h2>
+              <button onClick={() => { setShowSignModal(false); setSigningLink(''); setSignResult(null); setSignError('') }} className="text-gray-400 hover:text-gray-600">
                 <X size={18} />
               </button>
             </div>
 
+            {/* Tabs */}
+            <div className="flex border-b border-gray-100">
+              {[['link', '🔗 Signing Link'], ['drive', '☁️ Google Drive']].map(([tab, label]) => (
+                <button key={tab} onClick={() => { setSignTab(tab); setSignError('') }}
+                  className={`flex-1 py-3 text-sm font-medium transition-colors ${signTab === tab ? 'border-b-2 border-gray-900 text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
             <div className="px-6 py-5 space-y-4">
-              {!googleAuthed ? (
-                <>
-                  <p className="text-sm text-gray-600">
-                    Connect your Google account once so QuoteX can upload the contract PDF to your Drive. You'll then open it in Drive to send the eSignature request.
-                  </p>
-                  {signError && <p className="text-sm text-red-600">{signError}</p>}
-                  <button
-                    onClick={handleConnectGoogle}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors"
-                  >
-                    Connect Google Drive
-                  </button>
-                </>
-              ) : signResult ? (
-                <>
-                  <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-4 py-3 rounded-xl text-sm font-medium">
-                    ✓ Contract uploaded to Google Drive
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    Open the file in Drive, then click <strong>Tools → eSignature</strong> to send the signing request to your client.
-                  </p>
-                  <a
-                    href={signResult.driveLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors"
-                  >
-                    Open in Google Drive →
-                  </a>
-                  <p className="text-xs text-gray-400 text-center">{signResult.fileName}</p>
-                </>
+              {signTab === 'link' ? (
+                signingLink ? (
+                  <>
+                    <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-4 py-3 rounded-xl text-sm font-medium">
+                      ✓ Signing link created
+                    </div>
+                    <p className="text-sm text-gray-500">Send this link to your client. They can sign on any device — no account needed.</p>
+                    <div className="flex gap-2">
+                      <input readOnly value={signingLink}
+                        className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-600 bg-gray-50 select-all" />
+                      <button
+                        onClick={() => { navigator.clipboard.writeText(signingLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000) }}
+                        className="px-3 py-2 bg-gray-900 text-white rounded-lg text-xs font-semibold hover:bg-gray-700 whitespace-nowrap">
+                        {linkCopied ? 'Copied!' : 'Copy'}
+                      </button>
+                    </div>
+                    <button onClick={() => setSigningLink('')} className="text-xs text-gray-400 underline">Generate new link</button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-gray-600">Generate a secure link to send to your client. They'll see the contract summary, draw or type their signature, and submit — client, builder, and GC each sign in sequence.</p>
+                    <p className="text-xs text-gray-400">IP address + timestamp recorded automatically for legal audit trail.</p>
+                    {signError && <p className="text-sm text-red-600">{signError}</p>}
+                    <button
+                      onClick={handleGetSigningLink}
+                      disabled={linkLoading}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-900 text-white rounded-xl text-sm font-semibold hover:bg-gray-700 disabled:opacity-50 transition-colors"
+                    >
+                      {linkLoading ? <><Loader2 size={15} className="animate-spin" /> Creating link…</> : 'Generate Signing Link'}
+                    </button>
+                  </>
+                )
               ) : (
-                <>
-                  <p className="text-sm text-gray-600">
-                    QuoteX will generate a PDF of this contract and upload it to your Google Drive. You'll get a link to open it and send the eSignature request from Drive.
-                  </p>
-                  {signError && <p className="text-sm text-red-600">{signError}</p>}
-                  <button
-                    onClick={handleUploadToDrive}
-                    disabled={signing}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {signing ? <><Loader2 size={15} className="animate-spin" /> Generating PDF…</> : 'Upload to Google Drive'}
-                  </button>
-                </>
+                !googleAuthed ? (
+                  <>
+                    <p className="text-sm text-gray-600">Connect your Google account to upload contracts directly to Drive.</p>
+                    {signError && <p className="text-sm text-red-600">{signError}</p>}
+                    <button onClick={handleConnectGoogle}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors">
+                      Connect Google Drive
+                    </button>
+                  </>
+                ) : signResult ? (
+                  <>
+                    <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-4 py-3 rounded-xl text-sm font-medium">
+                      ✓ Contract uploaded to Google Drive
+                    </div>
+                    <p className="text-sm text-gray-600">Open in Drive, then click <strong>Tools → eSignature</strong> to send the request.</p>
+                    <a href={signResult.driveLink} target="_blank" rel="noopener noreferrer"
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors">
+                      Open in Google Drive →
+                    </a>
+                    <p className="text-xs text-gray-400 text-center">{signResult.fileName}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-gray-600">Generate a PDF and upload to your Drive. Open the file in Drive and use Tools → eSignature.</p>
+                    {signError && <p className="text-sm text-red-600">{signError}</p>}
+                    <button onClick={handleUploadToDrive} disabled={signing}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-colors">
+                      {signing ? <><Loader2 size={15} className="animate-spin" /> Generating PDF…</> : 'Upload to Google Drive'}
+                    </button>
+                  </>
+                )
               )}
             </div>
           </div>
