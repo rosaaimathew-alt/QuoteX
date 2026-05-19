@@ -122,11 +122,7 @@ export default function ContractView() {
   const [milestoneLabels, setMilestoneLabels] = useState([])
 
   const contractDocRef = useRef(null)
-  const [showSignModal, setShowSignModal] = useState(false)
-  const [googleAuthed,  setGoogleAuthed]  = useState(false)
-  const [signing,       setSigning]       = useState(false)
-  const [signResult,    setSignResult]    = useState(null)
-  const [signError,     setSignError]     = useState('')
+  const [signing, setSigning] = useState(false)
 
   useEffect(() => {
     const raw = sessionStorage.getItem('contract')
@@ -202,19 +198,6 @@ export default function ContractView() {
     }
   }, [])
 
-  useEffect(() => {
-    fetch(`http://${window.location.hostname}:3001/api/google-auth/status`)
-      .then(r => r.json())
-      .then(d => setGoogleAuthed(d.authenticated))
-      .catch(() => {})
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('google') === 'connected') {
-      window.history.replaceState({}, '', window.location.pathname)
-      setGoogleAuthed(true)
-      setShowSignModal(true)
-    }
-  }, [])
-
   if (!data) {
     return (
       <div className="p-8 text-center text-gray-400">
@@ -257,22 +240,8 @@ export default function ContractView() {
   const addLine = () =>
     setScopeLines(prev => [...prev, { id: Date.now(), name: '', text: '' }])
 
-  const apiBase = `http://${window.location.hostname}:3001`
-
-  const handleConnectGoogle = async () => {
-    try {
-      const res = await fetch(`${apiBase}/api/google-auth/start`)
-      const { url } = await res.json()
-      window.location.href = url
-    } catch {
-      setSignError('Could not reach the API server. Make sure it is running on port 3001.')
-    }
-  }
-
-  const handleUploadToDrive = async () => {
+  const handleDownloadPdf = async () => {
     setSigning(true)
-    setSignError('')
-    setSignResult(null)
     try {
       const { toCanvas } = await import('html-to-image')
       const { default: jsPDF } = await import('jspdf')
@@ -288,7 +257,7 @@ export default function ContractView() {
       document.body.appendChild(overlay)
       await new Promise(r => setTimeout(r, 200))
 
-      const canvas  = await toCanvas(clone, { pixelRatio: 2, backgroundColor: '#ffffff' })
+      const canvas = await toCanvas(clone, { pixelRatio: 2, backgroundColor: '#ffffff' })
       document.body.removeChild(overlay)
 
       const imgData = canvas.toDataURL('image/jpeg', 0.92)
@@ -303,20 +272,9 @@ export default function ContractView() {
         pdf.addImage(imgData, 'JPEG', 0, -y, imgW, imgH)
         y += pageH
       }
-      const pdfBase64 = pdf.output('datauristring').split(',')[1]
       const clientName = data?.client || 'Client'
       const fileName   = `Contract-${clientName.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.pdf`
-
-      const res = await fetch(`${apiBase}/api/drive/upload`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pdfBase64, fileName }),
-      })
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.error || 'Upload failed')
-      setSignResult(result)
-    } catch (err) {
-      setSignError(err.message)
+      pdf.save(fileName)
     } finally {
       setSigning(false)
     }
@@ -484,10 +442,11 @@ export default function ContractView() {
           <Printer size={14} /> Print / Save PDF
         </button>
         <button
-          onClick={() => { setSignResult(null); setSignError(''); setShowSignModal(true) }}
-          style={{ background: '#16a34a', color: '#fff', borderRadius: '8px', padding: '6px 16px', fontSize: '14px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', border: 'none' }}
+          onClick={handleDownloadPdf}
+          disabled={signing}
+          style={{ background: '#16a34a', color: '#fff', borderRadius: '8px', padding: '6px 16px', fontSize: '14px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', cursor: signing ? 'not-allowed' : 'pointer', border: 'none', opacity: signing ? 0.6 : 1 }}
         >
-          <Send size={14} /> Send for Signature
+          {signing ? <><Loader2 size={14} className="animate-spin" /> Generating…</> : <><Send size={14} /> Download Signed PDF</>}
         </button>
       </div>
 
@@ -1389,72 +1348,6 @@ export default function ContractView() {
 
         </div>
       </div>
-
-      {/* ── Google Drive / eSign Modal ───────────────────────────────── */}
-      {showSignModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-6 no-print">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-            <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-bold text-gray-900">Send for Signature</h2>
-                <p className="text-sm text-gray-500 mt-0.5">Upload contract to Google Drive</p>
-              </div>
-              <button onClick={() => setShowSignModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="px-6 py-5 space-y-4">
-              {!googleAuthed ? (
-                <>
-                  <p className="text-sm text-gray-600">
-                    Connect your Google Drive account so QuoteX can upload the contract PDF there. You'll then open it in Drive to send the eSignature request.
-                  </p>
-                  {signError && <p className="text-sm text-red-600">{signError}</p>}
-                  <button
-                    onClick={handleConnectGoogle}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors"
-                  >
-                    Connect Google Drive
-                  </button>
-                </>
-              ) : signResult ? (
-                <>
-                  <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-4 py-3 rounded-xl text-sm font-medium">
-                    ✓ Contract uploaded to Google Drive
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    Open the file in Drive, then click <strong>Tools → eSignature</strong> to send the signing request to your client.
-                  </p>
-                  <a
-                    href={signResult.driveLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors"
-                  >
-                    Open in Google Drive →
-                  </a>
-                  <p className="text-xs text-gray-400 text-center">{signResult.fileName}</p>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm text-gray-600">
-                    QuoteX will generate a PDF of this contract and upload it to your Google Drive. You'll get a link to open it and send the eSignature request from Drive.
-                  </p>
-                  {signError && <p className="text-sm text-red-600">{signError}</p>}
-                  <button
-                    onClick={handleUploadToDrive}
-                    disabled={signing}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {signing ? <><Loader2 size={15} className="animate-spin" /> Generating PDF…</> : 'Upload to Google Drive'}
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   )
