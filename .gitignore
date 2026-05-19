@@ -29,3 +29,4 @@ dist-ssr
 src/config.local.js
 quotex-data.json
 google-tokens.json
+api/service-account-key.json
