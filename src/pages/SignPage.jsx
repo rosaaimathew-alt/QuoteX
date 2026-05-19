@@ -22,13 +22,15 @@ export default function SignPage() {
 
   useEffect(() => {
     fetch(`/api/sign/${token}`)
-      .then(r => r.json())
-      .then(d => {
-        if (d.error) setError(d.error)
-        else setRecord(d)
-        setLoading(false)
+      .then(async r => {
+        const text = await r.text()
+        let parsed
+        try { parsed = JSON.parse(text) } catch { throw new Error(`Bad response (${r.status}): ${text.slice(0, 200)}`) }
+        if (!r.ok || parsed.error) throw new Error(parsed.error || `HTTP ${r.status}`)
+        return parsed
       })
-      .catch(() => { setError('Failed to load contract'); setLoading(false) })
+      .then(d => { setRecord(d); setLoading(false) })
+      .catch(err => { setError(err.message || 'Failed to load contract'); setLoading(false) })
   }, [token])
 
   const handleSubmit = async () => {
