@@ -267,37 +267,77 @@ export default function ContractView() {
     setLinkLoading(true)
     setSignError('')
     try {
-      // Strip large base64 logo — Vercel Hobby caps request body at 4.5MB and a
-      // typical logo data URL alone can blow past that. SignPage falls back to
-      // the company name text when no logo is present.
-      const textBranding = {
+      // Include the logo. Most logos are under 100KB and we need it on the
+      // signing page. We still gate the total request body at 4MB below to
+      // stay under Vercel Hobby's 4.5MB limit.
+      const fullBranding = {
         companyName: branding?.companyName,
         tagline:     branding?.tagline,
         primaryColor:branding?.primaryColor,
+        logo:        branding?.logo || null,
       }
-      // scopeLines is [{id,name,text,price}]; flatten to strings so SignPage
-      // can render each line as a list item without crashing on objects.
+      // scopeLines is [{id,name,text,price}]; keep price for the pricing table
+      // on the recipient view but also flatten to strings for the bullet list.
       const scopeStrings = scopeLines
         .map(l => (typeof l === 'string' ? l : (l?.text || l?.name || '')))
         .filter(Boolean)
       const contractData = {
         ...data,
         scopeBullets:      scopeStrings,
+        scopeLines:        scopeLines,     // full objects w/ prices for pricing table
         payments,
         projectTypes,
+        // Processing form
+        city,
+        lotNumber,
+        permitNumber,
+        hoa,
+        permitReq,
+        specialInstructions,
+        directions,
         lumberDrop,
         power,
         gateCode,
         paymentMethods,
         otherTerms,
+        // Electrical
         includesElectrical,
+        recessedSize,
+        homePhone,
+        cellPhone,
+        elecItems,
+        // Scope
         projectSummary,
-        branding: textBranding,
+        ceilingFanNote,
+        milestoneLabels,
+        // Branding (with logo)
+        branding:          fullBranding,
+        // Computed flags so SignPage matches ContractView behavior
+        isSmallContract:   total < 40000,
+        isUnder20K:        total < 20000,
       }
       const bodyJson = JSON.stringify({ contractData, contractNum })
       const sizeMB   = (bodyJson.length / 1024 / 1024).toFixed(2)
       if (bodyJson.length > 4_000_000) {
-        throw new Error(`Contract data too large (${sizeMB}MB). Vercel limits requests to 4.5MB. Remove large images from scope or branding.`)
+        // Try again without the logo if we're too big
+        const trimmed = { ...contractData, branding: { ...fullBranding, logo: null } }
+        const retryJson = JSON.stringify({ contractData: trimmed, contractNum })
+        if (retryJson.length > 4_000_000) {
+          throw new Error(`Contract data too large (${sizeMB}MB). Vercel limits requests to 4.5MB. Remove large images from scope.`)
+        }
+        const res = await fetch(`${apiBase}/api/sign/create`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    retryJson,
+        })
+        const text = await res.text()
+        let result
+        try { result = JSON.parse(text) }
+        catch { throw new Error(`Server returned non-JSON: ${text.slice(0, 300)}`) }
+        if (!res.ok || result.error) throw new Error(result.error || `HTTP ${res.status}`)
+        if (!result.links) throw new Error('No links in response')
+        setSigningLinks(result.links)
+        return
       }
       const res  = await fetch(`${apiBase}/api/sign/create`, {
         method:  'POST',
