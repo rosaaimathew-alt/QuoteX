@@ -17,7 +17,7 @@ function ensureFonts() {
   }
 }
 
-const SignaturePad = forwardRef(function SignaturePad({ className }, ref) {
+const SignaturePad = forwardRef(function SignaturePad({ className, onChange }, ref) {
   const canvasRef  = useRef(null)
   const drawing    = useRef(false)
   const [mode, setMode]       = useState('draw')   // 'draw' | 'type'
@@ -27,13 +27,19 @@ const SignaturePad = forwardRef(function SignaturePad({ className }, ref) {
 
   useEffect(() => { ensureFonts() }, [])
 
+  const emit = () => {
+    if (!onChange) return
+    if (isEmpty) { onChange(null); return }
+    onChange(canvasRef.current?.toDataURL('image/png'))
+  }
+
   // Re-render typed signature whenever name or font changes
   useEffect(() => {
     if (mode !== 'type') return
     const canvas = canvasRef.current
     const ctx    = canvas.getContext('2d')
     ctx.clearRect(0, 0, canvas.width, canvas.height)
-    if (!typedName.trim()) { setIsEmpty(true); return }
+    if (!typedName.trim()) { setIsEmpty(true); onChange?.(null); return }
     const fontSize = Math.min(72, Math.floor(canvas.width / (typedName.length * 0.55 + 1)))
     ctx.font      = `${fontSize}px ${CURSIVE_FONTS[fontIdx].family}`
     ctx.fillStyle = '#1a1a1a'
@@ -41,6 +47,7 @@ const SignaturePad = forwardRef(function SignaturePad({ className }, ref) {
     ctx.textBaseline = 'middle'
     ctx.fillText(typedName, canvas.width / 2, canvas.height / 2)
     setIsEmpty(false)
+    onChange?.(canvas.toDataURL('image/png'))
   }, [typedName, fontIdx, mode])
 
   useImperativeHandle(ref, () => ({
@@ -51,6 +58,7 @@ const SignaturePad = forwardRef(function SignaturePad({ className }, ref) {
       canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height)
       setTypedName('')
       setIsEmpty(true)
+      onChange?.(null)
     },
   }))
 
@@ -74,7 +82,7 @@ const SignaturePad = forwardRef(function SignaturePad({ className }, ref) {
     }
     const start = (e) => { e.preventDefault(); drawing.current = true; const { x, y } = pos(e); ctx.beginPath(); ctx.moveTo(x, y) }
     const move  = (e) => { e.preventDefault(); if (!drawing.current) return; const { x, y } = pos(e); ctx.lineTo(x, y); ctx.stroke(); setIsEmpty(false) }
-    const end   = () => { drawing.current = false }
+    const end   = () => { drawing.current = false; emit() }
 
     canvas.addEventListener('mousedown',  start)
     canvas.addEventListener('mousemove',  move)
@@ -100,6 +108,7 @@ const SignaturePad = forwardRef(function SignaturePad({ className }, ref) {
     setTypedName('')
     setIsEmpty(true)
     setMode(m)
+    onChange?.(null)
   }
 
   return (

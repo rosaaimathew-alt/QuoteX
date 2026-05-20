@@ -15,7 +15,7 @@ export default async function handler(req, res) {
     return res.json({
       ok: true,
       ts: new Date().toISOString(),
-      version: 'fullcontract-v1',
+      version: 'livesig-viewer-v1',
       hasKvUrl: !!(process.env.KV_URL || process.env.KV_REST_API_URL),
       env: process.env.VERCEL_ENV || 'local',
     })
@@ -59,6 +59,25 @@ export default async function handler(req, res) {
           builder: `${proto}://${host}/sign/${roleTokens.builder}`,
           gc:      `${proto}://${host}/sign/${roleTokens.gc}`,
         },
+      })
+    }
+
+    // ── Admin record lookup: /api/sign/record-<recordId> ─────────────
+    // Returns the full signed record (with all signatures) so the contractor
+    // can view what was signed by each party. Used by the in-app contracts
+    // viewer. Tokens prefixed "record-" are admin lookups by recordId rather
+    // than role-specific signing tokens.
+    if (token.startsWith('record-') && req.method === 'GET') {
+      const recordId = token.slice('record-'.length)
+      const rec = await kv.get(`sign:${recordId}`)
+      if (!rec) return res.status(404).json({ error: 'Record not found or expired' })
+      return res.json({
+        recordId,
+        contractData: rec.contractData,
+        contractNum:  rec.contractNum,
+        status:       rec.status,
+        createdAt:    rec.createdAt,
+        signatures:   rec.signatures || {},
       })
     }
 

@@ -44,17 +44,70 @@ const CB = ({ checked }) => (
   </span>
 )
 
-// Read-only signature line — recipient signs the live pad at the bottom of the page,
-// not in these inline blocks. Shown for layout parity with the printed contract.
-const SigLine = ({ label, date = true }) => (
-  <div className="mt-4">
-    <div className="flex gap-6 items-end">
-      <div className="flex-1 border-b border-gray-500 pb-5" />
-      {date && <div className="w-32 border-b border-gray-500 pb-5" />}
+// Role-aware signature line. If `forRole === activeRole` and the recipient
+// has drawn a signature, stamp it into the line along with their printed name
+// and today's date. Otherwise show empty placeholder lines so the document
+// layout matches what the other parties will see/sign.
+const SigLine = ({ label, date = true, forRole, activeRole, liveSig, printedName }) => {
+  const isMine = forRole && forRole === activeRole && liveSig
+  const today  = new Date().toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })
+  return (
+    <div className="mt-4">
+      <div className="flex gap-6 items-end">
+        <div className="flex-1 border-b border-gray-500 pb-5 relative">
+          {isMine && (
+            <>
+              <img src={liveSig} alt="signature" className="absolute left-0 -bottom-0.5 h-12 object-contain pointer-events-none" />
+              {printedName && (
+                <span className="absolute left-0 -bottom-5 text-[9px] text-gray-500 italic">{printedName}</span>
+              )}
+            </>
+          )}
+        </div>
+        {date && (
+          <div className="w-32 border-b border-gray-500 pb-5 relative">
+            {isMine && <span className="absolute left-0 bottom-1 text-[11px] font-medium">{today}</span>}
+          </div>
+        )}
+      </div>
+      <p className="text-[10px] text-gray-500 mt-1">{label}{date ? ' / Date' : ''}</p>
     </div>
-    <p className="text-[10px] text-gray-500 mt-1">{label}{date ? ' / Date' : ''}</p>
-  </div>
-)
+  )
+}
+
+// Plain inline signature line (just a border + label below) — used by the
+// acknowledgment sections where the contract has "Signature" written below
+// a short line. Same role-aware stamping.
+const InlineSig = ({ label = 'Signature', width = 'w-56', forRole, activeRole, liveSig, withDate = false }) => {
+  const isMine = forRole && forRole === activeRole && liveSig
+  const today  = new Date().toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })
+  if (withDate) {
+    return (
+      <div className="flex gap-8 mt-4">
+        <div>
+          <div className="border-b border-gray-500 w-48 pb-5 relative">
+            {isMine && <img src={liveSig} alt="signature" className="absolute left-0 -bottom-0.5 h-12 object-contain pointer-events-none" />}
+          </div>
+          <p className="text-[10px] text-gray-500 mt-1">{label}</p>
+        </div>
+        <div>
+          <div className="border-b border-gray-500 w-32 pb-5 relative">
+            {isMine && <span className="absolute left-0 bottom-1 text-[11px] font-medium">{today}</span>}
+          </div>
+          <p className="text-[10px] text-gray-500 mt-1">Date</p>
+        </div>
+      </div>
+    )
+  }
+  return (
+    <>
+      <div className={`border-b border-gray-500 ${width} relative pb-5 mt-5`}>
+        {isMine && <img src={liveSig} alt="signature" className="absolute left-0 -bottom-0.5 h-12 object-contain pointer-events-none" />}
+      </div>
+      <p className="text-[10px] text-gray-500 mt-1">{label}</p>
+    </>
+  )
+}
 
 export default function SignPage() {
   const { token }             = useParams()
@@ -66,6 +119,7 @@ export default function SignPage() {
   const [submitting, setSubmitting]   = useState(false)
   const [done, setDone]               = useState(false)
   const [agreedAll, setAgreedAll]     = useState(false)
+  const [liveSig, setLiveSig]         = useState(null)
 
   useEffect(() => {
     fetch(`/api/sign/${token}`)
@@ -197,6 +251,11 @@ export default function SignPage() {
     color:      '#1a1a1a',
   }
 
+  // Role-aware shortcut wrappers — bake in the active role and live signature
+  // so each call site only has to declare the role of the spot it sits in.
+  const S = (props) => <SigLine {...props} activeRole={role} liveSig={liveSig} printedName={printedName} />
+  const I = (props) => <InlineSig {...props} activeRole={role} liveSig={liveSig} />
+
   return (
     <div className="min-h-screen bg-gray-100 pb-12">
       {renderError && (
@@ -305,29 +364,29 @@ export default function SignPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-2">
                 <div>
                   <p className="font-bold underline mb-2">PURCHASER</p>
-                  <SigLine label="Signature" date={false} />
-                  <SigLine label="Print Name" date={false} />
+                  <S forRole="client"  label="Signature"  date={false} />
+                  <S forRole="client"  label="Print Name" date={false} />
                 </div>
                 <div>
                   <p className="font-bold underline mb-2">BUILDER: EBONY OUTDOOR LIVING</p>
-                  <SigLine label="Signature" date={false} />
-                  <SigLine label="Print Name" date={false} />
+                  <S forRole="builder" label="Signature"  date={false} />
+                  <S forRole="builder" label="Print Name" date={false} />
                 </div>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-2">
                 <div>
                   <p className="font-bold underline mb-2">PURCHASER</p>
-                  <SigLine label="Signature" date={false} />
-                  <SigLine label="Print Name" date={false} />
+                  <S forRole="client"  label="Signature"  date={false} />
+                  <S forRole="client"  label="Print Name" date={false} />
                 </div>
                 <div>
                   <p className="font-bold underline mb-2">BUILDER: EBONY OUTDOOR LIVING</p>
-                  <SigLine label="Signature" date={false} />
-                  <SigLine label="Print Name" date={false} />
+                  <S forRole="builder" label="Signature"  date={false} />
+                  <S forRole="builder" label="Print Name" date={false} />
                   <p className="font-bold mt-3">GENERAL CONTRACTOR: ALL IN ONE SOLUTIONS</p>
-                  <SigLine label="Signature" date={false} />
-                  <SigLine label="Print Name" date={false} />
+                  <S forRole="gc"      label="Signature"  date={false} />
+                  <S forRole="gc"      label="Print Name" date={false} />
                 </div>
               </div>
             )}
@@ -360,9 +419,9 @@ export default function SignPage() {
               <p key={num} className="mb-3 text-justify text-[10pt]"><strong>{num}</strong> {text}</p>
             ))}
 
-            <SigLine label="Client Signature" />
-            <SigLine label="Builder Signature" />
-            {!isSmallContract && <SigLine label="GC Signature" />}
+            <S forRole="client"  label="Client Signature" />
+            <S forRole="builder" label="Builder Signature" />
+            {!isSmallContract && <S forRole="gc" label="GC Signature" />}
           </div>
 
           {/* ── Scope & Final Payment Clarification ────────────── */}
@@ -381,8 +440,7 @@ export default function SignPage() {
               ].map((t, i) => <li key={i} className="flex gap-2"><span>●</span><span>{t}</span></li>)}
             </ul>
             <p className="font-bold text-center mb-2 text-[10pt]">I HAVE READ AND UNDERSTAND THE ABOVE SCOPE OF WORK AND FINAL PAYMENT CLARIFICATION.</p>
-            <div className="border-b border-gray-500 w-56 mt-5" />
-            <p className="text-[10px] text-gray-500 mt-1">Signature</p>
+            <I forRole="client" label="Signature" />
           </div>
 
           {/* ── Pressure-Treated Wood Info ──────────────────────── */}
@@ -406,10 +464,7 @@ export default function SignPage() {
               ].map((t, i) => <li key={i} className="flex gap-2"><span>●</span><span>{t}</span></li>)}
             </ul>
             <p className="font-bold text-center mt-3 mb-3 text-[10pt]">I HAVE READ AND UNDERSTAND THE ABOVE CHARACTERISTICS OF PRESSURE TREATED WOOD.</p>
-            <div className="flex gap-8 mt-4">
-              <div><div className="border-b border-gray-500 w-48 pb-5" /><p className="text-[10px] text-gray-500 mt-1">Signature</p></div>
-              <div><div className="border-b border-gray-500 w-32 pb-5" /><p className="text-[10px] text-gray-500 mt-1">Date</p></div>
-            </div>
+            <I forRole="client" label="Signature" withDate />
           </div>
 
           {/* ── Unforeseen Site Conditions ──────────────────────── */}
@@ -433,8 +488,7 @@ export default function SignPage() {
             </ul>
             <p className="text-[10pt] mb-3">If any unforeseen items are discovered during the course of your work we will immediately bring them to your attention with a recommended course of action. The labor required to correct, adjust, or work around these items will result in additional charges and work will only proceed when authorized by you.</p>
             <p className="font-bold text-[10pt] mb-6">I HAVE READ THE ABOVE UNFORESEEN SITE CONDITIONS POLICY AND AGREE TO ITS TERMS AND CONDITIONS.</p>
-            <div className="border-b border-gray-500 w-56" />
-            <p className="text-[10px] text-gray-500 mt-1">Signature</p>
+            <I forRole="client" label="Signature" />
           </div>
 
           {/* ── Processing Form ─────────────────────────────────── */}
@@ -480,10 +534,7 @@ export default function SignPage() {
               </div>
             </div>
             <div className="border-b border-gray-200 mb-3" />
-            <div className="flex gap-8 mt-4">
-              <div><div className="border-b border-gray-500 w-48 pb-5" /><p className="text-[10px] text-gray-500 mt-1">Client Signature</p></div>
-              <div><div className="border-b border-gray-500 w-32 pb-5" /><p className="text-[10px] text-gray-500 mt-1">Date</p></div>
-            </div>
+            <I forRole="client" label="Client Signature" withDate />
           </div>
 
           {/* ── Client Acknowledgment (over $40K only) ────────────── */}
@@ -498,9 +549,9 @@ export default function SignPage() {
                 <p>By signing below, the Client confirms that they have read, understood, and fully agree with the information and distribution of responsibilities described in this document.</p>
               </div>
               <p className="text-[10pt] mt-4"><strong>Project Address:</strong> {address}</p>
-              <SigLine label="Client Signature" />
-              <SigLine label="Builder Signature" />
-              <SigLine label="General Contractor Signature" date={false} />
+              <S forRole="client"  label="Client Signature" />
+              <S forRole="builder" label="Builder Signature" />
+              <S forRole="gc"      label="General Contractor Signature" date={false} />
             </div>
           )}
 
@@ -626,8 +677,8 @@ export default function SignPage() {
                 <p className="text-[10px] text-gray-600 text-justify mb-6">
                   ** Initial schedule deposit paid as 20% deposit at sign. Ebony O.L. will not drop material or labor on the project until the scheduled deposit is paid in full. Ebony O.L has the rights to hold construction progress if scheduled payments are delayed.
                 </p>
-                <SigLine label="Client signature" />
-                <SigLine label="Builder signature" />
+                <S forRole="client"  label="Client signature" />
+                <S forRole="builder" label="Builder signature" />
               </>
             )}
           </div>
@@ -703,23 +754,11 @@ export default function SignPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 mt-5">
                 <div>
-                  <div className="border-b border-gray-500 pb-5" />
-                  <div className="flex gap-6 mt-1">
-                    <p className="text-[10px] text-gray-600">CUSTOMER(S) SIGNATURE</p>
-                    <p className="text-[10px] text-gray-600">DATE</p>
-                  </div>
-                  <div className="border-b border-gray-500 pb-5 mt-4" />
-                  <div className="flex gap-6 mt-1">
-                    <p className="text-[10px] text-gray-600">CUSTOMER(S) SIGNATURE</p>
-                    <p className="text-[10px] text-gray-600">DATE</p>
-                  </div>
+                  <S forRole="client"  label="Customer(s) Signature" />
+                  <S forRole="client"  label="Customer(s) Signature" />
                 </div>
                 <div>
-                  <div className="border-b border-gray-500 pb-5" />
-                  <div className="flex gap-6 mt-1">
-                    <p className="text-[10px] text-gray-600">BUILDER SIGNATURE</p>
-                    <p className="text-[10px] text-gray-600">DATE</p>
-                  </div>
+                  <S forRole="builder" label="Builder Signature" />
                 </div>
               </div>
             </div>
@@ -763,9 +802,14 @@ export default function SignPage() {
 
           <div className="mb-1">
             <label className="block text-sm font-semibold text-gray-600 mb-1">Signature</label>
-            <SignaturePad ref={sigRef} />
+            <SignaturePad ref={sigRef} onChange={setLiveSig} />
+            {liveSig && (
+              <p className="text-xs text-emerald-600 mt-1.5 flex items-center gap-1">
+                ✓ Your signature has been stamped into every spot above marked for the {role}.
+              </p>
+            )}
           </div>
-          <button className="text-xs text-gray-400 underline mt-1 mb-4 block" onClick={() => sigRef.current?.clear()}>Clear</button>
+          <button className="text-xs text-gray-400 underline mt-1 mb-4 block" onClick={() => { sigRef.current?.clear(); setLiveSig(null) }}>Clear</button>
 
           <button onClick={handleSubmit} disabled={submitting}
             className="w-full bg-gray-900 text-white font-bold py-3 rounded-xl hover:bg-gray-700 disabled:opacity-50 transition-colors">

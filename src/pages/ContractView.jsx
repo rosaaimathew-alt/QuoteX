@@ -337,6 +337,18 @@ export default function ContractView() {
         if (!res.ok || result.error) throw new Error(result.error || `HTTP ${res.status}`)
         if (!result.links) throw new Error('No links in response')
         setSigningLinks(result.links)
+        if (data?.proposalId && result.recordId) {
+          saveContractDraft(data.proposalId, {
+            contractNum, city, lotNumber, permitNumber, hoa, permitReq,
+            specialInstructions, directions, lumberDrop, power, gateCode,
+            paymentMethods, otherTerms, includesElectrical, recessedSize,
+            homePhone, cellPhone, elecItems, projectSummary, scopeLines,
+            ceilingFanNote, milestoneLabels,
+            signRecordId: result.recordId,
+            signLinks:    result.links,
+            linksSentAt:  new Date().toISOString(),
+          })
+        }
         return
       }
       const res  = await fetch(`${apiBase}/api/sign/create`, {
@@ -351,6 +363,20 @@ export default function ContractView() {
       if (!res.ok || result.error) throw new Error(result.error || `HTTP ${res.status}`)
       if (!result.links) throw new Error('No links in response: ' + JSON.stringify(result).slice(0, 200))
       setSigningLinks(result.links)
+      // Persist the recordId on the proposal's contract draft so the contracts
+      // list page can fetch and display signatures once parties have signed.
+      if (data?.proposalId && result.recordId) {
+        saveContractDraft(data.proposalId, {
+          contractNum, city, lotNumber, permitNumber, hoa, permitReq,
+          specialInstructions, directions, lumberDrop, power, gateCode,
+          paymentMethods, otherTerms, includesElectrical, recessedSize,
+          homePhone, cellPhone, elecItems, projectSummary, scopeLines,
+          ceilingFanNote, milestoneLabels,
+          signRecordId: result.recordId,
+          signLinks:    result.links,
+          linksSentAt:  new Date().toISOString(),
+        })
+      }
     } catch (err) {
       setSignError(err.message)
     } finally {
