@@ -41,7 +41,13 @@ function SignaturesModal({ recordId, onClose }) {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
           <h2 className="text-base font-bold text-gray-900">Signatures & Audit Trail</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+          <div className="flex items-center gap-3">
+            <a href={`/view/${recordId}`} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white rounded-lg text-xs font-medium hover:bg-gray-700 transition-colors">
+              <ExternalLink size={11} /> View Full Document
+            </a>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto px-6 py-5">
           {loading && (

@@ -15,7 +15,7 @@ export default async function handler(req, res) {
     return res.json({
       ok: true,
       ts: new Date().toISOString(),
-      version: 'livesig-viewer-v1',
+      version: 'docusign-style-v2',
       hasKvUrl: !!(process.env.KV_URL || process.env.KV_REST_API_URL),
       env: process.env.VERCEL_ENV || 'local',
     })
@@ -100,18 +100,19 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      const { signatureDataUrl, printedName, pdfBase64, fileName } = req.body || {}
-      if (!signatureDataUrl) return res.status(400).json({ error: 'Missing signature' })
+      const { signatureDataUrl, fieldSignatures, printedName, pdfBase64, fileName } = req.body || {}
+      if (!signatureDataUrl && !fieldSignatures) return res.status(400).json({ error: 'Missing signature' })
 
       const signatures = record.signatures || {}
       if (signatures[link.role]) return res.status(409).json({ error: `Already signed as ${link.role}` })
 
       signatures[link.role] = {
-        signatureDataUrl,
-        printedName: printedName || '',
-        signedAt:    Date.now(),
-        ip:          req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown',
-        userAgent:   req.headers['user-agent'] || 'unknown',
+        signatureDataUrl: signatureDataUrl || null,
+        fields:           fieldSignatures  || {},
+        printedName:      printedName || '',
+        signedAt:         Date.now(),
+        ip:               req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown',
+        userAgent:        req.headers['user-agent'] || 'unknown',
       }
 
       const required  = ['client', 'builder']

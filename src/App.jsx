@@ -15,6 +15,7 @@ import ContractView from './pages/ContractView'
 import ContractsList from './pages/ContractsList'
 import Login from './pages/Login'
 import SignPage from './pages/SignPage'
+import ContractViewFull from './pages/ContractViewFull'
 import ProfitabilityTracker from './pages/ProfitabilityTracker'
 import AuthGuard, { logout } from './components/AuthGuard'
 import { useStore } from './store'
@@ -327,6 +328,7 @@ export default function App() {
       <Routes>
         <Route path="/login"       element={<Login />} />
         <Route path="/sign/:token" element={<SignBoundary><SignPage /></SignBoundary>} />
+        <Route path="/view/:recordId" element={<SignBoundary><ContractViewFull /></SignBoundary>} />
         <Route path="*"            element={<AuthGuard><AppShell /></AuthGuard>} />
       </Routes>
     </BrowserRouter>
