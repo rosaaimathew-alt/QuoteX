@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon, Sun, Moon, Users, FileSignature, LogOut } from 'lucide-react'
+import { LayoutDashboard, FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon, Sun, Moon, Users, FileSignature, LogOut, TrendingUp } from 'lucide-react'
 import { Component, useEffect, useState, useRef } from 'react'
 import Dashboard from './pages/Dashboard'
 import Analyze from './pages/Analyze'
@@ -15,6 +15,7 @@ import ContractView from './pages/ContractView'
 import ContractsList from './pages/ContractsList'
 import Login from './pages/Login'
 import SignPage from './pages/SignPage'
+import ProfitabilityTracker from './pages/ProfitabilityTracker'
 import AuthGuard, { logout } from './components/AuthGuard'
 import { useStore } from './store'
 import { applyBrandStyles, applyTheme, DEFAULT_BRAND_COLOR } from './brand'
@@ -28,8 +29,9 @@ const NAV = [
   { to: '/quote',   label: 'Build Quote',      icon: ClipboardList },
   { to: '/proposal',label: 'Proposal',         icon: FileCheck },
   { to: '/tracker',   label: 'Proposal Tracker', icon: BarChart2 },
-  { to: '/contracts', label: 'Contracts',        icon: FileSignature },
-  { to: '/inbox',     label: 'Inbox',            icon: Inbox },
+  { to: '/contracts',    label: 'Contracts',       icon: FileSignature },
+  { to: '/profitability',label: 'Profitability',  icon: TrendingUp },
+  { to: '/inbox',        label: 'Inbox',          icon: Inbox },
 ]
 
 const STATUS_BADGE = {
@@ -295,8 +297,9 @@ function AppShell() {
             <Route path="/tracker"  element={<ProposalTracker />} />
             <Route path="/inbox"    element={<InboxPage />} />
             <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/contracts" element={<ContractsList />} />
-            <Route path="/contract"  element={<ContractView />} />
+            <Route path="/contracts"     element={<ContractsList />} />
+            <Route path="/contract"      element={<ContractView />} />
+            <Route path="/profitability" element={<ProfitabilityTracker />} />
           </Routes>
         </main>
       </div>

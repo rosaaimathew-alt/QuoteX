@@ -308,6 +308,24 @@ export const useStore = create(
           ),
         })),
 
+      // ── Job Costs (actual costs entered per won proposal) ────────────────
+      jobCosts: {},
+
+      saveJobCosts: (proposalId, costs) =>
+        set((s) => ({
+          jobCosts: {
+            ...s.jobCosts,
+            [proposalId]: { ...costs, updatedAt: new Date().toISOString() },
+          },
+        })),
+
+      deleteJobCosts: (proposalId) =>
+        set((s) => {
+          const updated = { ...s.jobCosts }
+          delete updated[proposalId]
+          return { jobCosts: updated }
+        }),
+
       // ── Scope Examples (learned from past contracts) ──────────────────────
       scopeExamples: [],
 
@@ -389,6 +407,7 @@ export const useStore = create(
           theme:         persisted?.theme         || 'light',
           branding:      persisted?.branding      || { companyName: 'QUOTEX', tagline: 'Smart Contractor Pricing', logo: null, primaryColor: null },
           scopeExamples: persisted?.scopeExamples || [],
+          jobCosts:      persisted?.jobCosts      || {},
         }
       },
       merge: (persistedState, currentState) => ({
