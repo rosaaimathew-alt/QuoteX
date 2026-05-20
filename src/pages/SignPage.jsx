@@ -250,6 +250,7 @@ export default function SignPage() {
                 <span key={t}><CB checked={projectTypes.includes(t)} />{t}</span>
               ))}
             </p>
+            <p className="mb-1">( &nbsp; ) Other _______________________________________________________________________________</p>
             <div className="border-b border-gray-300 mb-4 mt-2" />
 
             <p className="mb-3 text-justify">
@@ -298,6 +299,7 @@ export default function SignPage() {
               <p className="mb-3 text-justify text-[10pt]"><strong>B.</strong> As General contractors we have <strong>All-In-One Solutions</strong> that operate as part of Ebony Outdoor Living team. All-In-One Solutions serves as the licensed General Contractor and is responsible for maintaining the applicable licenses and overall legal and regulatory compliance required for the project. All-In-One Solutions also acts as a general supervisor of the project, performing occasional site visits during the progress of the work for purposes of overall oversight and supervision. However, All-In-One Solutions is not involved in the daily management of the job site, operational coordination of crews, or direct execution of the services.</p>
             )}
             <p className="mb-4 text-[10pt]"><strong>7.</strong> This CONTRACT shall not be effective and binding upon BUILDER until countersigned by BUILDER and GENERAL CONTRACTOR.</p>
+            <p className="text-center font-bold mb-3">ADDITIONAL TERMS ON NEXT PAGE</p>
 
             {isSmallContract ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-2">
@@ -357,6 +359,10 @@ export default function SignPage() {
             ].map(([num, text]) => (
               <p key={num} className="mb-3 text-justify text-[10pt]"><strong>{num}</strong> {text}</p>
             ))}
+
+            <SigLine label="Client Signature" />
+            <SigLine label="Builder Signature" />
+            {!isSmallContract && <SigLine label="GC Signature" />}
           </div>
 
           {/* ── Scope & Final Payment Clarification ────────────── */}
@@ -375,6 +381,8 @@ export default function SignPage() {
               ].map((t, i) => <li key={i} className="flex gap-2"><span>●</span><span>{t}</span></li>)}
             </ul>
             <p className="font-bold text-center mb-2 text-[10pt]">I HAVE READ AND UNDERSTAND THE ABOVE SCOPE OF WORK AND FINAL PAYMENT CLARIFICATION.</p>
+            <div className="border-b border-gray-500 w-56 mt-5" />
+            <p className="text-[10px] text-gray-500 mt-1">Signature</p>
           </div>
 
           {/* ── Pressure-Treated Wood Info ──────────────────────── */}
@@ -397,7 +405,11 @@ export default function SignPage() {
                 'Pressure-treated wood comes from a Southern Yellow Pine Tree where sap/resin is prevalent. It is not uncommon for resin to seep from decking boards, especially during the warmer, sunny months. Sap is an uncontrollable and unpredictable characteristic and is not a warrantable item.',
               ].map((t, i) => <li key={i} className="flex gap-2"><span>●</span><span>{t}</span></li>)}
             </ul>
-            <p className="font-bold text-center mt-3 text-[10pt]">I HAVE READ AND UNDERSTAND THE ABOVE CHARACTERISTICS OF PRESSURE TREATED WOOD.</p>
+            <p className="font-bold text-center mt-3 mb-3 text-[10pt]">I HAVE READ AND UNDERSTAND THE ABOVE CHARACTERISTICS OF PRESSURE TREATED WOOD.</p>
+            <div className="flex gap-8 mt-4">
+              <div><div className="border-b border-gray-500 w-48 pb-5" /><p className="text-[10px] text-gray-500 mt-1">Signature</p></div>
+              <div><div className="border-b border-gray-500 w-32 pb-5" /><p className="text-[10px] text-gray-500 mt-1">Date</p></div>
+            </div>
           </div>
 
           {/* ── Unforeseen Site Conditions ──────────────────────── */}
@@ -420,7 +432,9 @@ export default function SignPage() {
               ].map((t, i) => <li key={i} className="flex gap-2"><span>●</span><span>{t}</span></li>)}
             </ul>
             <p className="text-[10pt] mb-3">If any unforeseen items are discovered during the course of your work we will immediately bring them to your attention with a recommended course of action. The labor required to correct, adjust, or work around these items will result in additional charges and work will only proceed when authorized by you.</p>
-            <p className="font-bold text-[10pt]">I HAVE READ THE ABOVE UNFORESEEN SITE CONDITIONS POLICY AND AGREE TO ITS TERMS AND CONDITIONS.</p>
+            <p className="font-bold text-[10pt] mb-6">I HAVE READ THE ABOVE UNFORESEEN SITE CONDITIONS POLICY AND AGREE TO ITS TERMS AND CONDITIONS.</p>
+            <div className="border-b border-gray-500 w-56" />
+            <p className="text-[10px] text-gray-500 mt-1">Signature</p>
           </div>
 
           {/* ── Processing Form ─────────────────────────────────── */}
@@ -461,8 +475,34 @@ export default function SignPage() {
                 <p><CB checked={power === 'yes'} /> Yes &nbsp;&nbsp; <CB checked={power === 'no'} /> No</p>
                 {gateCode && <p className="mt-3"><strong>Gate Code:</strong> {gateCode}</p>}
               </div>
+              <div className="border border-gray-400 rounded flex items-center justify-center h-32 text-gray-400 text-[10px] text-center p-2">
+                Site diagram<br />(mark lumber drop with X, power with P)
+              </div>
+            </div>
+            <div className="border-b border-gray-200 mb-3" />
+            <div className="flex gap-8 mt-4">
+              <div><div className="border-b border-gray-500 w-48 pb-5" /><p className="text-[10px] text-gray-500 mt-1">Client Signature</p></div>
+              <div><div className="border-b border-gray-500 w-32 pb-5" /><p className="text-[10px] text-gray-500 mt-1">Date</p></div>
             </div>
           </div>
+
+          {/* ── Client Acknowledgment (over $40K only) ────────────── */}
+          {!isSmallContract && (
+            <div className="px-6 sm:px-12 py-6 border-t border-gray-200">
+              <h2 className="text-center font-bold text-base mb-5">Client Acknowledgment and Agreement</h2>
+              <div className="text-[10pt] space-y-4">
+                <p>At <strong>Ebony Outdoor Living</strong>, we are committed to transparency, contractual clarity, and professional communication with our clients. This document is intended to formalize the understanding between the parties regarding the operational structure and distribution of responsibilities related to the contracted project. Ebony Outdoor Living and <strong>All-In-One Solutions</strong> operate collaboratively as part of the same project team. All-In-One Solutions serves as the licensed General Contractor and is responsible for maintaining the applicable licenses and overall legal and regulatory compliance required for the project.</p>
+                <p>Ebony Outdoor Living is solely responsible for the execution and management of the work, including, without limitation, project supervision, scheduling and timeline management, coordination of crews and subcontractors, and daily job site operations. The Client acknowledges and agrees that all communications, requests, clarifications, or questions related to project execution, timelines, scheduling, and operational responsibilities shall be directed exclusively to the official contacts provided to the Client upon receipt of the fully executed contract.</p>
+                <p>All-In-One Solutions also acts as a general supervisor of the project, performing occasional site visits during the progress of the work for purposes of overall oversight and supervision. However, All-In-One Solutions is not involved in the daily management of the job site, operational coordination of crews, or direct execution of the services.</p>
+                <p>This acknowledgment is supplementary in nature and forms part of the project's contractual documentation, without replacing or modifying the terms and conditions of the primary agreement previously executed between the parties.</p>
+                <p>By signing below, the Client confirms that they have read, understood, and fully agree with the information and distribution of responsibilities described in this document.</p>
+              </div>
+              <p className="text-[10pt] mt-4"><strong>Project Address:</strong> {address}</p>
+              <SigLine label="Client Signature" />
+              <SigLine label="Builder Signature" />
+              <SigLine label="General Contractor Signature" date={false} />
+            </div>
+          )}
 
           {/* ── Scope of Work Document ──────────────────────────── */}
           <div className="px-6 sm:px-12 py-6 border-t border-gray-200">
@@ -537,6 +577,18 @@ export default function SignPage() {
                     <td className="border border-gray-300 px-2 py-2 font-bold underline whitespace-nowrap">${fmt(total)}</td>
                     <td className="border border-gray-300 px-2 py-2"></td>
                   </tr>
+                  {['ADDENDUM #1:', 'ADDENDUM #2:'].map(label => (
+                    <tr key={label}>
+                      <td className="border border-gray-300 px-2 py-2 font-bold">{label}</td>
+                      <td className="border border-gray-300 px-2 py-2"></td>
+                      <td className="border border-gray-300 px-2 py-2"></td>
+                    </tr>
+                  ))}
+                  <tr className="bg-gray-50">
+                    <td className="border border-gray-300 px-2 py-2 font-bold">TOTAL AFTER ADDENDUMS</td>
+                    <td className="border border-gray-300 px-2 py-2"></td>
+                    <td className="border border-gray-300 px-2 py-2"></td>
+                  </tr>
                 </tbody>
               </table>
             )}
@@ -547,9 +599,9 @@ export default function SignPage() {
                 <table className="w-full text-[10pt] border-collapse mb-3">
                   <thead>
                     <tr className="bg-blue-50">
-                      <th className="border border-gray-300 px-2 py-2 text-left font-bold">PAYMENT SCHEDULE</th>
-                      <th className="border border-gray-300 px-2 py-2 text-left font-bold w-12">%</th>
-                      <th className="border border-gray-300 px-2 py-2 text-left font-bold w-28">TOTALS</th>
+                      {['PAYMENT SCHEDULE','EOL','ADDENDUMS','TOTALS','PYM'].map(h => (
+                        <th key={h} className="border border-gray-300 px-2 py-2 text-left font-bold">{h}</th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
@@ -557,19 +609,25 @@ export default function SignPage() {
                       <tr key={i}>
                         <td className="border border-gray-300 px-2 py-2">{p.label}</td>
                         <td className="border border-gray-300 px-2 py-2 text-center">{Math.round((p.pct || 0) * 100)}%</td>
-                        <td className="border border-gray-300 px-2 py-2 font-semibold whitespace-nowrap">${fmt(p.amount)}</td>
+                        <td className="border border-gray-300 px-2 py-2"></td>
+                        <td className="border border-gray-300 px-2 py-2 font-semibold underline whitespace-nowrap">${fmt(p.amount)}</td>
+                        <td className="border border-gray-300 px-2 py-2"></td>
                       </tr>
                     ))}
                     <tr className="bg-gray-50 font-bold">
                       <td className="border border-gray-300 px-2 py-2">TOTALS</td>
                       <td className="border border-gray-300 px-2 py-2 text-center">100%</td>
+                      <td className="border border-gray-300 px-2 py-2"></td>
                       <td className="border border-gray-300 px-2 py-2 underline whitespace-nowrap">${fmt(total)}</td>
+                      <td className="border border-gray-300 px-2 py-2"></td>
                     </tr>
                   </tbody>
                 </table>
-                <p className="text-[10px] text-gray-600 text-justify mb-2">
+                <p className="text-[10px] text-gray-600 text-justify mb-6">
                   ** Initial schedule deposit paid as 20% deposit at sign. Ebony O.L. will not drop material or labor on the project until the scheduled deposit is paid in full. Ebony O.L has the rights to hold construction progress if scheduled payments are delayed.
                 </p>
+                <SigLine label="Client signature" />
+                <SigLine label="Builder signature" />
               </>
             )}
           </div>
@@ -620,6 +678,50 @@ export default function SignPage() {
                   ))}
                 </tbody>
               </table>
+
+              <p className="text-[10pt] mt-4 mb-4">
+                If you would like any additional electrical performance, you can add it at the time we are building your project through an addendum to your contract. The Builder can process this for you.
+              </p>
+
+              <ul className="text-[10pt] space-y-2 mb-6">
+                {[
+                  { text: 'Mounting and installation of your TV and/or speakers is not included.', red: false },
+                  { text: 'Cable TV connections in some cases may need to be connected through your cable provider.', red: false },
+                  { text: 'The electrical wiring provided may require exposed conduit piping. We will minimize this when possible. If you have any question, please do not hesitate to discuss them with the builder or you may call at (704) 776-2210', red: false },
+                  { text: 'Due Breaker capacity plug-in heaters cannot be used. Please discuss if an additional heater circuit is desired.', red: false },
+                  { text: 'The Outlets installed are a common household outlet, typically designed to handle 15 or 20 amps of current at 120 volts, yielding a maximum capacity of 1800 or 2400 watts, respectively. This capacity is suitable for most everyday appliances and devices such as lamps, chargers, computers, and TVs. NOT PLUG-IN HEATERS.', red: true },
+                  { text: 'Ebony is not responsible for the cost of reconnecting any cables, security system, alarms, etc in case it was disconnected during the construction process. The homeowner is responsible to inform the builder the existence and location of possible wires prior to starting the work.', red: false },
+                  { text: 'Due to recent code changes and grossly varying inspector interpretations, some are considering the EzeBreeze system as the same as a traditional window and a year-round usable living space, which falls under the 6/12 outlet spacing code.', red: false },
+                  { text: 'Homeowners are responsible for costs of an extra Sub panel if required to perform the work.', red: true },
+                ].map((d, i) => (
+                  <li key={i} className={`flex gap-2 ${d.red ? 'text-red-600' : ''}`}>
+                    <span className="shrink-0">●</span>
+                    <span>{d.text}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 mt-5">
+                <div>
+                  <div className="border-b border-gray-500 pb-5" />
+                  <div className="flex gap-6 mt-1">
+                    <p className="text-[10px] text-gray-600">CUSTOMER(S) SIGNATURE</p>
+                    <p className="text-[10px] text-gray-600">DATE</p>
+                  </div>
+                  <div className="border-b border-gray-500 pb-5 mt-4" />
+                  <div className="flex gap-6 mt-1">
+                    <p className="text-[10px] text-gray-600">CUSTOMER(S) SIGNATURE</p>
+                    <p className="text-[10px] text-gray-600">DATE</p>
+                  </div>
+                </div>
+                <div>
+                  <div className="border-b border-gray-500 pb-5" />
+                  <div className="flex gap-6 mt-1">
+                    <p className="text-[10px] text-gray-600">BUILDER SIGNATURE</p>
+                    <p className="text-[10px] text-gray-600">DATE</p>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
