@@ -15,7 +15,7 @@ export default async function handler(req, res) {
     return res.json({
       ok: true,
       ts: new Date().toISOString(),
-      version: 'bold-scope-v4',
+      version: 'bold-scope-v5',
       hasKvUrl: !!(process.env.KV_URL || process.env.KV_REST_API_URL),
       env: process.env.VERCEL_ENV || 'local',
     })

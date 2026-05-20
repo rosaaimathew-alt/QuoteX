@@ -4,49 +4,57 @@ import { ArrowLeft, Printer, Send, ChevronDown, ChevronUp, Lock, Sparkles, Loade
 import { useStore } from '../store'
 import { generatePalette, DEFAULT_BRAND_COLOR } from '../brand'
 
-// Render **bold** markdown segments as <strong>
+// Render **bold** and __underline__ markdown as <strong>/<u>
 export function renderBold(text) {
-  const parts = String(text ?? '').split(/(\*\*[^*\n]+\*\*)/g)
-  return parts.map((p, i) =>
-    p.startsWith('**') && p.endsWith('**') && p.length > 4
-      ? <strong key={i}>{p.slice(2, -2)}</strong>
-      : <span key={i}>{p}</span>
-  )
+  const parts = String(text ?? '').split(/(\*\*[^*\n]+\*\*|__[^_\n]+__)/g)
+  return parts.map((p, i) => {
+    if (p.startsWith('**') && p.endsWith('**') && p.length > 4) return <strong key={i}>{p.slice(2, -2)}</strong>
+    if (p.startsWith('__') && p.endsWith('__') && p.length > 4) return <u key={i}>{p.slice(2, -2)}</u>
+    return <span key={i}>{p}</span>
+  })
 }
 
-// ScopeBullet: textarea + Bold button that wraps current selection in **...**
+// ScopeBullet: textarea with ⌘B / ⌘U keyboard shortcuts for bold/underline
 function ScopeBullet({ line, updateLine, removeLine }) {
   const taRef = useRef(null)
-  const toggleBold = () => {
+
+  const wrapSelection = (marker) => {
     const ta = taRef.current
     if (!ta) return
     const a = ta.selectionStart, b = ta.selectionEnd
-    if (a === b) { alert('Select text to bold first'); return }
+    if (a === b) return
     const t = ta.value
     const sel = t.slice(a, b)
-    // If already wrapped, unwrap
     const before = t.slice(0, a), after = t.slice(b)
-    const isWrapped = before.endsWith('**') && after.startsWith('**')
+    const isWrapped = before.endsWith(marker) && after.startsWith(marker)
     const next = isWrapped
-      ? before.slice(0, -2) + sel + after.slice(2)
-      : before + '**' + sel + '**' + after
+      ? before.slice(0, -marker.length) + sel + after.slice(marker.length)
+      : before + marker + sel + marker + after
     updateLine(line.id, next)
     requestAnimationFrame(() => {
       ta.focus()
-      const offset = isWrapped ? -2 : 2
+      const offset = isWrapped ? -marker.length : marker.length
       ta.setSelectionRange(a + offset, b + offset)
     })
   }
+
+  const handleKeyDown = (e) => {
+    if (e.metaKey || e.ctrlKey) {
+      if (e.key === 'b') { e.preventDefault(); wrapSelection('**') }
+      if (e.key === 'u') { e.preventDefault(); wrapSelection('__') }
+    }
+  }
+
   return (
     <li className="flex gap-2 items-start group">
       <span className="mt-2 shrink-0 print:mt-0">●</span>
       <div className="flex-1">
         <div className="no-print flex items-center gap-1 mb-0.5">
-          <button onClick={toggleBold} title="Bold selected text" type="button"
+          <button onClick={() => wrapSelection('**')} title="Bold (⌘B)" type="button"
             className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors">
             <Bold size={11} /> Bold
           </button>
-          <span className="text-[9px] text-gray-400 italic">select text then click Bold (or wrap in **double asterisks**)</span>
+          <span className="text-[9px] text-gray-400 italic">⌘B bold · ⌘U underline</span>
         </div>
         <textarea
           ref={taRef}
@@ -54,6 +62,7 @@ function ScopeBullet({ line, updateLine, removeLine }) {
           rows={2}
           value={line.text}
           onChange={e => updateLine(line.id, e.target.value)}
+          onKeyDown={handleKeyDown}
         />
         <p className="print-only text-sm leading-snug whitespace-pre-wrap">{renderBold(line.text)}</p>
       </div>
