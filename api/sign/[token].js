@@ -6,8 +6,20 @@ export const config = { api: { bodyParser: { sizeLimit: '10mb' } } }
 const ROLES = ['client', 'builder', 'gc']
 
 export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*')
   const token = req.query.token
   if (!token) return res.status(400).json({ error: 'Missing token' })
+
+  // Health check — tells the client which version is deployed and if KV is wired up
+  if (token === 'ping') {
+    return res.json({
+      ok: true,
+      ts: new Date().toISOString(),
+      version: '6c52d9e',
+      hasKvUrl: !!(process.env.KV_URL || process.env.KV_REST_API_URL),
+      env: process.env.VERCEL_ENV || 'local',
+    })
+  }
 
   try {
     const { kv } = await import('@vercel/kv')
