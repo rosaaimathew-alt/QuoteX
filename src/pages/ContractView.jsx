@@ -275,9 +275,14 @@ export default function ContractView() {
         tagline:     branding?.tagline,
         primaryColor:branding?.primaryColor,
       }
+      // scopeLines is [{id,name,text,price}]; flatten to strings so SignPage
+      // can render each line as a list item without crashing on objects.
+      const scopeStrings = scopeLines
+        .map(l => (typeof l === 'string' ? l : (l?.text || l?.name || '')))
+        .filter(Boolean)
       const contractData = {
         ...data,
-        scopeBullets:      scopeLines,
+        scopeBullets:      scopeStrings,
         payments,
         projectTypes,
         lumberDrop,

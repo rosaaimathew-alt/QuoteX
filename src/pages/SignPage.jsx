@@ -93,15 +93,27 @@ export default function SignPage() {
   let renderError = null
   try {
     ;({ contractData: d, contractNum, role } = record || {})
-    total    = (d?.lines || []).reduce((s, l) => s + Number(l.qty || 0) * Number(l.price || 0), 0)
+    // Prefer the contract's stored total. Fall back to summing line items —
+    // proposals use `unitPrice`, scope-line drafts use `price`; accept either.
+    if (Number.isFinite(Number(d?.total)) && Number(d?.total) > 0) {
+      total = Number(d.total)
+    } else {
+      total = (d?.lines || []).reduce((s, l) => {
+        const qty   = Number(l?.qty   ?? 1)
+        const price = Number(l?.price ?? l?.unitPrice ?? 0)
+        return s + qty * price
+      }, 0)
+    }
     payments = Array.isArray(d?.payments) ? d.payments : []
   } catch (e) { renderError = e.message }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-16">
-      <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2 text-xs text-yellow-800 font-mono">
-        ✓ Loaded · role={String(role)} · keys={Object.keys(record || {}).join(',')} · client={String(d?.client)} · lines={Array.isArray(d?.lines) ? d.lines.length : 'n/a'} {renderError && `· ERR ${renderError}`}
-      </div>
+      {renderError && (
+        <div className="bg-red-50 border-b border-red-200 px-4 py-2 text-xs text-red-700 font-mono">
+          Render error: {renderError}
+        </div>
+      )}
       <div className="bg-white border-b border-gray-200 px-4 py-4 sticky top-0 z-10">
         <div className="max-w-2xl mx-auto flex justify-between items-center">
           <div>
@@ -145,9 +157,13 @@ export default function SignPage() {
             <>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Scope of Work</p>
               <ul className="text-sm space-y-1">
-                {d.scopeBullets.map((b, i) => (
-                  <li key={i} className="flex gap-2 text-gray-700"><span className="text-gray-400 mt-0.5">●</span><span>{b}</span></li>
-                ))}
+                {d.scopeBullets.map((b, i) => {
+                  const txt = typeof b === 'string' ? b : (b?.text || b?.name || '')
+                  if (!txt) return null
+                  return (
+                    <li key={i} className="flex gap-2 text-gray-700"><span className="text-gray-400 mt-0.5">●</span><span>{txt}</span></li>
+                  )
+                })}
               </ul>
             </>
           )}
