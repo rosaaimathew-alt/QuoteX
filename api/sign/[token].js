@@ -15,7 +15,7 @@ export default async function handler(req, res) {
     return res.json({
       ok: true,
       ts: new Date().toISOString(),
-      version: 'docusign-style-v2',
+      version: 'docusign-style-v3',
       hasKvUrl: !!(process.env.KV_URL || process.env.KV_REST_API_URL),
       env: process.env.VERCEL_ENV || 'local',
     })

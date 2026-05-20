@@ -664,13 +664,15 @@ export default function SignPage() {
 
             {payments.length > 0 && (
               <>
-                <table className="w-full text-[10pt] border-collapse mb-3">
+                <div className="overflow-x-auto -mx-2 px-2">
+                <table className="w-full min-w-[480px] text-[10pt] border-collapse mb-3">
                   <thead><tr className="bg-blue-50">{['PAYMENT SCHEDULE','EOL','ADDENDUMS','TOTALS','PYM'].map(h => <th key={h} className="border border-gray-300 px-2 py-2 text-left font-bold">{h}</th>)}</tr></thead>
                   <tbody>
                     {payments.map((p,i) => <tr key={i}><td className="border border-gray-300 px-2 py-2">{p.label}</td><td className="border border-gray-300 px-2 py-2 text-center">{Math.round((p.pct||0)*100)}%</td><td className="border border-gray-300 px-2 py-2"></td><td className="border border-gray-300 px-2 py-2 font-semibold underline whitespace-nowrap">${fmt(p.amount)}</td><td className="border border-gray-300 px-2 py-2"></td></tr>)}
                     <tr className="bg-gray-50 font-bold"><td className="border border-gray-300 px-2 py-2">TOTALS</td><td className="border border-gray-300 px-2 py-2 text-center">100%</td><td className="border border-gray-300 px-2 py-2"></td><td className="border border-gray-300 px-2 py-2 underline whitespace-nowrap">${fmt(total)}</td><td className="border border-gray-300 px-2 py-2"></td></tr>
                   </tbody>
                 </table>
+                </div>
                 <p className="text-[10px] text-gray-600 text-justify mb-6">** Initial schedule deposit paid as 20% deposit at sign. Ebony O.L. will not drop material or labor on the project until the scheduled deposit is paid in full. Ebony O.L has the rights to hold construction progress if scheduled payments are delayed.</p>
                 <Field fieldId="c-scope-final" forRole="client"  label="Client signature" />
                 <Field fieldId="b-scope-final" forRole="builder" label="Builder signature" />

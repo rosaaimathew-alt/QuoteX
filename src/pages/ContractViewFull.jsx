@@ -253,6 +253,18 @@ export default function ContractViewFull() {
           {/* Scope & Final Payment Clarification */}
           <div className="px-6 sm:px-12 py-6 border-t border-gray-200">
             <h2 className="text-center font-bold text-base mb-5">SCOPE OF WORK &amp; FINAL PAYMENT CLARIFICATION</h2>
+            <p className="text-[10pt] mb-3">Ebony Outdoor Living and All in one Solutions's aim for customer service as our #1 priority. In order to provide you with the best possible customer experience, we are fully committed to providing you with <strong>everything</strong> written in the scope of work, specifications, and drawing.</p>
+            <ul className="text-[10pt] space-y-2 mb-5 ml-2">
+              {[
+                'In the event that the project proposed by Ebony Outdoor Living is not approved by the Homeowners Association (HOA) or local zoning authorities, the deposit paid by the customer shall be returned in full, minus any fees incurred by Ebony Outdoor Living and All in one Solutions related to the processing or submission of the project for approval.',
+                'In the rare case there is a dispute with what we are obligated to provide, both parties agree to revert to only what is written in scope of work, specifications, and/or drawing.',
+                'Any work requested on behalf of the customer that is not covered in the scope of work, specifications, and/or drawing may be added through an addendum at a signed agreed specification form upon additional cost paid at the time of addendum.',
+                'Per your contract, your final payment is due upon substantial completion.',
+                "We appreciate your continuous feedback throughout the construction process. If you happen to see something you don't like, please let us know immediately. We are able to address your concerns in a timelier manner if we are made aware of them while the carpenter is still working onsite.",
+                'Near the end of the project we will allow for a single close out walk ("final walk through") to ensure that all expectations set forth by your scope of work, specifications, and/or drawing have been met. This final walk through creates an opportunity for a single punch list of outstanding concerns to be addressed before your project is considered complete. All partial payments prior to this punch list must be paid in full before punch list work will be performed. Any adjustments, repairs, or replacements beyond this one list will be treated as a warranty claim and addressed upon receipt of final payment, per the terms of your warranty.',
+                'Duration of construction projects is often unpredictable due to weather, inspections, change orders, material availability, etc. There is NO discount for job duration. A reasonable time frame will be established for each job, and every effort will be made to adhere to that time frame.',
+              ].map((t,i) => <li key={i} className="flex gap-2"><span>●</span><span>{t}</span></li>)}
+            </ul>
             <p className="font-bold text-center mb-2 text-[10pt]">I HAVE READ AND UNDERSTAND THE ABOVE SCOPE OF WORK AND FINAL PAYMENT CLARIFICATION.</p>
             <I fieldId="c-scope-clarity" role="client" label="Signature" />
           </div>
@@ -260,6 +272,23 @@ export default function ContractViewFull() {
           {/* PT Wood */}
           <div className="px-6 sm:px-12 py-6 border-t border-gray-200">
             <h2 className="text-center font-bold text-base mb-4">PRESSURE-TREATED WOOD INFORMATION</h2>
+            <ul className="text-[10pt] space-y-2 ml-1 mb-4">
+              {[
+                'Pressure-Treated pine is one of the most durable products for decks, porches and pergola. It is warranted against rot and termite infestation.',
+                'Projects with pressure-treated wood must be maintained with stain or paint to ensure your project is warranted and lasts as long as possible.',
+                'Lumber manufacturers provide a warranty against rot and insect infestation of their product. This warranty ONLY covers approved replacement material, labor is NOT included.',
+                'All pressure-treat wood (including #1 grade) will have knots as it is a natural product and is part of the beauty of real wood.',
+                'Even when wood filler is used, the lumber may continue to expand and contract, requiring additional maintenance.',
+                'The wood is cut to provide tight joints, but as pressure-treated wood continues to expand and contract, the joints may separate (for example, at the corners where the rail caps are mitered).',
+                'The lumber mill will ink stamp the wood as required by law. These stamps will fade over time. We do not recommend spot sanding these stamps, as it will show up differently when stained.',
+                'Pressure-treated wood is outdoor lumber. It is not as stable and consistent as wood used for interior furniture or trim and will have natural imperfections.',
+                'Surface cracks or splits (known as "checking") will develop on pressure-treated wood; this is not cause for alarm. Checking indicates that a pattern has been established to allow each piece of lumber to swell and shrink as nature intended. Large checking may develop on 4x4" and 6x6" posts as these are cut from the center of the Southern Yellow Pine Tree, where more moisture is present in the heartwood at the time of milling. Checking does not affect the structural integrity of posts or decking and does not represent a warrantable concern.',
+                'Should the checking extend through the entire diameter of the wood during the applicable warranty period, it will be addressed by Ebony Outdoor Living.',
+                'Checking does not negatively affect the structural integrity of the timber, but instead releases the tension built up internally. The checks will open and close as the outer layers of the timber pick up and shed moisture. It is for this reason that the checks should NOT be filled in with epoxy or something similar.',
+                'Minor cupping of decking boards can occur. This occurs largely due to the evaporation of any moisture left in the board after treatment, resulting in cupping as a normal response as wood weathers.',
+                'Pressure-treated wood comes from a Southern Yellow Pine Tree where sap/resin is prevalent. It is not uncommon for resin to seep from decking boards, especially during the warmer, sunny months. Sap is an uncontrollable and unpredictable characteristic and is not a warrantable item.',
+              ].map((t,i) => <li key={i} className="flex gap-2"><span>●</span><span>{t}</span></li>)}
+            </ul>
             <p className="font-bold text-center mt-3 mb-3 text-[10pt]">I HAVE READ AND UNDERSTAND THE ABOVE CHARACTERISTICS OF PRESSURE TREATED WOOD.</p>
             <I fieldId="c-ptwood" role="client" label="Signature" withDate />
           </div>
@@ -267,6 +296,21 @@ export default function ContractViewFull() {
           {/* Unforeseen */}
           <div className="px-6 sm:px-12 py-6 border-t border-gray-200">
             <h2 className="text-center font-bold text-base mb-4">UNFORESEEN SITE CONDITIONS POLICY</h2>
+            <p className="text-[10pt] mb-3">As described in Paragraph 12(a) of the Contract, the Builder Shall not be responsible for any additional work required due to unforeseen site conditions, which include but are not limited to the following:</p>
+            <ul className="text-[10pt] space-y-1.5 ml-2 mb-4">
+              {[
+                'Soil that will not pass building inspector requirements','Concealed plumbing, electrical lines, gas lines and mechanical lines',
+                'Engineer required by building inspector (and subsequent delay waiting for the engineer)','Unforeseen load bearing walls','Rotten wood','Insect infested wood','Mold',
+                'Irrigation lines and sprinkler heads','Tree roots',
+                'Subsequent interior damage or exterior brick/siding damage due to construction vibrations or demolition',
+                'New cracks may develop as materials are dropped in your driveway. This is an inherent risk on behalf of the homeowner and Ebony Outdoor Living is not responsible for the repair of your driveway.',
+                'Should we need to cut drywall for an inspection to take place or for the specific placement of an electrical box, the drywall repair and subsequent paint touchup will be an additional change to the contract.',
+                'Reconnection of existing cables, wires, internet, security systems etc., due to construction demolition or new door frame.',
+                'Any concrete removal is assumed the concrete is 4" thick or less. If through the course of demolition it is discovered the concrete is thicker than 4", there will be an additional charge to account for the additional labor and haul fees.',
+                'Permit delays',
+              ].map((t,i) => <li key={i} className="flex gap-2"><span>●</span><span>{t}</span></li>)}
+            </ul>
+            <p className="text-[10pt] mb-3">If any unforeseen items are discovered during the course of your work we will immediately bring them to your attention with a recommended course of action. The labor required to correct, adjust, or work around these items will result in additional charges and work will only proceed when authorized by you.</p>
             <p className="font-bold text-[10pt] mb-6">I HAVE READ THE ABOVE UNFORESEEN SITE CONDITIONS POLICY AND AGREE TO ITS TERMS AND CONDITIONS.</p>
             <I fieldId="c-unforeseen" role="client" label="Signature" />
           </div>
@@ -303,7 +347,13 @@ export default function ContractViewFull() {
           {!isSmallContract && (
             <div className="px-6 sm:px-12 py-6 border-t border-gray-200">
               <h2 className="text-center font-bold text-base mb-5">Client Acknowledgment and Agreement</h2>
-              <p className="text-[10pt]">By signing below, the Client confirms that they have read, understood, and fully agree with the information and distribution of responsibilities described in this document.</p>
+              <div className="text-[10pt] space-y-4">
+                <p>At <strong>Ebony Outdoor Living</strong>, we are committed to transparency, contractual clarity, and professional communication with our clients. This document is intended to formalize the understanding between the parties regarding the operational structure and distribution of responsibilities related to the contracted project. Ebony Outdoor Living and <strong>All-In-One Solutions</strong> operate collaboratively as part of the same project team. All-In-One Solutions serves as the licensed General Contractor and is responsible for maintaining the applicable licenses and overall legal and regulatory compliance required for the project.</p>
+                <p>Ebony Outdoor Living is solely responsible for the execution and management of the work, including, without limitation, project supervision, scheduling and timeline management, coordination of crews and subcontractors, and daily job site operations. The Client acknowledges and agrees that all communications, requests, clarifications, or questions related to project execution, timelines, scheduling, and operational responsibilities shall be directed exclusively to the official contacts provided to the Client upon receipt of the fully executed contract.</p>
+                <p>All-In-One Solutions also acts as a general supervisor of the project, performing occasional site visits during the progress of the work for purposes of overall oversight and supervision. However, All-In-One Solutions is not involved in the daily management of the job site, operational coordination of crews, or direct execution of the services.</p>
+                <p>This acknowledgment is supplementary in nature and forms part of the project's contractual documentation, without replacing or modifying the terms and conditions of the primary agreement previously executed between the parties.</p>
+                <p>By signing below, the Client confirms that they have read, understood, and fully agree with the information and distribution of responsibilities described in this document.</p>
+              </div>
               <p className="text-[10pt] mt-4"><strong>Project Address:</strong> {address}</p>
               <S fieldId="c-ack" role="client"  label="Client Signature" />
               <S fieldId="b-ack" role="builder" label="Builder Signature" />
@@ -346,13 +396,15 @@ export default function ContractViewFull() {
 
             {payments.length > 0 && (
               <>
-                <table className="w-full text-[10pt] border-collapse mb-3">
+                <div className="overflow-x-auto -mx-2 px-2">
+                <table className="w-full min-w-[480px] text-[10pt] border-collapse mb-3">
                   <thead><tr className="bg-blue-50">{['PAYMENT SCHEDULE','EOL','ADDENDUMS','TOTALS','PYM'].map(h => <th key={h} className="border border-gray-300 px-2 py-2 text-left font-bold">{h}</th>)}</tr></thead>
                   <tbody>
                     {payments.map((p,i) => <tr key={i}><td className="border border-gray-300 px-2 py-2">{p.label}</td><td className="border border-gray-300 px-2 py-2 text-center">{Math.round((p.pct||0)*100)}%</td><td className="border border-gray-300 px-2 py-2"></td><td className="border border-gray-300 px-2 py-2 font-semibold underline whitespace-nowrap">${fmt(p.amount)}</td><td className="border border-gray-300 px-2 py-2"></td></tr>)}
                     <tr className="bg-gray-50 font-bold"><td className="border border-gray-300 px-2 py-2">TOTALS</td><td className="border border-gray-300 px-2 py-2 text-center">100%</td><td className="border border-gray-300 px-2 py-2"></td><td className="border border-gray-300 px-2 py-2 underline whitespace-nowrap">${fmt(total)}</td><td className="border border-gray-300 px-2 py-2"></td></tr>
                   </tbody>
                 </table>
+                </div>
                 <p className="text-[10px] text-gray-600 text-justify mb-6">** Initial schedule deposit paid as 20% deposit at sign.</p>
                 <S fieldId="c-scope-final" role="client"  label="Client signature" />
                 <S fieldId="b-scope-final" role="builder" label="Builder signature" />
