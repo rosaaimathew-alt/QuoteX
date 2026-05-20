@@ -4,6 +4,15 @@ import SignaturePad from '../components/SignaturePad'
 import { X, CheckCircle2, ChevronDown } from 'lucide-react'
 
 const fmt = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+function renderBold(text) {
+  const parts = String(text ?? '').split(/(\*\*[^*\n]+\*\*)/g)
+  return parts.map((p, i) =>
+    p.startsWith('**') && p.endsWith('**') && p.length > 4
+      ? <strong key={i}>{p.slice(2, -2)}</strong>
+      : <span key={i}>{p}</span>
+  )
+}
 const ROLE_LABEL = {
   client:  'Client',
   builder: 'Builder — Ebony Outdoor Living',
@@ -624,7 +633,7 @@ export default function SignPage() {
                 {scopeBullets.map((b,i) => {
                   const txt = typeof b==='string'?b:(b?.text||b?.name||'')
                   if (!txt) return null
-                  return <li key={i} className="flex gap-2"><span className="shrink-0">●</span><span className="whitespace-pre-wrap leading-snug">{txt}</span></li>
+                  return <li key={i} className="flex gap-2"><span className="shrink-0">●</span><span className="whitespace-pre-wrap leading-snug">{renderBold(txt)}</span></li>
                 })}
               </ul>
             )}

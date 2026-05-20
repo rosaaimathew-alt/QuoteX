@@ -1,8 +1,73 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Printer, Send, ChevronDown, ChevronUp, Lock, Sparkles, Loader2, X, Save, BookOpen } from 'lucide-react'
+import { ArrowLeft, Printer, Send, ChevronDown, ChevronUp, Lock, Sparkles, Loader2, X, Save, BookOpen, Bold } from 'lucide-react'
 import { useStore } from '../store'
 import { generatePalette, DEFAULT_BRAND_COLOR } from '../brand'
+
+// Render **bold** markdown segments as <strong>
+export function renderBold(text) {
+  const parts = String(text ?? '').split(/(\*\*[^*\n]+\*\*)/g)
+  return parts.map((p, i) =>
+    p.startsWith('**') && p.endsWith('**') && p.length > 4
+      ? <strong key={i}>{p.slice(2, -2)}</strong>
+      : <span key={i}>{p}</span>
+  )
+}
+
+// ScopeBullet: textarea + Bold button that wraps current selection in **...**
+function ScopeBullet({ line, updateLine, removeLine }) {
+  const taRef = useRef(null)
+  const toggleBold = () => {
+    const ta = taRef.current
+    if (!ta) return
+    const a = ta.selectionStart, b = ta.selectionEnd
+    if (a === b) { alert('Select text to bold first'); return }
+    const t = ta.value
+    const sel = t.slice(a, b)
+    // If already wrapped, unwrap
+    const before = t.slice(0, a), after = t.slice(b)
+    const isWrapped = before.endsWith('**') && after.startsWith('**')
+    const next = isWrapped
+      ? before.slice(0, -2) + sel + after.slice(2)
+      : before + '**' + sel + '**' + after
+    updateLine(line.id, next)
+    requestAnimationFrame(() => {
+      ta.focus()
+      const offset = isWrapped ? -2 : 2
+      ta.setSelectionRange(a + offset, b + offset)
+    })
+  }
+  return (
+    <li className="flex gap-2 items-start group">
+      <span className="mt-2 shrink-0 print:mt-0">●</span>
+      <div className="flex-1">
+        <div className="no-print flex items-center gap-1 mb-0.5">
+          <button onClick={toggleBold} title="Bold selected text" type="button"
+            className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors">
+            <Bold size={11} /> Bold
+          </button>
+          <span className="text-[9px] text-gray-400 italic">select text then click Bold (or wrap in **double asterisks**)</span>
+        </div>
+        <textarea
+          ref={taRef}
+          className="no-print w-full border border-transparent hover:border-blue-200 rounded px-1 py-0.5 text-sm resize-none focus:outline-none focus:border-blue-300 focus:ring-1 focus:ring-blue-200 leading-snug"
+          rows={2}
+          value={line.text}
+          onChange={e => updateLine(line.id, e.target.value)}
+        />
+        <p className="print-only text-sm leading-snug whitespace-pre-wrap">{renderBold(line.text)}</p>
+      </div>
+      <button
+        onClick={() => removeLine(line.id)}
+        className="no-print mt-1.5 shrink-0 text-gray-200 hover:text-red-500 hover:bg-red-50 rounded p-0.5 opacity-0 group-hover:opacity-100 transition-all"
+        title="Remove bullet"
+        type="button"
+      >
+        <X size={13} />
+      </button>
+    </li>
+  )
+}
 
 const fmt = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -1288,25 +1353,7 @@ export default function ContractView() {
             )}
             <ul className="text-sm space-y-2">
               {scopeLines.map(line => (
-                <li key={line.id} className="flex gap-2 items-start group">
-                  <span className="mt-2 shrink-0 print:mt-0">●</span>
-                  <div className="flex-1">
-                    <textarea
-                      className="no-print w-full border border-transparent hover:border-blue-200 rounded px-1 py-0.5 text-sm resize-none focus:outline-none focus:border-blue-300 focus:ring-1 focus:ring-blue-200 leading-snug"
-                      rows={2}
-                      value={line.text}
-                      onChange={e => updateLine(line.id, e.target.value)}
-                    />
-                    <p className="print-only text-sm leading-snug whitespace-pre-wrap">{line.text}</p>
-                  </div>
-                  <button
-                    onClick={() => removeLine(line.id)}
-                    className="no-print mt-1.5 shrink-0 text-gray-200 hover:text-red-500 hover:bg-red-50 rounded p-0.5 opacity-0 group-hover:opacity-100 transition-all"
-                    title="Remove bullet"
-                  >
-                    <X size={13} />
-                  </button>
-                </li>
+                <ScopeBullet key={line.id} line={line} updateLine={updateLine} removeLine={removeLine} />
               ))}
             </ul>
             <button

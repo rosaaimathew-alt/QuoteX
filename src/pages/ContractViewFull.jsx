@@ -3,6 +3,15 @@ import { useParams } from 'react-router-dom'
 import { Printer, Loader2 } from 'lucide-react'
 
 const fmt = n => Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})
+
+function renderBold(text) {
+  const parts = String(text ?? '').split(/(\*\*[^*\n]+\*\*)/g)
+  return parts.map((p, i) =>
+    p.startsWith('**') && p.endsWith('**') && p.length > 4
+      ? <strong key={i}>{p.slice(2, -2)}</strong>
+      : <span key={i}>{p}</span>
+  )
+}
 const PROJECT_TYPES = ['Deck','Screened Porch','Sunroom','Pergola','Gazebo','Open Porch']
 const METHODS = ['Electronic Wire Transfer / ACH','Cash','Check','Zelle']
 const GENERAL_NOTES = [
@@ -375,7 +384,7 @@ export default function ContractViewFull() {
               <p><strong>EMAIL:</strong> {email}</p><p><strong>PHONE:</strong> {phone}</p>
             </div>
             {projectSummary && <div className="mb-4"><p className="font-bold text-[10pt] mb-1">PROJECT SUMMARY:</p><p className="font-semibold text-[10pt] whitespace-pre-wrap">{projectSummary}</p></div>}
-            {scopeBullets.length > 0 && <ul className="text-[10pt] space-y-2 mb-5">{scopeBullets.map((b,i) => { const txt=typeof b==='string'?b:(b?.text||b?.name||''); return txt?<li key={i} className="flex gap-2"><span>●</span><span className="whitespace-pre-wrap">{txt}</span></li>:null })}</ul>}
+            {scopeBullets.length > 0 && <ul className="text-[10pt] space-y-2 mb-5">{scopeBullets.map((b,i) => { const txt=typeof b==='string'?b:(b?.text||b?.name||''); return txt?<li key={i} className="flex gap-2"><span>●</span><span className="whitespace-pre-wrap">{renderBold(txt)}</span></li>:null })}</ul>}
             <p className="font-bold text-[10pt] mb-3">GENERAL NOTES AND WARRANTIES TO THE ACCEPTED SCOPE OF WORK</p>
             <ul className="text-[10pt] space-y-2 mb-5">{GENERAL_NOTES.map((n,i) => <li key={i} className={`flex gap-2 ${n.h?'bg-yellow-50 -mx-1 px-1 rounded':''}`}><span>●</span><span className={n.b?'font-bold':''}>{n.t}</span></li>)}<li className="flex gap-2"><span>●</span><span>{ceilingFanNote}</span></li></ul>
 
