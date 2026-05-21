@@ -142,11 +142,14 @@ const CB = ({ checked }) => (
 
 export default function ContractView() {
   const navigate           = useNavigate()
-  const branding           = useStore(s => s.branding)
-  const proposals          = useStore(s => s.proposals)
-  const saveContractDraft  = useStore(s => s.saveContractDraft)
-  const scopeExamples      = useStore(s => s.scopeExamples)
-  const saveScopeExamples  = useStore(s => s.saveScopeExamples)
+  const branding             = useStore(s => s.branding)
+  const proposals            = useStore(s => s.proposals)
+  const saveContractDraft    = useStore(s => s.saveContractDraft)
+  const scopeExamples        = useStore(s => s.scopeExamples)
+  const saveScopeExamples    = useStore(s => s.saveScopeExamples)
+  const scopeTemplates       = useStore(s => s.scopeTemplates)
+  const saveScopeTemplate    = useStore(s => s.saveScopeTemplate)
+  const deleteScopeTemplate  = useStore(s => s.deleteScopeTemplate)
   const palette            = generatePalette(branding?.primaryColor || DEFAULT_BRAND_COLOR)
   const [savedAt,          setSavedAt]         = useState(null)
 
@@ -191,9 +194,12 @@ export default function ContractView() {
   const [ceilingFanNote,  setCeilingFanNote]  = useState('Homeowner to provide 1 ceiling fan with downrod')
   const [contractNum,     setContractNum]     = useState('')
   const [city,            setCity]            = useState('')
-  const [showItemPicker,  setShowItemPicker]  = useState(false)
-  const [pickerSelection, setPickerSelection] = useState(new Set())
-  const [milestoneLabels, setMilestoneLabels] = useState([])
+  const [showItemPicker,       setShowItemPicker]       = useState(false)
+  const [pickerSelection,      setPickerSelection]      = useState(new Set())
+  const [milestoneLabels,      setMilestoneLabels]      = useState([])
+  const [showScopeTemplates,   setShowScopeTemplates]   = useState(false)
+  const [showSaveScopeTemplate,setShowSaveScopeTemplate]= useState(false)
+  const [scopeTemplateName,    setScopeTemplateName]    = useState('')
 
   const contractDocRef = useRef(null)
   const [showSignModal, setShowSignModal] = useState(false)
@@ -1365,12 +1371,112 @@ export default function ContractView() {
                 <ScopeBullet key={line.id} line={line} updateLine={updateLine} removeLine={removeLine} />
               ))}
             </ul>
-            <button
-              onClick={addLine}
-              className="no-print mt-3 flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded px-2 py-1.5 transition-colors"
-            >
-              <span className="text-base leading-none">+</span> Add bullet
-            </button>
+            <div className="no-print mt-3 flex items-center gap-2 flex-wrap">
+              <button onClick={addLine}
+                className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded px-2 py-1.5 transition-colors">
+                <span className="text-base leading-none">+</span> Add bullet
+              </button>
+              <button onClick={() => setShowScopeTemplates(true)}
+                className="flex items-center gap-1.5 text-xs text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded px-2 py-1.5 transition-colors">
+                <BookOpen size={12} /> Load template
+              </button>
+              {scopeLines.length > 0 && (
+                <button onClick={() => setShowSaveScopeTemplate(true)}
+                  className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded px-2 py-1.5 transition-colors">
+                  <Save size={12} /> Save as template
+                </button>
+              )}
+            </div>
+
+            {/* Load scope template modal */}
+            {showScopeTemplates && (
+              <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowScopeTemplates(false)}>
+                <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                    <p className="font-semibold text-gray-900">Scope Templates</p>
+                    <button onClick={() => setShowScopeTemplates(false)} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
+                  </div>
+                  <div className="overflow-y-auto flex-1 p-4 space-y-3">
+                    {scopeTemplates.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-sm text-gray-400 italic">No saved templates yet.</p>
+                        <p className="text-xs text-gray-400 mt-1">Build your scope bullets and click "Save as template" to create one.</p>
+                      </div>
+                    ) : scopeTemplates.map(t => (
+                      <div key={t.id} className="border border-gray-200 rounded-xl p-4 hover:border-purple-300 transition-colors">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div>
+                            <p className="font-semibold text-sm text-gray-900">{t.name}</p>
+                            {t.projectType && <p className="text-xs text-gray-400">{t.projectType}</p>}
+                          </div>
+                          <button onClick={() => { if (window.confirm(`Delete "${t.name}"?`)) deleteScopeTemplate(t.id) }}
+                            className="text-gray-300 hover:text-red-500 transition-colors shrink-0"><X size={13} /></button>
+                        </div>
+                        <ul className="text-xs text-gray-500 space-y-0.5 mb-3 max-h-28 overflow-y-auto">
+                          {t.bullets.slice(0, 6).map((b, i) => <li key={i} className="flex gap-1.5"><span>●</span><span className="truncate">{b}</span></li>)}
+                          {t.bullets.length > 6 && <li className="text-gray-400 italic">+{t.bullets.length - 6} more…</li>}
+                        </ul>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              setScopeLines(t.bullets.map((txt, i) => ({ id: Date.now() + i, text: txt })))
+                              setShowScopeTemplates(false)
+                            }}
+                            className="flex-1 py-1.5 bg-purple-600 text-white text-xs font-medium rounded-lg hover:bg-purple-700 transition-colors">
+                            Replace scope
+                          </button>
+                          <button
+                            onClick={() => {
+                              const newLines = t.bullets.map((txt, i) => ({ id: Date.now() + i + 1000, text: txt }))
+                              setScopeLines(prev => [...prev, ...newLines])
+                              setShowScopeTemplates(false)
+                            }}
+                            className="flex-1 py-1.5 border border-gray-200 text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors">
+                            Append to scope
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Save scope template modal */}
+            {showSaveScopeTemplate && (
+              <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowSaveScopeTemplate(false)}>
+                <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+                  <p className="font-semibold text-gray-900 mb-4">Save Scope Template</p>
+                  <div className="space-y-3 mb-5">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Template name</label>
+                      <input
+                        autoFocus
+                        value={scopeTemplateName}
+                        onChange={e => setScopeTemplateName(e.target.value)}
+                        placeholder="e.g. Standard Pressure Treated Deck"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-400">{scopeLines.length} bullet{scopeLines.length !== 1 ? 's' : ''} will be saved.</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setShowSaveScopeTemplate(false)}
+                      className="flex-1 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors">Cancel</button>
+                    <button
+                      disabled={!scopeTemplateName.trim()}
+                      onClick={() => {
+                        saveScopeTemplate({ name: scopeTemplateName.trim(), projectType: '', bullets: scopeLines.map(l => l.text) })
+                        setScopeTemplateName('')
+                        setShowSaveScopeTemplate(false)
+                      }}
+                      className="flex-1 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-40 transition-colors">
+                      Save template
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
           {/* ── SCOPE PAGE 2 · General Notes + Pricing Table ───────── */}
             {/* Locked disclosures */}

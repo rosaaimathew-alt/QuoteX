@@ -138,7 +138,7 @@ export const useStore = create(
       deleteCatalogItem: (id) =>
         set((s) => ({ catalog: s.catalog.filter((c) => c.id !== id) })),
 
-      // ── Templates ────────────────────────────────────────────────────────
+      // ── Templates (quote line items) ─────────────────────────────────────
       templates: [],
       nextTemplateId: 1,
 
@@ -155,6 +155,24 @@ export const useStore = create(
 
       deleteTemplate: (id) =>
         set((s) => ({ templates: s.templates.filter((t) => t.id !== id) })),
+
+      // ── Scope Templates (pre-built bullet sets for contract scope) ────────
+      scopeTemplates: [],
+      nextScopeTemplateId: 1,
+
+      saveScopeTemplate: ({ name, projectType, bullets }) => {
+        const { scopeTemplates, nextScopeTemplateId } = get()
+        set({
+          scopeTemplates: [
+            { id: nextScopeTemplateId, name, projectType, bullets, createdAt: new Date().toISOString() },
+            ...scopeTemplates,
+          ],
+          nextScopeTemplateId: nextScopeTemplateId + 1,
+        })
+      },
+
+      deleteScopeTemplate: (id) =>
+        set((s) => ({ scopeTemplates: s.scopeTemplates.filter((t) => t.id !== id) })),
 
       // ── Proposals (CRM log) ───────────────────────────────────────────────
       proposals: [],
@@ -399,15 +417,17 @@ export const useStore = create(
         return {
           catalog,
           nextCatalogId: Math.max(SEED_CATALOG.length + 1, maxId + 1, persisted?.nextCatalogId || 0),
-          templates:     persisted?.templates     || [],
-          nextTemplateId:persisted?.nextTemplateId|| 1,
-          proposals:     persisted?.proposals     || [],
-          nextProposalId:persisted?.nextProposalId|| 1,
-          readMessageIds:persisted?.readMessageIds|| [],
-          theme:         persisted?.theme         || 'light',
-          branding:      persisted?.branding      || { companyName: 'QUOTEX', tagline: 'Smart Contractor Pricing', logo: null, primaryColor: null },
-          scopeExamples: persisted?.scopeExamples || [],
-          jobCosts:      persisted?.jobCosts      || {},
+          templates:          persisted?.templates          || [],
+          nextTemplateId:     persisted?.nextTemplateId     || 1,
+          scopeTemplates:     persisted?.scopeTemplates     || [],
+          nextScopeTemplateId:persisted?.nextScopeTemplateId|| 1,
+          proposals:          persisted?.proposals          || [],
+          nextProposalId:     persisted?.nextProposalId     || 1,
+          readMessageIds:     persisted?.readMessageIds     || [],
+          theme:              persisted?.theme              || 'light',
+          branding:           persisted?.branding           || { companyName: 'QUOTEX', tagline: 'Smart Contractor Pricing', logo: null, primaryColor: null },
+          scopeExamples:      persisted?.scopeExamples      || [],
+          jobCosts:           persisted?.jobCosts           || {},
         }
       },
       merge: (persistedState, currentState) => ({
