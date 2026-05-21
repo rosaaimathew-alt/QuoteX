@@ -80,7 +80,20 @@ function ScopeBullet({ line, updateLine, removeLine }) {
 
 const fmt = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
-const PROJECT_TYPES = ['Deck', 'Screened Porch', 'Sunroom', 'Pergola', 'Gazebo', 'Open Porch']
+const PROJECT_TYPES = [
+  'Porch Conversion',
+  'Deck (New)',
+  'Deck (Resurface / Rebuild)',
+  'Ground Level Porch',
+  'Porch Over Deck',
+  'Pergola',
+  'Gazebo',
+  // Legacy types — kept for existing contracts
+  'Deck',
+  'Screened Porch',
+  'Sunroom',
+  'Open Porch',
+]
 
 const PAYMENT_MILESTONES = [
   { label: 'Schedule deposit — @ sign contract',            pct: 0.20 },
