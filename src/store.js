@@ -347,6 +347,136 @@ export const useStore = create(
           }),
         })),
 
+      // ── Change Orders ────────────────────────────────────────────────────
+      addChangeOrder: (proposalId, co) =>
+        set((s) => ({
+          proposals: s.proposals.map((p) =>
+            p.id !== proposalId ? p : {
+              ...p,
+              jobData: {
+                ...(p.jobData || {}),
+                changeOrders: [
+                  ...((p.jobData?.changeOrders) || []),
+                  { id: Date.now(), ...co, status: 'Pending', createdAt: new Date().toISOString() },
+                ],
+              },
+            }
+          ),
+        })),
+
+      updateChangeOrder: (proposalId, coId, changes) =>
+        set((s) => ({
+          proposals: s.proposals.map((p) =>
+            p.id !== proposalId ? p : {
+              ...p,
+              jobData: {
+                ...(p.jobData || {}),
+                changeOrders: (p.jobData?.changeOrders || []).map((co) =>
+                  co.id === coId ? { ...co, ...changes } : co
+                ),
+              },
+            }
+          ),
+        })),
+
+      deleteChangeOrder: (proposalId, coId) =>
+        set((s) => ({
+          proposals: s.proposals.map((p) =>
+            p.id !== proposalId ? p : {
+              ...p,
+              jobData: {
+                ...(p.jobData || {}),
+                changeOrders: (p.jobData?.changeOrders || []).filter((co) => co.id !== coId),
+              },
+            }
+          ),
+        })),
+
+      // ── Daily Logs ───────────────────────────────────────────────────────
+      addDailyLog: (proposalId, log) =>
+        set((s) => ({
+          proposals: s.proposals.map((p) =>
+            p.id !== proposalId ? p : {
+              ...p,
+              jobData: {
+                ...(p.jobData || {}),
+                dailyLogs: [
+                  { id: Date.now(), ...log, createdAt: new Date().toISOString() },
+                  ...((p.jobData?.dailyLogs) || []),
+                ],
+              },
+            }
+          ),
+        })),
+
+      deleteDailyLog: (proposalId, logId) =>
+        set((s) => ({
+          proposals: s.proposals.map((p) =>
+            p.id !== proposalId ? p : {
+              ...p,
+              jobData: {
+                ...(p.jobData || {}),
+                dailyLogs: (p.jobData?.dailyLogs || []).filter((l) => l.id !== logId),
+              },
+            }
+          ),
+        })),
+
+      // ── Warranty / Callback Log ──────────────────────────────────────────
+      addWarrantyItem: (proposalId, item) =>
+        set((s) => ({
+          proposals: s.proposals.map((p) =>
+            p.id !== proposalId ? p : {
+              ...p,
+              jobData: {
+                ...(p.jobData || {}),
+                warrantyItems: [
+                  { id: Date.now(), ...item, status: 'Open', createdAt: new Date().toISOString() },
+                  ...((p.jobData?.warrantyItems) || []),
+                ],
+              },
+            }
+          ),
+        })),
+
+      updateWarrantyItem: (proposalId, itemId, changes) =>
+        set((s) => ({
+          proposals: s.proposals.map((p) =>
+            p.id !== proposalId ? p : {
+              ...p,
+              jobData: {
+                ...(p.jobData || {}),
+                warrantyItems: (p.jobData?.warrantyItems || []).map((w) =>
+                  w.id === itemId ? { ...w, ...changes } : w
+                ),
+              },
+            }
+          ),
+        })),
+
+      // ── Subcontractors ───────────────────────────────────────────────────
+      subcontractors: [],
+      nextSubId: 1,
+
+      addSubcontractor: (sub) =>
+        set((s) => ({
+          subcontractors: [
+            { id: s.nextSubId, ...sub, createdAt: new Date().toISOString() },
+            ...s.subcontractors,
+          ],
+          nextSubId: s.nextSubId + 1,
+        })),
+
+      updateSubcontractor: (id, changes) =>
+        set((s) => ({
+          subcontractors: s.subcontractors.map((sub) =>
+            sub.id === id ? { ...sub, ...changes } : sub
+          ),
+        })),
+
+      deleteSubcontractor: (id) =>
+        set((s) => ({ subcontractors: s.subcontractors.filter((s) => s.id !== id) })),
+
       // ── Job Costs (actual costs entered per won proposal) ────────────────
       jobCosts: {},
 
@@ -440,8 +570,10 @@ export const useStore = create(
           nextCatalogId: Math.max(SEED_CATALOG.length + 1, maxId + 1, persisted?.nextCatalogId || 0),
           templates:          persisted?.templates          || [],
           nextTemplateId:     persisted?.nextTemplateId     || 1,
-          scopeTemplates:     persisted?.scopeTemplates     || [],
-          nextScopeTemplateId:persisted?.nextScopeTemplateId|| 1,
+          scopeTemplates:      persisted?.scopeTemplates      || [],
+          nextScopeTemplateId: persisted?.nextScopeTemplateId || 1,
+          subcontractors:      persisted?.subcontractors      || [],
+          nextSubId:           persisted?.nextSubId           || 1,
           proposals:          persisted?.proposals          || [],
           nextProposalId:     persisted?.nextProposalId     || 1,
           readMessageIds:     persisted?.readMessageIds     || [],

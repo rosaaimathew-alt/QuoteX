@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon, Sun, Moon, Users, FileSignature, LogOut, TrendingUp, Menu, HardHat } from 'lucide-react'
+import { LayoutDashboard, FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon, Sun, Moon, Users, FileSignature, LogOut, TrendingUp, Menu, HardHat, Wrench } from 'lucide-react'
 import { Component, useEffect, useState, useRef } from 'react'
 import Dashboard from './pages/Dashboard'
 import Analyze from './pages/Analyze'
@@ -18,6 +18,7 @@ import SignPage from './pages/SignPage'
 import ContractViewFull from './pages/ContractViewFull'
 import ProfitabilityTracker from './pages/ProfitabilityTracker'
 import Jobs from './pages/Jobs'
+import Subcontractors from './pages/Subcontractors'
 import AuthGuard, { logout } from './components/AuthGuard'
 import { useStore } from './store'
 import { applyBrandStyles, applyTheme, DEFAULT_BRAND_COLOR } from './brand'
@@ -33,6 +34,7 @@ const NAV = [
   { to: '/tracker',   label: 'Proposal Tracker', icon: BarChart2 },
   { to: '/contracts',    label: 'Contracts',       icon: FileSignature },
   { to: '/jobs',         label: 'Job Management', icon: HardHat },
+  { to: '/subs',         label: 'Subcontractors', icon: Wrench },
   { to: '/profitability',label: 'Profitability',  icon: TrendingUp },
   { to: '/inbox',        label: 'Inbox',          icon: Inbox },
 ]
@@ -325,6 +327,7 @@ function AppShell() {
             <Route path="/contracts"     element={<ContractsList />} />
             <Route path="/contract"      element={<ContractView />} />
             <Route path="/jobs"          element={<Jobs />} />
+            <Route path="/subs"          element={<Subcontractors />} />
             <Route path="/profitability" element={<ProfitabilityTracker />} />
           </Routes>
         </main>
