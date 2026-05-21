@@ -1,10 +1,13 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox,
   MessageSquareMore, DollarSign, TrendingUp, Award, Package,
   Plus, ArrowRight, Bell, AlertCircle, Clock, ChevronRight, CalendarDays,
+  ChevronLeft,
 } from 'lucide-react'
 import { useStore } from '../store'
+import { getPeriodRange, shiftPeriod, getPeriodSegments, isCurrentPeriod } from '../periodUtils'
 
 const fmt   = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const fmtSh = (n) => Number(n) >= 1000 ? `$${(Number(n) / 1000).toFixed(1)}k` : `$${Number(n).toFixed(0)}`
@@ -101,29 +104,47 @@ export default function Dashboard() {
   const catalog    = useStore(s => s.catalog)
   const templates  = useStore(s => s.templates)
 
-  // KPI calculations
-  const won         = proposals.filter(p => p.status === 'Won')
-  const lost        = proposals.filter(p => p.status === 'Lost')
-  const active      = proposals.filter(p => ['Sent', 'Followed Up', 'Negotiating'].includes(p.status))
-  const closed      = [...won, ...lost]
-  const wonRevenue  = won.reduce((s, p) => s + (p.total || 0), 0)
-  const pipeline    = active.reduce((s, p) => s + (p.total || 0), 0)
-  const winRate     = closed.length > 0 ? Math.round(won.length / closed.length * 100) : null
+  // ── Period filter state ───────────────────────────────────────────────────
+  const [period,  setPeriod]  = useState('year')
+  const [refDate, setRefDate] = useState(new Date())
+  const { start: pStart, end: pEnd, label: pLabel } = getPeriodRange(period, refDate)
+  const isCurrent = isCurrentPeriod(period, refDate)
 
-  // YTD bid tally
-  const currentYear = new Date().getFullYear()
-  const ytdProposals = proposals.filter(p => p.createdAt && new Date(p.createdAt).getFullYear() === currentYear)
-  const ytdTotal     = ytdProposals.reduce((s, p) => s + (p.total || 0), 0)
-  const ytdMonths    = Array.from({ length: 12 }, (_, i) => {
-    const mps = ytdProposals.filter(p => new Date(p.createdAt).getMonth() === i)
+  const inPeriod = (p) => {
+    if (!p.createdAt) return false
+    const d = new Date(p.createdAt)
+    return d >= pStart && d <= pEnd
+  }
+
+  // Period-filtered proposals
+  const periodProps = proposals.filter(inPeriod)
+
+  // KPI calculations — won/lost/winRate scoped to period; pipeline always current
+  const won        = periodProps.filter(p => p.status === 'Won')
+  const lost       = periodProps.filter(p => p.status === 'Lost')
+  const active     = proposals.filter(p => ['Sent', 'Followed Up', 'Negotiating'].includes(p.status))
+  const closed     = [...won, ...lost]
+  const wonRevenue = won.reduce((s, p) => s + (p.total || 0), 0)
+  const pipeline   = active.reduce((s, p) => s + (p.total || 0), 0)
+  const winRate    = closed.length > 0 ? Math.round(won.length / closed.length * 100) : null
+  const periodTotal = periodProps.reduce((s, p) => s + (p.total || 0), 0)
+
+  // Bar chart segments
+  const segments   = getPeriodSegments(period, refDate)
+  const segData    = segments.map(seg => {
+    const sps = periodProps.filter(p => {
+      const d = new Date(p.createdAt)
+      return d >= seg.start && d <= seg.end
+    })
     return {
-      month: new Date(currentYear, i).toLocaleDateString('en-US', { month: 'short' }),
-      total: mps.reduce((s, p) => s + (p.total || 0), 0),
-      won:   mps.filter(p => p.status === 'Won').reduce((s, p) => s + (p.total || 0), 0),
-      count: mps.length,
+      label:     seg.label,
+      isCurrent: seg.isCurrent,
+      total:     sps.reduce((s, p) => s + (p.total || 0), 0),
+      won:       sps.filter(p => p.status === 'Won').reduce((s, p) => s + (p.total || 0), 0),
+      count:     sps.length,
     }
   })
-  const ytdMonthMax = Math.max(...ytdMonths.map(m => m.total), 1)
+  const segMax = Math.max(...segData.map(s => s.total), 1)
 
   // Recent proposals (latest 6)
   const recent = [...proposals]
@@ -186,19 +207,19 @@ export default function Dashboard() {
         <KpiCard
           icon={DollarSign} label="Won Revenue" color="bg-green-500"
           value={`$${fmt(wonRevenue)}`}
-          sub={`${won.length} job${won.length !== 1 ? 's' : ''} won`}
+          sub={`${won.length} job${won.length !== 1 ? 's' : ''} won · ${pLabel}`}
           onClick={() => navigate('/tracker')}
         />
         <KpiCard
           icon={TrendingUp} label="Open Pipeline" color="bg-green-600"
           value={fmtSh(pipeline)}
-          sub={`${active.length} active proposal${active.length !== 1 ? 's' : ''}`}
+          sub={`${active.length} active proposal${active.length !== 1 ? 's' : ''} · all time`}
           onClick={() => navigate('/tracker')}
         />
         <KpiCard
           icon={Award} label="Win Rate" color="bg-[var(--brand-500)]"
           value={winRate !== null ? `${winRate}%` : '—'}
-          sub={`${won.length}W · ${lost.length}L of ${closed.length} closed`}
+          sub={`${won.length}W · ${lost.length}L · ${pLabel}`}
           onClick={() => navigate('/tracker')}
         />
         <KpiCard
@@ -208,61 +229,89 @@ export default function Dashboard() {
           onClick={() => navigate('/catalog')}
         />
         <KpiCard
-          icon={CalendarDays} label={`${currentYear} Total Bids`} color="bg-indigo-500"
-          value={fmtSh(ytdTotal)}
-          sub={`${ytdProposals.length} proposal${ytdProposals.length !== 1 ? 's' : ''} this year`}
+          icon={CalendarDays} label={`${pLabel} Bids`} color="bg-indigo-500"
+          value={fmtSh(periodTotal)}
+          sub={`${periodProps.length} proposal${periodProps.length !== 1 ? 's' : ''}`}
           onClick={() => navigate('/tracker')}
         />
       </div>
 
-      {/* Year at a Glance */}
+      {/* Period Chart */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <div>
-            <p className="text-sm font-semibold text-gray-800">{currentYear} — Year at a Glance</p>
-            <p className="text-xs text-gray-400 mt-0.5">Total bid: <span className="font-semibold text-indigo-600">${fmt(ytdTotal)}</span> across {ytdProposals.length} proposals</p>
+            <p className="text-sm font-semibold text-gray-800">{pLabel} — Activity</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Total bid: <span className="font-semibold text-indigo-600">${fmt(periodTotal)}</span> across {periodProps.length} proposal{periodProps.length !== 1 ? 's' : ''}
+            </p>
           </div>
-          <div className="flex items-center gap-4 text-xs">
-            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-indigo-200 inline-block" /> Bid</span>
-            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-400 inline-block" /> Won</span>
+          <div className="flex items-center gap-3">
+            {/* Period toggle */}
+            <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-medium">
+              {['month', 'quarter', 'year'].map(p => (
+                <button
+                  key={p}
+                  onClick={() => { setPeriod(p); setRefDate(new Date()) }}
+                  className={`px-3 py-1.5 capitalize transition-colors ${period === p ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+                >
+                  {p === 'month' ? 'Mo' : p === 'quarter' ? 'Qtr' : 'Yr'}
+                </button>
+              ))}
+            </div>
+            {/* Prev / Next */}
+            <div className="flex items-center gap-1">
+              <button onClick={() => setRefDate(shiftPeriod(period, refDate, -1))}
+                className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors">
+                <ChevronLeft size={15} />
+              </button>
+              <button
+                onClick={() => setRefDate(new Date())}
+                disabled={isCurrent}
+                className="text-xs text-indigo-600 hover:underline disabled:text-gray-300 disabled:no-underline px-1"
+              >
+                Today
+              </button>
+              <button onClick={() => setRefDate(shiftPeriod(period, refDate, 1))}
+                className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors">
+                <ChevronRight size={15} />
+              </button>
+            </div>
+            <div className="flex items-center gap-3 text-xs">
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-indigo-200 inline-block" /> Bid</span>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-400 inline-block" /> Won</span>
+            </div>
           </div>
         </div>
         <div className="flex items-end gap-1.5 h-28">
-          {ytdMonths.map((m, i) => {
-            const isCurrentMonth = i === new Date().getMonth()
-            const bidH  = ytdMonthMax > 0 ? (m.total / ytdMonthMax) * 100 : 0
-            const wonH  = ytdMonthMax > 0 ? (m.won   / ytdMonthMax) * 100 : 0
+          {segData.map((seg) => {
+            const bidH = segMax > 0 ? (seg.total / segMax) * 100 : 0
+            const wonH = segMax > 0 ? (seg.won   / segMax) * 100 : 0
             return (
-              <div key={m.month} className="flex-1 flex flex-col items-center gap-1 group relative">
-                {/* Tooltip */}
-                {m.count > 0 && (
+              <div key={seg.label} className="flex-1 flex flex-col items-center gap-1 group relative">
+                {seg.count > 0 && (
                   <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs rounded-lg px-2.5 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 shadow-lg">
-                    <p className="font-semibold">{m.month}</p>
-                    <p>Bid: ${fmt(m.total)}</p>
-                    <p>Won: ${fmt(m.won)}</p>
-                    <p>{m.count} proposal{m.count !== 1 ? 's' : ''}</p>
+                    <p className="font-semibold">{seg.label}</p>
+                    <p>Bid: ${fmt(seg.total)}</p>
+                    <p>Won: ${fmt(seg.won)}</p>
+                    <p>{seg.count} proposal{seg.count !== 1 ? 's' : ''}</p>
                   </div>
                 )}
-                {/* Bar */}
                 <div className="w-full flex flex-col justify-end relative" style={{ height: '88px' }}>
-                  {m.total > 0 ? (
+                  {seg.total > 0 ? (
                     <>
                       <div
-                        className={`w-full rounded-t-sm transition-all ${isCurrentMonth ? 'bg-indigo-400' : 'bg-indigo-200'}`}
+                        className={`w-full rounded-t-sm transition-all ${seg.isCurrent ? 'bg-indigo-400' : 'bg-indigo-200'}`}
                         style={{ height: `${bidH}%` }}
                       />
-                      {m.won > 0 && (
-                        <div
-                          className="w-full bg-green-400 absolute bottom-0 rounded-t-sm"
-                          style={{ height: `${wonH}%` }}
-                        />
+                      {seg.won > 0 && (
+                        <div className="w-full bg-green-400 absolute bottom-0 rounded-t-sm" style={{ height: `${wonH}%` }} />
                       )}
                     </>
                   ) : (
                     <div className="w-full bg-gray-50 rounded-sm" style={{ height: '100%' }} />
                   )}
                 </div>
-                <p className={`text-xs ${isCurrentMonth ? 'font-bold text-indigo-600' : 'text-gray-400'}`}>{m.month}</p>
+                <p className={`text-xs ${seg.isCurrent ? 'font-bold text-indigo-600' : 'text-gray-400'}`}>{seg.label}</p>
               </div>
             )
           })}

@@ -7,8 +7,9 @@ import {
   Bell, Trash2, X, CheckCircle, AlertCircle, Clock, TrendingUp,
   DollarSign, FileText, Plus, ChevronDown, ChevronUp, MessageSquare,
   Phone, Mail, Users, BarChart2, Columns, List, Award, ThumbsDown,
-  Eye, Copy, GitBranch, FileSignature,
+  Eye, Copy, GitBranch, FileSignature, ChevronLeft, ChevronRight,
 } from 'lucide-react'
+import { getPeriodRange, shiftPeriod, isCurrentPeriod } from '../periodUtils'
 
 // Group proposals into root → revisions trees
 function buildGroups(proposals) {
@@ -480,10 +481,21 @@ function PipelineView({ proposals, onStatusChange }) {
 }
 
 // ── Analytics View ─────────────────────────────────────────────────────────
-function AnalyticsView({ proposals }) {
+function AnalyticsView({ proposals: allProposals }) {
+  const [period,  setPeriod]  = useState('year')
+  const [refDate, setRefDate] = useState(new Date())
+  const { start: pStart, end: pEnd, label: pLabel } = getPeriodRange(period, refDate)
+  const isCurrent = isCurrentPeriod(period, refDate)
+
+  const proposals = allProposals.filter(p => {
+    if (!p.createdAt) return false
+    const d = new Date(p.createdAt)
+    return d >= pStart && d <= pEnd
+  })
+
   const won = proposals.filter(p => p.status === 'Won')
   const lost = proposals.filter(p => p.status === 'Lost')
-  const active = proposals.filter(p => ['Sent', 'Followed Up', 'Negotiating'].includes(p.status))
+  const active = allProposals.filter(p => ['Sent', 'Followed Up', 'Negotiating'].includes(p.status))
 
   // Client-level win rate: a client group is "won" if any proposal is Won;
   // "lost" only if all proposals in the group are Lost (no active or won ones)
@@ -533,6 +545,35 @@ function AnalyticsView({ proposals }) {
 
   return (
     <div className="space-y-6">
+      {/* Period picker */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-medium">
+          {['month', 'quarter', 'year'].map(p => (
+            <button key={p} onClick={() => { setPeriod(p); setRefDate(new Date()) }}
+              className={`px-3 py-1.5 capitalize transition-colors ${period === p ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+              {p === 'month' ? 'Month' : p === 'quarter' ? 'Quarter' : 'Year'}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-1">
+          <button onClick={() => setRefDate(shiftPeriod(period, refDate, -1))}
+            className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors">
+            <ChevronLeft size={15} />
+          </button>
+          <span className="text-sm font-semibold text-gray-700 px-1 min-w-[120px] text-center">{pLabel}</span>
+          <button onClick={() => setRefDate(shiftPeriod(period, refDate, 1))}
+            className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors">
+            <ChevronRight size={15} />
+          </button>
+        </div>
+        {!isCurrent && (
+          <button onClick={() => setRefDate(new Date())}
+            className="text-xs text-indigo-600 hover:underline">
+            Back to current
+          </button>
+        )}
+      </div>
+
       {/* KPI row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl border border-gray-200 p-4">
