@@ -385,36 +385,72 @@ function WarrantyTab({ proposal }) {
   )
 }
 
+// Default payment milestone templates (mirrors ContractView.jsx)
+const PM_STANDARD = [
+  { label: 'Schedule deposit — @ sign contract',            pct: 0.20 },
+  { label: 'Start payment — Material drop / Framing Start', pct: 0.30 },
+  { label: 'Roof Completion',                               pct: 0.40 },
+  { label: 'Paint Applied',                                 pct: 0.05 },
+  { label: 'Substantial completion payment',                pct: 0.05 },
+]
+const PM_UNDER20K = [
+  { label: 'Schedule deposit — @ sign contract', pct: 0.20 },
+  { label: 'Material drop / Framing Start',      pct: 0.40 },
+  { label: 'Substantial completion payment',     pct: 0.40 },
+]
+
+function getPaymentSchedule(proposal) {
+  const saved = proposal.contractDraft?.payments
+  if (Array.isArray(saved) && saved.length > 0) return saved
+  const base = proposal.total || 0
+  return (base < 20000 ? PM_UNDER20K : PM_STANDARD).map(m => ({ ...m, amount: base * m.pct }))
+}
+
 // ── Payment Reminder Modal ───────────────────────────────────────────────────
 function PaymentReminderModal({ proposal, onClose }) {
-  const draft = proposal.contractDraft || {}
-  const contractNum = draft.contractNum || `EOL${String(70000 + proposal.id).padStart(6, '0')}`
+  const draft        = proposal.contractDraft || {}
+  const contractNum  = draft.contractNum || `EOL${String(70000 + proposal.id).padStart(6, '0')}`
   const projectTypes = (draft.projectTypes || []).join(', ') || ''
 
-  const [form, setForm] = useState({
-    milestone: 'Progress Payment',
-    amount: '',
-    dueDate: '',
-  })
-  const [sending, setSending] = useState(false)
-  const [sent, setSent] = useState(false)
-  const [error, setError] = useState('')
+  const schedule       = getPaymentSchedule(proposal)
+  const contractBase   = proposal.total || 0
+  const approvedCOs    = (proposal.jobData?.changeOrders || []).filter(co => co.status === 'Approved')
+  const approvedCOTotal = approvedCOs.reduce((s, co) => s + Number(co.amount || 0), 0)
+  const pendingCOs     = (proposal.jobData?.changeOrders || []).filter(co => co.status === 'Pending')
+
+  const [selectedIdx, setSelectedIdx] = useState(null)
+  const [includeCOs,  setIncludeCOs]  = useState(false)
+  const [customAmt,   setCustomAmt]   = useState('')
+  const [isCustom,    setIsCustom]    = useState(false)
+  const [dueDate,     setDueDate]     = useState('')
+  const [sending,     setSending]     = useState(false)
+  const [sent,        setSent]        = useState(false)
+  const [error,       setError]       = useState('')
+
+  const milestoneAmt   = selectedIdx !== null ? (schedule[selectedIdx]?.amount ?? 0) : 0
+  const coAddon        = includeCOs ? approvedCOTotal : 0
+  const suggestedAmt   = milestoneAmt + coAddon
+  const finalAmt       = isCustom ? Number(customAmt || 0) : suggestedAmt
+  const milestoneLabel = selectedIdx !== null ? schedule[selectedIdx]?.label : null
+
+  const selectMilestone = (i) => { setSelectedIdx(i); setIsCustom(false) }
 
   const send = async () => {
     if (!proposal.email) { setError('No email on file for this client.'); return }
+    if (finalAmt <= 0)   { setError('Please select a payment milestone or enter an amount.'); return }
     setSending(true); setError('')
     try {
       const res = await fetch('/api/send-payment-reminder', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          toEmail: proposal.email,
-          client: proposal.client,
-          amount: form.amount,
-          milestone: form.milestone,
-          dueDate: form.dueDate,
+          toEmail:     proposal.email,
+          client:      proposal.client,
+          amount:      finalAmt,
+          milestone:   milestoneLabel || 'Payment Due',
+          dueDate,
           contractNum,
-          address: proposal.address,
+          address:     proposal.address,
           projectType: projectTypes,
         }),
       })
@@ -430,50 +466,167 @@ function PaymentReminderModal({ proposal, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-100">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl z-10">
           <div>
             <p className="font-semibold text-gray-900">Send Payment Reminder</p>
-            <p className="text-xs text-gray-500 mt-0.5">{proposal.client} · {proposal.email || 'No email on file'}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{proposal.client} · {contractNum}</p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={15} /></button>
         </div>
 
         {sent ? (
-          <div className="px-5 py-8 text-center">
+          <div className="px-5 py-10 text-center">
             <CheckCircle2 size={36} className="text-green-500 mx-auto mb-3" />
             <p className="font-semibold text-gray-900">Reminder Sent!</p>
-            <p className="text-sm text-gray-500 mt-1">Payment reminder emailed to {proposal.email}</p>
-            <button onClick={onClose} className="mt-4 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">Done</button>
+            <p className="text-sm text-gray-500 mt-1">
+              Payment reminder for <strong>${fmtDol(finalAmt)}</strong> emailed to {proposal.email}
+            </p>
+            <button onClick={onClose} className="mt-5 px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">Done</button>
           </div>
         ) : (
-          <div className="px-5 py-4 space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Payment Milestone</label>
-              <select value={form.milestone} onChange={e => setForm(f => ({ ...f, milestone: e.target.value }))}
-                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300">
-                <option>Deposit (20%)</option>
-                <option>Progress Payment</option>
-                <option>Draw #2</option>
-                <option>Final Payment</option>
-                <option>Other</option>
-              </select>
+          <div className="px-5 py-4 space-y-5">
+
+            {/* Contract totals summary */}
+            <div className={`grid gap-3 bg-gray-50 rounded-xl px-4 py-3 ${approvedCOTotal > 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+              <div>
+                <p className="text-xs text-gray-400 font-medium">Contract Total</p>
+                <p className="text-base font-bold text-gray-900">${fmtDol(contractBase)}</p>
+              </div>
+              {approvedCOTotal > 0 && (
+                <div>
+                  <p className="text-xs text-gray-400 font-medium">Approved COs</p>
+                  <p className="text-base font-bold text-green-600">+${fmtDol(approvedCOTotal)}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-xs text-gray-400 font-medium">Grand Total</p>
+                <p className="text-base font-bold text-blue-700">${fmtDol(contractBase + approvedCOTotal)}</p>
+              </div>
             </div>
+
+            {/* Milestone selector */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Amount Due ($)</label>
-              <input type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
-                placeholder="e.g. 2500.00"
-                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                Select Payment Milestone
+              </p>
+              <div className="space-y-1.5">
+                {schedule.map((m, i) => {
+                  const isSelected = selectedIdx === i
+                  return (
+                    <button key={i} onClick={() => selectMilestone(i)}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-left transition-all ${
+                        isSelected
+                          ? 'border-blue-400 bg-blue-50 ring-1 ring-blue-300'
+                          : 'border-gray-100 bg-gray-50 hover:border-gray-200 hover:bg-gray-100'
+                      }`}>
+                      <div className="flex items-center gap-2.5">
+                        <div className={`w-3.5 h-3.5 rounded-full border-2 shrink-0 flex items-center justify-center ${
+                          isSelected ? 'border-blue-500 bg-blue-500' : 'border-gray-300'
+                        }`}>
+                          {isSelected && <div className="w-1 h-1 rounded-full bg-white" />}
+                        </div>
+                        <div>
+                          <p className={`text-sm font-medium leading-snug ${isSelected ? 'text-blue-900' : 'text-gray-700'}`}>{m.label}</p>
+                          <p className="text-xs text-gray-400">{Math.round(m.pct * 100)}% of contract</p>
+                        </div>
+                      </div>
+                      <p className={`text-sm font-bold shrink-0 ml-3 ${isSelected ? 'text-blue-700' : 'text-gray-600'}`}>
+                        ${fmtDol(m.amount)}
+                      </p>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
+
+            {/* Approved CO add-on toggle */}
+            {approvedCOTotal > 0 && selectedIdx !== null && (
+              <label className="flex items-start gap-3 cursor-pointer bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+                <input type="checkbox" checked={includeCOs}
+                  onChange={e => { setIncludeCOs(e.target.checked); setIsCustom(false) }}
+                  className="mt-0.5 w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-300" />
+                <div>
+                  <p className="text-sm font-semibold text-green-800">Add approved change orders to this payment</p>
+                  <p className="text-xs text-green-700 mt-0.5">
+                    {approvedCOs.length} CO{approvedCOs.length !== 1 ? 's' : ''} · <strong>${fmtDol(approvedCOTotal)}</strong> total
+                  </p>
+                  {approvedCOs.map(co => (
+                    <p key={co.id} className="text-xs text-green-600 mt-0.5">· {co.description} — ${fmtDol(co.amount)}</p>
+                  ))}
+                </div>
+              </label>
+            )}
+
+            {pendingCOs.length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+                <p className="text-xs font-semibold text-amber-700">
+                  {pendingCOs.length} pending CO{pendingCOs.length !== 1 ? 's' : ''} not included
+                </p>
+                <p className="text-xs text-amber-600 mt-0.5">Approve them in the Change Orders tab first to add them here.</p>
+              </div>
+            )}
+
+            {/* Amount summary + override */}
+            {selectedIdx !== null && (
+              <div className="border border-gray-200 rounded-xl overflow-hidden">
+                <div className="px-4 py-3 space-y-1.5 text-sm bg-white">
+                  <div className="flex justify-between text-gray-600">
+                    <span>Milestone amount</span>
+                    <span className="font-medium">${fmtDol(milestoneAmt)}</span>
+                  </div>
+                  {includeCOs && approvedCOTotal > 0 && (
+                    <div className="flex justify-between text-green-700">
+                      <span>+ Approved change orders</span>
+                      <span className="font-medium">${fmtDol(approvedCOTotal)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-bold text-gray-900 border-t border-gray-100 pt-2 mt-1">
+                    <span>Suggested total</span>
+                    <span className="text-blue-700 text-base">${fmtDol(suggestedAmt)}</span>
+                  </div>
+                </div>
+                <div className="border-t border-gray-100 px-4 py-3 bg-gray-50">
+                  <label className="flex items-center gap-2 cursor-pointer mb-2">
+                    <input type="checkbox" checked={isCustom} onChange={e => setIsCustom(e.target.checked)}
+                      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-300" />
+                    <span className="text-xs text-gray-600 font-medium">Override — enter a different amount</span>
+                  </label>
+                  {isCustom && (
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                      <input autoFocus type="number" value={customAmt}
+                        onChange={e => setCustomAmt(e.target.value)}
+                        placeholder={fmtDol(suggestedAmt)}
+                        className="w-full pl-7 text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Due date */}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Due Date (optional)</label>
-              <input type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))}
+              <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
                 className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300" />
             </div>
+
+            {/* Final callout */}
+            {finalAmt > 0 && (
+              <div className="bg-blue-600 rounded-xl px-4 py-3 flex items-center justify-between">
+                <p className="text-sm text-blue-100 font-medium">Amount to bill client</p>
+                <p className="text-xl font-bold text-white">${fmtDol(finalAmt)}</p>
+              </div>
+            )}
+
             {error && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
             {!proposal.email && <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">No email address on file — add one to the original proposal first.</p>}
-            <div className="flex gap-2 pt-1">
-              <button onClick={send} disabled={sending || !proposal.email}
+
+            <div className="flex gap-2 pb-2">
+              <button onClick={send} disabled={sending || !proposal.email || finalAmt <= 0}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors">
                 {sending ? 'Sending…' : <><Send size={14} /> Send Reminder</>}
               </button>
