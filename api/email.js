@@ -248,6 +248,48 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true })
   }
 
+  // ── Change Order signature request ───────────────────────────────────────
+  if (action === 'co-signature-request') {
+    const { to, client, coNumber, description, amount, signLink } = body
+    if (!to) return res.status(400).json({ error: 'Recipient email is required.' })
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 16px;">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;">
+      <tr><td style="background:#0f172a;padding:32px 40px;">
+        <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;">Ebony Outdoor Living</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#94a3b8;">Change Order · ${coNumber}</p>
+      </td></tr>
+      <tr><td style="padding:32px 40px;">
+        <p style="margin:0 0 12px;font-size:15px;color:#1e293b;">Hi ${client || 'there'},</p>
+        <p style="margin:0 0 20px;font-size:14px;color:#475569;line-height:1.7;">
+          We have a change order for your project that requires your signature. Please review the details below and sign at your earliest convenience.
+        </p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:24px;">
+          <tr><td style="padding:4px 0;font-size:12px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Change Order #</td><td style="padding:4px 0;font-size:13px;color:#1e293b;font-weight:600;text-align:right;">${coNumber}</td></tr>
+          <tr><td style="padding:4px 0;font-size:12px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Description</td><td style="padding:4px 0;font-size:13px;color:#1e293b;text-align:right;">${description}</td></tr>
+          <tr><td style="padding:4px 0;font-size:12px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;border-top:1px solid #e2e8f0;padding-top:12px;">Amount</td><td style="padding:4px 0;font-size:16px;color:#1e293b;font-weight:700;text-align:right;border-top:1px solid #e2e8f0;padding-top:12px;">$${fmt(amount)}</td></tr>
+        </table>
+        <div style="text-align:center;margin:28px 0;">
+          <a href="${signLink}" style="display:inline-block;background:#0f172a;color:#ffffff;font-size:15px;font-weight:600;padding:14px 36px;border-radius:8px;text-decoration:none;letter-spacing:-0.01em;">Review &amp; Sign Change Order</a>
+        </div>
+        <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center;">
+          Or copy this link: <a href="${signLink}" style="color:#3b82f6;">${signLink}</a>
+        </p>
+      </td></tr>
+      <tr><td style="background:#f8fafc;padding:20px 40px;text-align:center;">
+        <p style="margin:0;font-size:11px;color:#94a3b8;">Ebony Outdoor Living · Licensed &amp; Insured</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`
+    const result = await sendMail({ to, subject: `Change Order Requires Your Signature — ${coNumber}`, html })
+    if (result.error) return res.status(500).json({ error: result.error })
+    return res.status(200).json({ success: true })
+  }
+
   // ── Close-out ─────────────────────────────────────────────────────────────
   if (action === 'closeout') {
     const { toEmail, client, contractNum, address, projectType, completionDate } = body

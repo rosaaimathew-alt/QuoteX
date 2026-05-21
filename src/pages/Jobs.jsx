@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store'
 import {
   CheckCircle2, Circle, ChevronDown, ChevronUp, CalendarDays,
   FileSignature, ClipboardList, MapPin, DollarSign, X, Plus,
   AlertTriangle, CheckCheck, Clock, Wrench, FileText, Mail, Send,
+  Search, Trash2, Link2, ExternalLink, PenLine, RefreshCw,
 } from 'lucide-react'
 
 const fmt    = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
@@ -223,26 +224,312 @@ function getStages(proposal) {
   return null  // no type detected — force manual selection
 }
 
-const CO_STATUSES = ['Pending', 'Approved', 'Rejected']
+const CO_STATUSES = ['Pending', 'Sent for Signature', 'Approved', 'Rejected']
 const CO_STATUS_STYLE = {
-  Pending:  'bg-amber-100 text-amber-700',
-  Approved: 'bg-green-100 text-green-700',
-  Rejected: 'bg-red-100 text-red-700',
+  Pending:              'bg-amber-100 text-amber-700',
+  'Sent for Signature': 'bg-blue-100 text-blue-700',
+  Approved:             'bg-green-100 text-green-700',
+  Rejected:             'bg-red-100 text-red-700',
 }
 
-// ── Change Orders tab ────────────────────────────────────────────────────────
+// ── CO Builder Modal ──────────────────────────────────────────────────────────
+function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
+  const catalog = useStore(s => s.catalog)
+  const contractNum = proposal.contractDraft?.contractNum || `EOL${String(70000 + proposal.id).padStart(6,'0')}`
+  const coIndex = existingCo
+    ? (proposal.jobData?.changeOrders || []).findIndex(c => c.id === existingCo.id) + 1
+    : (proposal.jobData?.changeOrders || []).length + 1
+  const coNumber = `${contractNum}-CO-${String(coIndex).padStart(3,'0')}`
+
+  const [description, setDescription] = useState(existingCo?.description || '')
+  const [lines, setLines]             = useState(existingCo?.lines || [])
+  const [notes, setNotes]             = useState(existingCo?.notes || '')
+  const [search, setSearch]           = useState('')
+  const [sending, setSending]         = useState(false)
+  const [copied, setCopied]           = useState(false)
+
+  const categories = [...new Set(catalog.map(i => i.category).filter(Boolean))]
+  const [catFilter, setCatFilter] = useState('All')
+
+  const filtered = catalog.filter(item => {
+    const matchSearch = !search || item.name.toLowerCase().includes(search.toLowerCase()) ||
+      (item.description || '').toLowerCase().includes(search.toLowerCase())
+    const matchCat = catFilter === 'All' || item.category === catFilter
+    return matchSearch && matchCat
+  })
+
+  const total = lines.reduce((s, l) => s + (Number(l.qty) || 0) * (Number(l.unitPrice) || 0), 0)
+
+  const addFromCatalog = (item) => {
+    setLines(prev => [...prev, { id: Date.now(), desc: item.name, qty: 1, unit: item.unit || 'EA', unitPrice: item.unitPrice || 0 }])
+    setSearch('')
+  }
+
+  const addCustom = () =>
+    setLines(prev => [...prev, { id: Date.now(), desc: '', qty: 1, unit: 'EA', unitPrice: 0 }])
+
+  const updateLine = (id, field, val) =>
+    setLines(prev => prev.map(l => l.id === id ? { ...l, [field]: val } : l))
+
+  const removeLine = (id) =>
+    setLines(prev => prev.filter(l => l.id !== id))
+
+  const handleSave = async (sendForSig) => {
+    if (!description.trim()) return
+    setSending(true)
+    await onSave({ description, lines, amount: total, notes, coNumber }, sendForSig)
+    setSending(false)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-4xl max-h-[95vh] flex flex-col shadow-2xl">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+          <div>
+            <p className="font-semibold text-gray-900">Change Order Builder</p>
+            <p className="text-xs text-gray-400">{coNumber} · {proposal.client}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={18} /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-5 space-y-5">
+
+            {/* Description */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Change Description *</label>
+              <textarea rows={2} value={description} onChange={e => setDescription(e.target.value)}
+                placeholder="Describe the scope change — e.g. Add ceiling fan rough-in and outlet on screened porch…"
+                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none" />
+            </div>
+
+            {/* Catalog search */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Add Items from Catalog</label>
+              <div className="flex gap-2 mb-2">
+                <div className="relative flex-1">
+                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input value={search} onChange={e => setSearch(e.target.value)}
+                    placeholder="Search catalog…"
+                    className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                </div>
+                <select value={catFilter} onChange={e => setCatFilter(e.target.value)}
+                  className="text-xs border border-gray-200 rounded-xl px-2.5 py-2 focus:outline-none">
+                  <option value="All">All</option>
+                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              {(search || catFilter !== 'All') && (
+                <div className="border border-gray-200 rounded-xl max-h-48 overflow-y-auto divide-y divide-gray-100">
+                  {filtered.length === 0 && <p className="text-xs text-gray-400 px-3 py-2">No items found.</p>}
+                  {filtered.map(item => (
+                    <button key={item.id} onClick={() => addFromCatalog(item)}
+                      className="w-full text-left px-3 py-2 hover:bg-blue-50 transition-colors flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
+                        <p className="text-xs text-gray-400">{item.category} · {item.unit}</p>
+                      </div>
+                      <span className="text-sm font-semibold text-blue-600 shrink-0">${fmtDol(item.unitPrice)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Line items */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Line Items</label>
+                <button onClick={addCustom} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium">
+                  <Plus size={12} /> Custom item
+                </button>
+              </div>
+              {lines.length === 0 && (
+                <p className="text-xs text-gray-400 italic py-2">No items yet — search the catalog above or add a custom item.</p>
+              )}
+              {lines.length > 0 && (
+                <div className="border border-gray-200 rounded-xl overflow-hidden">
+                  <div className="grid grid-cols-[1fr_60px_80px_80px_32px] gap-2 px-3 py-2 bg-gray-50 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                    <span>Description</span><span>Qty</span><span>Unit $</span><span>Subtotal</span><span />
+                  </div>
+                  {lines.map(l => (
+                    <div key={l.id} className="grid grid-cols-[1fr_60px_80px_80px_32px] gap-2 px-3 py-2 border-t border-gray-100 items-center">
+                      <input value={l.desc} onChange={e => updateLine(l.id, 'desc', e.target.value)}
+                        placeholder="Item description"
+                        className="text-sm border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-300 w-full" />
+                      <input type="number" min="0" value={l.qty} onChange={e => updateLine(l.id, 'qty', e.target.value)}
+                        className="text-sm border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-300 w-full" />
+                      <input type="number" min="0" step="0.01" value={l.unitPrice} onChange={e => updateLine(l.id, 'unitPrice', e.target.value)}
+                        className="text-sm border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-300 w-full" />
+                      <span className="text-sm font-medium text-gray-700 text-right">${fmtDol((Number(l.qty)||0)*(Number(l.unitPrice)||0))}</span>
+                      <button onClick={() => removeLine(l.id)} className="text-gray-300 hover:text-red-500 flex justify-center"><Trash2 size={13} /></button>
+                    </div>
+                  ))}
+                  <div className="grid grid-cols-[1fr_60px_80px_80px_32px] gap-2 px-3 py-2.5 bg-gray-50 border-t border-gray-200">
+                    <span className="text-xs font-semibold text-gray-500 col-span-3 text-right">CO Total</span>
+                    <span className="text-sm font-bold text-gray-900">${fmtDol(total)}</span>
+                    <span />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Financial summary */}
+            {total > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Original Contract</p>
+                  <p className="text-sm font-bold text-gray-800">${fmtDol(proposal.total)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">This Change Order</p>
+                  <p className="text-sm font-bold text-blue-700">+${fmtDol(total)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">New Contract Total</p>
+                  <p className="text-sm font-bold text-green-700">${fmtDol(Number(proposal.total) + total)}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Notes */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Internal Notes</label>
+              <input value={notes} onChange={e => setNotes(e.target.value)}
+                placeholder="e.g. customer requested at pre-con, materials already ordered"
+                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex gap-2 px-5 py-4 border-t border-gray-100 shrink-0">
+          <button onClick={onClose} className="px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50">
+            Cancel
+          </button>
+          <button onClick={() => handleSave(false)} disabled={!description.trim() || sending}
+            className="px-4 py-2 border border-gray-300 rounded-xl text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40">
+            Save Draft
+          </button>
+          <button onClick={() => handleSave(true)} disabled={!description.trim() || total === 0 || sending || !proposal.email}
+            className="flex-1 flex items-center justify-center gap-2 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-40 transition-colors">
+            <PenLine size={14} />
+            {sending ? 'Sending…' : 'Save & Send for Signature'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Change Orders tab ──────────────────────────────────────────────────────────
 function ChangeOrdersTab({ proposal }) {
   const { addChangeOrder, updateChangeOrder, deleteChangeOrder } = useStore()
-  const [adding, setAdding] = useState(false)
-  const [form, setForm] = useState({ description: '', amount: '', notes: '' })
-  const cos = proposal.jobData?.changeOrders || []
-  const total = cos.filter(c => c.status === 'Approved').reduce((s, c) => s + Number(c.amount || 0), 0)
+  const [builderOpen, setBuilderOpen] = useState(false)
+  const [editingCo, setEditingCo]     = useState(null)
+  const [checking, setChecking]       = useState(null)
+  const cos   = proposal.jobData?.changeOrders || []
+  const approved = cos.filter(c => c.status === 'Approved').reduce((s, c) => s + Number(c.amount || 0), 0)
+  const contractNum = proposal.contractDraft?.contractNum || `EOL${String(70000 + proposal.id).padStart(6,'0')}`
 
-  const save = () => {
-    if (!form.description.trim()) return
-    addChangeOrder(proposal.id, { description: form.description, amount: form.amount, notes: form.notes })
-    setForm({ description: '', amount: '', notes: '' })
-    setAdding(false)
+  // Auto-check signature status for any CO awaiting sig
+  useEffect(() => {
+    const pending = cos.filter(c => c.signRecordId && c.status === 'Sent for Signature')
+    pending.forEach(async co => {
+      try {
+        const res = await fetch(`/api/sign/record-${co.signRecordId}`)
+        if (!res.ok) return
+        const rec = await res.json()
+        if (rec.signatures?.client) {
+          updateChangeOrder(proposal.id, co.id, {
+            status: 'Approved',
+            signedAt: rec.signatures.client.signedAt,
+          })
+        }
+      } catch {}
+    })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSave = async (coData, sendForSig) => {
+    let coId
+    if (editingCo) {
+      updateChangeOrder(proposal.id, editingCo.id, coData)
+      coId = editingCo.id
+    } else {
+      const id = Date.now()
+      addChangeOrder(proposal.id, { ...coData, id })
+      coId = id
+    }
+
+    if (sendForSig) {
+      try {
+        const contractData = {
+          type:               'change-order',
+          coNumber:           coData.coNumber,
+          description:        coData.description,
+          lines:              coData.lines,
+          amount:             coData.amount,
+          originalContractNum: contractNum,
+          originalTotal:      Number(proposal.total),
+          newTotal:           Number(proposal.total) + Number(coData.amount),
+          client:             proposal.client,
+          email:              proposal.email,
+          phone:              proposal.phone,
+          address:            proposal.address,
+        }
+        const res  = await fetch('/api/sign/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contractData, contractNum: coData.coNumber }),
+        })
+        const { recordId, links } = await res.json()
+        updateChangeOrder(proposal.id, editingCo?.id || coId, {
+          signRecordId: recordId,
+          signLink:     links.client,
+          status:       'Sent for Signature',
+        })
+        await fetch('/api/email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action:      'co-signature-request',
+            to:          proposal.email,
+            client:      proposal.client,
+            coNumber:    coData.coNumber,
+            description: coData.description,
+            amount:      coData.amount,
+            signLink:    links.client,
+          }),
+        })
+      } catch (err) {
+        console.error('Sign/email error:', err)
+      }
+    }
+    setBuilderOpen(false)
+    setEditingCo(null)
+  }
+
+  const checkStatus = async (co) => {
+    setChecking(co.id)
+    try {
+      const res = await fetch(`/api/sign/record-${co.signRecordId}`)
+      const rec = await res.json()
+      if (rec.signatures?.client) {
+        updateChangeOrder(proposal.id, co.id, {
+          status: 'Approved',
+          signedAt: rec.signatures.client.signedAt,
+        })
+      } else {
+        alert('Not yet signed by client.')
+      }
+    } catch { alert('Could not reach server.') }
+    setChecking(null)
+  }
+
+  const copyLink = (link) => {
+    navigator.clipboard.writeText(link)
   }
 
   return (
@@ -250,67 +537,92 @@ function ChangeOrdersTab({ proposal }) {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold text-gray-500">Change Orders</p>
-          {cos.length > 0 && <p className="text-xs text-green-700 font-medium mt-0.5">+${fmtDol(total)} approved</p>}
+          {approved > 0 && <p className="text-xs text-green-700 font-medium mt-0.5">+${fmtDol(approved)} approved</p>}
         </div>
-        <button onClick={() => setAdding(true)}
+        <button onClick={() => { setEditingCo(null); setBuilderOpen(true) }}
           className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium">
           <Plus size={13} /> New CO
         </button>
       </div>
 
-      {adding && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
-            <textarea rows={2} value={form.description}
-              onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-              placeholder="Describe what changed…"
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Amount ($)</label>
-            <input type="number" value={form.amount}
-              onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
-              placeholder="0.00"
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Notes (optional)</label>
-            <input value={form.notes}
-              onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-              placeholder="Additional notes…"
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300" />
-          </div>
-          <div className="flex gap-2">
-            <button onClick={save} className="flex-1 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors">Save</button>
-            <button onClick={() => setAdding(false)} className="flex-1 py-1.5 border border-gray-200 text-gray-600 text-xs rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
-          </div>
-        </div>
-      )}
-
-      {cos.length === 0 && !adding && (
+      {cos.length === 0 && (
         <p className="text-xs text-gray-400 italic">No change orders yet.</p>
       )}
 
       {cos.map(co => (
-        <div key={co.id} className="border border-gray-100 rounded-xl p-3">
-          <div className="flex items-start justify-between gap-2 mb-1">
-            <p className="text-sm font-medium text-gray-900 flex-1">{co.description}</p>
-            <button onClick={() => { if (window.confirm('Delete this change order?')) deleteChangeOrder(proposal.id, co.id) }}
-              className="text-gray-300 hover:text-red-500 shrink-0"><X size={13} /></button>
+        <div key={co.id} className={`border rounded-xl p-3 ${
+          co.status === 'Approved' ? 'border-green-200 bg-green-50' :
+          co.status === 'Sent for Signature' ? 'border-blue-200 bg-blue-50' :
+          co.status === 'Rejected' ? 'border-red-100' : 'border-gray-100'
+        }`}>
+          <div className="flex items-start justify-between gap-2 mb-1.5">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-mono text-gray-400">{co.coNumber || '—'}</p>
+              <p className="text-sm font-medium text-gray-900">{co.description}</p>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button onClick={() => { setEditingCo(co); setBuilderOpen(true) }}
+                className="p-1 rounded text-gray-300 hover:text-blue-600" title="Edit"><FileText size={13} /></button>
+              <button onClick={() => { if (window.confirm('Delete this change order?')) deleteChangeOrder(proposal.id, co.id) }}
+                className="p-1 rounded text-gray-300 hover:text-red-500" title="Delete"><Trash2 size={13} /></button>
+            </div>
           </div>
+
+          {/* Line items summary */}
+          {co.lines?.length > 0 && (
+            <div className="mb-2 text-xs text-gray-500 space-y-0.5">
+              {co.lines.map((l, i) => (
+                <div key={i} className="flex justify-between">
+                  <span className="truncate flex-1">{l.desc}</span>
+                  <span className="ml-2 shrink-0">{l.qty} × ${fmtDol(l.unitPrice)} = ${fmtDol((Number(l.qty)||0)*(Number(l.unitPrice)||0))}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-sm font-semibold text-gray-800">${fmtDol(co.amount)}</span>
-            <select value={co.status}
-              onChange={e => updateChangeOrder(proposal.id, co.id, { status: e.target.value })}
-              className={`text-xs font-medium px-2 py-0.5 rounded-full border-0 focus:outline-none ${CO_STATUS_STYLE[co.status]}`}>
-              {CO_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+            <span className="text-sm font-bold text-gray-800">${fmtDol(co.amount)}</span>
+            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${CO_STATUS_STYLE[co.status] || CO_STATUS_STYLE.Pending}`}>
+              {co.status}
+            </span>
             <span className="text-xs text-gray-400">{fmtDate(co.createdAt)}</span>
           </div>
+
+          {/* Signing actions */}
+          {co.signLink && co.status === 'Sent for Signature' && (
+            <div className="flex gap-2 mt-2">
+              <button onClick={() => copyLink(co.signLink)}
+                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium">
+                <Link2 size={11} /> Copy link
+              </button>
+              <a href={co.signLink} target="_blank" rel="noreferrer"
+                className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700">
+                <ExternalLink size={11} /> Preview
+              </a>
+              <button onClick={() => checkStatus(co)} disabled={checking === co.id}
+                className="flex items-center gap-1 text-xs text-green-700 hover:text-green-900 font-medium disabled:opacity-50">
+                <RefreshCw size={11} className={checking === co.id ? 'animate-spin' : ''} />
+                {checking === co.id ? 'Checking…' : 'Check Signature'}
+              </button>
+            </div>
+          )}
+          {co.signedAt && co.status === 'Approved' && (
+            <p className="text-xs text-green-700 mt-1.5 flex items-center gap-1">
+              <CheckCircle2 size={11} /> Signed {fmtDate(co.signedAt)}
+            </p>
+          )}
           {co.notes && <p className="text-xs text-gray-500 mt-1">{co.notes}</p>}
         </div>
       ))}
+
+      {builderOpen && (
+        <COBuilderModal
+          proposal={proposal}
+          existingCo={editingCo}
+          onClose={() => { setBuilderOpen(false); setEditingCo(null) }}
+          onSave={handleSave}
+        />
+      )}
     </div>
   )
 }

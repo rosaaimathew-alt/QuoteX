@@ -185,6 +185,163 @@ export default function SignPage() {
 
   const { contractData: d, contractNum, role, signatures: existingSigs = {} } = record || {}
 
+  // ── Change Order document ────────────────────────────────────────────────
+  if (d?.type === 'change-order') {
+    const clientSig  = existingSigs?.client
+    const builderSig = existingSigs?.builder
+    const myRole     = role === 'builder' ? 'builder' : 'client'
+    const mySig      = myRole === 'client' ? clientSig : builderSig
+    const coLines    = d.lines || []
+    const needsMyField = !mySig
+
+    return (
+      <div className="min-h-screen bg-gray-100 py-8 px-4">
+        <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
+
+          {/* CO Header */}
+          <div className="bg-gray-900 text-white px-8 py-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-widest text-gray-400 mb-1">Ebony Outdoor Living</p>
+                <h1 className="text-2xl font-bold">Change Order</h1>
+                <p className="text-sm text-gray-300 mt-1">{d.coNumber}</p>
+              </div>
+              <div className="text-right text-sm text-gray-300">
+                <p>{new Date(d.createdAt || Date.now()).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</p>
+                <p className="mt-1">Ref: {d.originalContractNum}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="px-8 py-6 space-y-6">
+
+            {/* Client info */}
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Client</p>
+                <p className="font-medium text-gray-900">{d.client}</p>
+                <p className="text-gray-500">{d.address}</p>
+                <p className="text-gray-500">{d.email}</p>
+                <p className="text-gray-500">{d.phone}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Contractor</p>
+                <p className="font-medium text-gray-900">Ebony Outdoor Living</p>
+                <p className="text-gray-500">Licensed & Insured</p>
+              </div>
+            </div>
+
+            {/* Description */}
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Scope of Change</p>
+              <p className="text-sm text-gray-800 bg-gray-50 rounded-xl px-4 py-3 border border-gray-200">{d.description}</p>
+            </div>
+
+            {/* Line items */}
+            {coLines.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Line Items</p>
+                <div className="border border-gray-200 rounded-xl overflow-hidden text-sm">
+                  <div className="grid grid-cols-[1fr_60px_90px_90px] bg-gray-50 px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <span>Description</span><span>Qty</span><span>Unit $</span><span className="text-right">Total</span>
+                  </div>
+                  {coLines.map((l, i) => (
+                    <div key={i} className="grid grid-cols-[1fr_60px_90px_90px] px-4 py-2 border-t border-gray-100">
+                      <span className="text-gray-800">{l.desc}</span>
+                      <span className="text-gray-600">{l.qty}</span>
+                      <span className="text-gray-600">${fmt(l.unitPrice)}</span>
+                      <span className="text-right font-medium">${fmt((Number(l.qty)||0)*(Number(l.unitPrice)||0))}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Financial summary */}
+            <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-4 space-y-2 text-sm">
+              <div className="flex justify-between text-gray-600">
+                <span>Original Contract ({d.originalContractNum})</span>
+                <span>${fmt(d.originalTotal)}</span>
+              </div>
+              <div className="flex justify-between text-blue-700 font-medium">
+                <span>This Change Order</span>
+                <span>+ ${fmt(d.amount)}</span>
+              </div>
+              <div className="flex justify-between font-bold text-gray-900 text-base border-t border-gray-300 pt-2 mt-2">
+                <span>New Contract Total</span>
+                <span>${fmt(d.newTotal)}</span>
+              </div>
+            </div>
+
+            {/* Terms */}
+            <p className="text-xs text-gray-500 border-t border-gray-100 pt-4">
+              By signing below, both parties agree to the scope and pricing described in this change order.
+              Payment for this change order is due at the time of the change per the original contract terms.
+              All other terms of the original contract remain in effect.
+            </p>
+
+            {/* Signature section */}
+            {mySig ? (
+              <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm text-green-700 flex items-center gap-2">
+                <CheckCircle2 size={16} /> You have signed this change order. Thank you, {mySig.printedName}.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                  {myRole === 'client' ? 'Client Signature' : 'Builder Signature'}
+                </p>
+                <input
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  placeholder="Print your full name"
+                  value={printedName}
+                  onChange={e => setPrintedName(e.target.value)}
+                />
+                <div className="border-2 border-dashed border-gray-300 rounded-xl overflow-hidden">
+                  <SignaturePad ref={sigRef} />
+                </div>
+                <button
+                  disabled={submitting || !printedName.trim()}
+                  onClick={async () => {
+                    if (!sigRef.current || sigRef.current.isEmpty()) { alert('Please draw your signature'); return }
+                    setSubmitting(true)
+                    try {
+                      const dataUrl = sigRef.current.toDataURL()
+                      const r = await fetch(`/api/sign/${token}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ signatureDataUrl: dataUrl, printedName }),
+                      })
+                      const j = await r.json()
+                      if (j.ok) setDone(true)
+                      else alert(j.error || 'Error saving signature')
+                    } catch (e) { alert(e.message) }
+                    setSubmitting(false)
+                  }}
+                  className="w-full py-3 bg-gray-900 text-white rounded-xl font-semibold text-sm hover:bg-gray-800 disabled:opacity-40 transition-colors"
+                >
+                  {submitting ? 'Saving…' : `Sign Change Order`}
+                </button>
+              </div>
+            )}
+
+            {/* Other party status */}
+            <div className="text-xs text-gray-400 space-y-1 border-t border-gray-100 pt-3">
+              {(['client','builder']).map(r => {
+                const s = existingSigs[r]
+                return (
+                  <p key={r}>{r === 'client' ? 'Client' : 'Builder — Ebony Outdoor Living'}:{' '}
+                    {s ? <span className="text-green-600 font-medium">Signed {new Date(s.signedAt).toLocaleDateString()}</span>
+                       : <span className="text-amber-500">Awaiting signature</span>}
+                  </p>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   let total = 0, payments = []
   if (Number.isFinite(Number(d?.total)) && Number(d?.total) > 0) {
     total = Number(d.total)
