@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon, Sun, Moon, Users, FileSignature, LogOut, TrendingUp, Menu, HardHat, Wrench, CalendarDays } from 'lucide-react'
+import { LayoutDashboard, FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon, Sun, Moon, Users, FileSignature, LogOut, TrendingUp, Menu, HardHat, Wrench, CalendarDays, Kanban } from 'lucide-react'
 import { Component, useEffect, useState, useRef } from 'react'
 import Dashboard from './pages/Dashboard'
 import Analyze from './pages/Analyze'
@@ -17,6 +17,7 @@ import Login from './pages/Login'
 import SignPage from './pages/SignPage'
 import ContractViewFull from './pages/ContractViewFull'
 import ProfitabilityTracker from './pages/ProfitabilityTracker'
+import Pipeline from './pages/Pipeline'
 import Jobs from './pages/Jobs'
 import Subcontractors from './pages/Subcontractors'
 import Scheduler from './pages/Scheduler'
@@ -33,6 +34,7 @@ const NAV = [
   { to: '/quote',   label: 'Build Quote',      icon: ClipboardList },
   { to: '/proposal',label: 'Proposal',         icon: FileCheck },
   { to: '/tracker',   label: 'Proposal Tracker', icon: BarChart2 },
+  { to: '/pipeline',  label: 'Pipeline',         icon: Kanban },
   { to: '/contracts',    label: 'Contracts',       icon: FileSignature },
   { to: '/jobs',         label: 'Job Management', icon: HardHat },
   { to: '/subs',         label: 'Subcontractors', icon: Wrench },
@@ -48,6 +50,7 @@ const STATUS_BADGE = {
   Sent:          'bg-blue-100 text-blue-700',
   'Followed Up': 'bg-purple-100 text-purple-700',
   Negotiating:   'bg-amber-100 text-amber-700',
+  MIA:           'bg-slate-100 text-slate-500',
 }
 
 const fmt = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -332,6 +335,7 @@ function AppShell() {
             <Route path="/subs"          element={<Subcontractors />} />
             <Route path="/scheduler"     element={<Scheduler />} />
             <Route path="/profitability" element={<ProfitabilityTracker />} />
+            <Route path="/pipeline"      element={<Pipeline />} />
           </Routes>
         </main>
       </div>

@@ -49,6 +49,7 @@ const STATUS_STYLES = {
   Negotiating:   'bg-amber-100 text-amber-700',
   Won:           'bg-green-100 text-green-700',
   Lost:          'bg-red-100 text-red-700',
+  MIA:           'bg-slate-100 text-slate-500',
 }
 
 const STATUS_COLORS = {
@@ -58,6 +59,7 @@ const STATUS_COLORS = {
   Negotiating:   'border-amber-200 bg-amber-50',
   Won:           'border-green-200 bg-green-50',
   Lost:          'border-red-200 bg-red-50',
+  MIA:           'border-slate-200 bg-slate-50',
 }
 
 const ACTIVITY_ICONS = { Call: Phone, Email: Mail, Meeting: Users, 'Follow-up': Bell, Note: MessageSquare }
