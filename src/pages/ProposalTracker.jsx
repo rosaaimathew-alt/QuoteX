@@ -608,11 +608,10 @@ function AnalyticsView({ proposals: allProposals }) {
   // Client-level win rate: a client group is "won" if any proposal is Won;
   // "lost" only if all proposals in the group are Lost (no active or won ones)
   const outcomes = clientOutcomes(proposals)
-  const wonClients = outcomes.filter(o => o.isWon)
-  const lostClients = outcomes.filter(o => o.isLost)
-  const closedClients = [...wonClients, ...lostClients]
-  const winRate = closedClients.length > 0
-    ? Math.round((wonClients.length / closedClients.length) * 100)
+  const wonClients  = outcomes.filter(o => o.isWon)
+  const notWonClients = outcomes.filter(o => !o.isWon)
+  const winRate = outcomes.length > 0
+    ? Math.round((wonClients.length / outcomes.length) * 100)
     : null
   const uniqueClients = outcomes.length
 
@@ -687,7 +686,7 @@ function AnalyticsView({ proposals: allProposals }) {
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-1">Win Rate</p>
           <p className="text-3xl font-bold text-gray-900">{winRate !== null ? `${winRate}%` : '—'}</p>
-          <p className="text-xs text-gray-400 mt-0.5">{wonClients.length}W / {lostClients.length}L · {uniqueClients} clients</p>
+          <p className="text-xs text-gray-400 mt-0.5">{wonClients.length}W / {notWonClients.length} not won · {uniqueClients} clients</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-1">Avg Deal (Won)</p>
