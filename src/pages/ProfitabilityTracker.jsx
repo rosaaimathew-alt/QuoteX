@@ -246,14 +246,27 @@ export default function ProfitabilityTracker() {
     return { totalRev, totalCost, totalProfit, avgMargin, jobsEntered, jobsPending, withCosts: withCosts.length }
   }, [jobs])
 
-  // Close rate — every non-Won proposal counts as lost
+  // Close rate overall + monthly breakdown
   const closeStats = useMemo(() => {
-    const total      = proposals.length
-    const won        = proposals.filter(p => p.status === 'Won').length
-    const explicitly = proposals.filter(p => p.status === 'Lost').length
-    const pipeline   = proposals.filter(p => ['Draft', 'Sent', 'Followed Up', 'Negotiating'].includes(p.status)).length
-    const rate       = total > 0 ? (won / total) * 100 : null
-    return { total, won, explicitly, pipeline, rate }
+    const total = proposals.length
+    const won   = proposals.filter(p => p.status === 'Won').length
+    const rate  = total > 0 ? (won / total) * 100 : null
+
+    // Group by month of createdAt
+    const map = {}
+    proposals.forEach(p => {
+      const d = new Date(p.createdAt || Date.now())
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      if (!map[key]) map[key] = { label: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }), total: 0, won: 0 }
+      map[key].total++
+      if (p.status === 'Won') map[key].won++
+    })
+    const monthly = Object.entries(map)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-12)
+      .map(([, v]) => ({ ...v, rate: v.total > 0 ? Math.round((v.won / v.total) * 100) : 0 }))
+
+    return { total, won, rate, monthly }
   }, [proposals])
 
   // Sort
@@ -363,6 +376,41 @@ export default function ProfitabilityTracker() {
           <p className="text-xs text-gray-400 mt-0.5">{closeStats.won} won · {closeStats.total - closeStats.won} not won</p>
         </div>
       </div>
+
+      {/* Close rate chart */}
+      {closeStats.monthly.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-4">Monthly Close Rate (Won ÷ All Proposals Created)</p>
+          <div className="flex items-end gap-2 h-36 overflow-x-auto">
+            {closeStats.monthly.map((m, i) => (
+              <div key={i} className="flex flex-col items-center gap-1 min-w-[44px] flex-1">
+                <span className={`text-[10px] font-bold ${m.rate >= 50 ? 'text-green-600' : m.rate >= 30 ? 'text-amber-500' : 'text-red-500'}`}>
+                  {m.rate}%
+                </span>
+                <div className="w-full flex items-end justify-center gap-0.5" style={{ height: 90 }}>
+                  {/* Total proposals bar */}
+                  <div
+                    className="flex-1 bg-gray-100 rounded-t relative"
+                    style={{ height: `${Math.max((m.total / Math.max(...closeStats.monthly.map(x => x.total), 1)) * 90, 4)}px` }}
+                    title={`Total: ${m.total}`}
+                  />
+                  {/* Won bar */}
+                  <div
+                    className="flex-1 bg-green-400 rounded-t"
+                    style={{ height: `${Math.max((m.won / Math.max(...closeStats.monthly.map(x => x.total), 1)) * 90, m.won > 0 ? 4 : 0)}px` }}
+                    title={`Won: ${m.won}`}
+                  />
+                </div>
+                <p className="text-[10px] text-gray-400 leading-tight text-center">{m.label}</p>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-4 mt-3">
+            <div className="flex items-center gap-1.5 text-xs text-gray-500"><span className="w-3 h-3 rounded-sm bg-gray-100 inline-block border border-gray-200" /> Total Created</div>
+            <div className="flex items-center gap-1.5 text-xs text-gray-500"><span className="w-3 h-3 rounded-sm bg-green-400 inline-block" /> Won</div>
+          </div>
+        </div>
+      )}
 
       {/* Monthly chart */}
       {jobs.length > 0 && (

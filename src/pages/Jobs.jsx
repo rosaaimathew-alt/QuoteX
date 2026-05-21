@@ -170,7 +170,33 @@ const STAGE_TEMPLATES = {
   ],
 }
 
+const JOB_TYPE_OPTIONS = [
+  'Porch Conversion',
+  'Deck (New)',
+  'Deck (Resurface / Rebuild)',
+  'Ground Level Porch',
+  'Ground Level Porch + Windows',
+  'Porch Over Deck',
+  'Porch Over Deck + Windows',
+  'Pergola',
+  'Gazebo',
+]
+
 function getStages(proposal) {
+  // Manual override set in the job card takes priority
+  const override = proposal.jobData?.projectTypeOverride
+  if (override) {
+    if (override === 'Porch Conversion')              return STAGE_TEMPLATES.porch_conversion
+    if (override === 'Deck (Resurface / Rebuild)')    return STAGE_TEMPLATES.deck_resurface
+    if (override === 'Deck (New)')                    return STAGE_TEMPLATES.deck_new
+    if (override === 'Ground Level Porch')            return STAGE_TEMPLATES.porch_ground
+    if (override === 'Ground Level Porch + Windows')  return STAGE_TEMPLATES.porch_ground_windows
+    if (override === 'Porch Over Deck')               return STAGE_TEMPLATES.porch_over_deck
+    if (override === 'Porch Over Deck + Windows')     return STAGE_TEMPLATES.porch_over_deck_windows
+    if (override === 'Pergola')                       return STAGE_TEMPLATES.pergola
+    if (override === 'Gazebo')                        return STAGE_TEMPLATES.gazebo
+  }
+
   const types = proposal.contractDraft?.projectTypes || []
   const scope = [
     ...(proposal.contractDraft?.scopeBullets || []),
@@ -194,7 +220,7 @@ function getStages(proposal) {
   if (types.includes('Pergola')) return STAGE_TEMPLATES.pergola
   if (types.includes('Gazebo'))  return STAGE_TEMPLATES.gazebo
 
-  return STAGE_TEMPLATES.porch_ground
+  return null  // no type detected — force manual selection
 }
 
 const CO_STATUSES = ['Pending', 'Approved', 'Rejected']
@@ -846,9 +872,10 @@ function JobCard({ proposal }) {
 
   const jobData = proposal.jobData || {}
   const completedStages = jobData.completedStages || []
-  const stages = getStages(proposal)
+  const stages = getStages(proposal) || []
+  const noType = stages.length === 0
   const done = stages.filter(s => completedStages.includes(s.key)).length
-  const pct  = Math.round((done / stages.length) * 100)
+  const pct  = stages.length > 0 ? Math.round((done / stages.length) * 100) : 0
   const isClosed = completedStages.includes('closed')
 
   const draft = proposal.contractDraft || {}
@@ -900,7 +927,11 @@ function JobCard({ proposal }) {
             <div className={`h-full rounded-full transition-all ${isClosed ? 'bg-emerald-400' : 'bg-blue-400'}`}
               style={{ width: `${pct}%` }} />
           </div>
-          <p className="text-[10px] text-gray-400 mt-0.5">{done} of {stages.length} stages complete</p>
+          <p className="text-[10px] text-gray-400 mt-0.5">
+            {noType
+              ? <span className="text-amber-500 font-medium">⚠ Set job type to load stages</span>
+              : `${done} of ${stages.length} stages complete`}
+          </p>
         </div>
 
         <div className="shrink-0 flex flex-col items-end gap-1.5">
@@ -970,6 +1001,36 @@ function JobCard({ proposal }) {
           <div className="px-4 py-4">
             {tab === 'stages' && (
               <div className="space-y-3">
+                {/* Job type selector */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider shrink-0">Job Type</label>
+                  <select
+                    value={jobData.projectTypeOverride || ''}
+                    onChange={e => updateJobData(proposal.id, { projectTypeOverride: e.target.value || null })}
+                    className={`text-xs border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-300 ${
+                      noType ? 'border-amber-300 bg-amber-50 text-amber-700' : 'border-gray-200 text-gray-700'
+                    }`}
+                  >
+                    <option value="">
+                      {(proposal.contractDraft?.projectTypes || []).join(', ') || '— auto-detect from contract —'}
+                    </option>
+                    {JOB_TYPE_OPTIONS.map(t => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                  {jobData.projectTypeOverride && (
+                    <button
+                      onClick={() => updateJobData(proposal.id, { projectTypeOverride: null })}
+                      className="text-xs text-gray-400 hover:text-red-500"
+                    >reset</button>
+                  )}
+                </div>
+
+                {noType ? (
+                  <p className="text-sm text-amber-600 bg-amber-50 rounded-lg px-3 py-3 border border-amber-200">
+                    Select the job type above to load the correct stage checklist.
+                  </p>
+                ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                   {stages.map(stage => {
                     const done = completedStages.includes(stage.key)
@@ -988,6 +1049,7 @@ function JobCard({ proposal }) {
                     )
                   })}
                 </div>
+                )}
                 {/* Notes */}
                 <div className="pt-2 border-t border-gray-100">
                   <div className="flex items-center justify-between mb-1.5">

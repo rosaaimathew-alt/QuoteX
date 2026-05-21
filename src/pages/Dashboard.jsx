@@ -30,7 +30,7 @@ const STATUS_BAR = {
   Negotiating:   'bg-amber-400',
 }
 
-const PROPOSAL_STATUSES = ['Draft', 'Sent', 'Followed Up', 'Negotiating', 'Won', 'Lost']
+const PROPOSAL_STATUSES = ['Draft', 'Sent', 'Followed Up', 'Negotiating', 'Won', 'Lost', 'MIA']
 
 function nextReminderDate(r) {
   if (r.dismissed) return null
@@ -121,12 +121,11 @@ export default function Dashboard() {
 
   // KPI calculations — won/lost/winRate scoped to period; pipeline always current
   const won        = periodProps.filter(p => p.status === 'Won')
-  const lost       = periodProps.filter(p => p.status === 'Lost')
+  const lost       = periodProps.filter(p => p.status !== 'Won')
   const active     = proposals.filter(p => ['Sent', 'Followed Up', 'Negotiating'].includes(p.status))
-  const closed     = [...won, ...lost]
   const wonRevenue = won.reduce((s, p) => s + (p.total || 0), 0)
   const pipeline   = active.reduce((s, p) => s + (p.total || 0), 0)
-  const winRate    = closed.length > 0 ? Math.round(won.length / closed.length * 100) : null
+  const winRate    = periodProps.length > 0 ? Math.round(won.length / periodProps.length * 100) : null
   const periodTotal = periodProps.reduce((s, p) => s + (p.total || 0), 0)
 
   // Bar chart segments
@@ -219,7 +218,7 @@ export default function Dashboard() {
         <KpiCard
           icon={Award} label="Win Rate" color="bg-[var(--brand-500)]"
           value={winRate !== null ? `${winRate}%` : '—'}
-          sub={`${won.length}W · ${lost.length}L · ${pLabel}`}
+          sub={`${won.length}W · ${lost.length} not won · ${pLabel}`}
           onClick={() => navigate('/tracker')}
         />
         <KpiCard
