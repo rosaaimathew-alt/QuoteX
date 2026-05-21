@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon, Sun, Moon, Users, FileSignature, LogOut, TrendingUp, Menu, HardHat, Wrench } from 'lucide-react'
+import { LayoutDashboard, FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon, Sun, Moon, Users, FileSignature, LogOut, TrendingUp, Menu, HardHat, Wrench, CalendarDays } from 'lucide-react'
 import { Component, useEffect, useState, useRef } from 'react'
 import Dashboard from './pages/Dashboard'
 import Analyze from './pages/Analyze'
@@ -19,6 +19,7 @@ import ContractViewFull from './pages/ContractViewFull'
 import ProfitabilityTracker from './pages/ProfitabilityTracker'
 import Jobs from './pages/Jobs'
 import Subcontractors from './pages/Subcontractors'
+import Scheduler from './pages/Scheduler'
 import AuthGuard, { logout } from './components/AuthGuard'
 import { useStore } from './store'
 import { applyBrandStyles, applyTheme, DEFAULT_BRAND_COLOR } from './brand'
@@ -35,6 +36,7 @@ const NAV = [
   { to: '/contracts',    label: 'Contracts',       icon: FileSignature },
   { to: '/jobs',         label: 'Job Management', icon: HardHat },
   { to: '/subs',         label: 'Subcontractors', icon: Wrench },
+  { to: '/scheduler',   label: 'Scheduler',      icon: CalendarDays },
   { to: '/profitability',label: 'Profitability',  icon: TrendingUp },
   { to: '/inbox',        label: 'Inbox',          icon: Inbox },
 ]
@@ -328,6 +330,7 @@ function AppShell() {
             <Route path="/contract"      element={<ContractView />} />
             <Route path="/jobs"          element={<Jobs />} />
             <Route path="/subs"          element={<Subcontractors />} />
+            <Route path="/scheduler"     element={<Scheduler />} />
             <Route path="/profitability" element={<ProfitabilityTracker />} />
           </Routes>
         </main>
