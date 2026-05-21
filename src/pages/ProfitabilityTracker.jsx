@@ -246,6 +246,16 @@ export default function ProfitabilityTracker() {
     return { totalRev, totalCost, totalProfit, avgMargin, jobsEntered, jobsPending, withCosts: withCosts.length }
   }, [jobs])
 
+  // Close rate — every non-Won proposal counts as lost
+  const closeStats = useMemo(() => {
+    const total      = proposals.length
+    const won        = proposals.filter(p => p.status === 'Won').length
+    const explicitly = proposals.filter(p => p.status === 'Lost').length
+    const pipeline   = proposals.filter(p => ['Draft', 'Sent', 'Followed Up', 'Negotiating'].includes(p.status)).length
+    const rate       = total > 0 ? (won / total) * 100 : null
+    return { total, won, explicitly, pipeline, rate }
+  }, [proposals])
+
   // Sort
   const sorted = useMemo(() => {
     const list = filterHasCosts === 'entered'
@@ -301,7 +311,7 @@ export default function ProfitabilityTracker() {
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center gap-1.5 mb-1">
             <DollarSign size={14} className="text-blue-500" />
@@ -341,6 +351,16 @@ export default function ProfitabilityTracker() {
             {stats.avgMargin !== null ? pct(stats.avgMargin) : '—'}
           </p>
           <p className="text-xs text-gray-400 mt-0.5">per-job average</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center gap-1.5 mb-1">
+            <BarChart2 size={14} className="text-indigo-500" />
+            <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">Close Rate</span>
+          </div>
+          <p className={`text-2xl font-bold ${closeStats.rate !== null ? (closeStats.rate >= 50 ? 'text-green-600' : closeStats.rate >= 30 ? 'text-amber-600' : 'text-red-600') : 'text-gray-900'}`}>
+            {closeStats.rate !== null ? pct(closeStats.rate) : '—'}
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5">{closeStats.won} won · {closeStats.total - closeStats.won} not won</p>
         </div>
       </div>
 
