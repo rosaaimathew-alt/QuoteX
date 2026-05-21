@@ -264,10 +264,11 @@ function FollowUpModal({ proposal, onClose }) {
     if (!proposal.email) { setError('No email on file for this proposal.'); return }
     setSending(true); setError('')
     try {
-      const res = await fetch('/api/send-followup', {
+      const res = await fetch('/api/email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          action: 'followup',
           toEmail: proposal.email,
           client: proposal.client,
           total: proposal.total,

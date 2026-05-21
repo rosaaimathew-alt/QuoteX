@@ -1,4 +1,4 @@
-import { getAuthUrl } from '../google-drive.js'
+import { getAuthUrl } from '../_google-drive.js'
 
 export default async function handler(req, res) {
   try {

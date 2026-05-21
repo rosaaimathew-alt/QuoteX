@@ -1,4 +1,4 @@
-import { uploadToDrive } from '../google-drive.js'
+import { uploadToDrive } from '../_google-drive.js'
 
 export const config = { api: { bodyParser: { sizeLimit: '25mb' } } }
 

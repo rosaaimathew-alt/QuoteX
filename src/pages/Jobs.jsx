@@ -440,10 +440,11 @@ function PaymentReminderModal({ proposal, onClose }) {
     if (finalAmt <= 0)   { setError('Please select a payment milestone or enter an amount.'); return }
     setSending(true); setError('')
     try {
-      const res = await fetch('/api/send-payment-reminder', {
+      const res = await fetch('/api/email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          action:      'payment-reminder',
           toEmail:     proposal.email,
           client:      proposal.client,
           amount:      finalAmt,
@@ -659,22 +660,11 @@ function CloseOutModal({ proposal, onClose }) {
       toggleJobStage(proposal.id, 'closed')
 
       if (sendEmail && proposal.email) {
-        const html = buildCloseOutHtml({ client: proposal.client, contractNum, address: proposal.address, projectType: projectTypes, completionDate })
-        await fetch('/api/send-email', {
+        await fetch('/api/email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            proposal: { email: proposal.email, client: proposal.client },
-            subject: `Project Complete — Thank You! · ${contractNum}`,
-            replyText: '',
-            customSubject: `Project Complete — Thank You! · ${contractNum}`,
-          }),
-        })
-        // Send the close-out via the generic endpoint with custom HTML
-        await fetch('/api/send-closeout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+            action: 'closeout',
             toEmail: proposal.email,
             client: proposal.client,
             contractNum,

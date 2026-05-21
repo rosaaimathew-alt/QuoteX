@@ -215,7 +215,7 @@ function ThreadView({ thread, proposals, readIds, onMarkRead, onDelete, onBack }
     setSending(true)
     setSendError('')
     try {
-      const res = await fetch('/api/send-email', {
+      const res = await fetch('/api/email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -409,7 +409,7 @@ export default function Inbox() {
   }
 
   const handleComposeSend = async ({ to, subject, body, fromName, fromEmail }) => {
-    const res = await fetch('/api/send-email', {
+    const res = await fetch('/api/email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

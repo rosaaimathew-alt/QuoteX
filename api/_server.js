@@ -7,14 +7,11 @@ dotenv.config({ path: resolve(__dirname, '../.env') })
 
 import express from 'express'
 import handler from './analyze.js'
-import emailHandler from './send-email.js'
-import paymentReminderHandler from './send-payment-reminder.js'
-import followupHandler from './send-followup.js'
-import closeoutHandler from './send-closeout.js'
+import emailHandler from './email.js'
 import messagesHandler from './messages.js'
 import inboundHandler from './inbound-email.js'
 import aiChatHandler from './ai-chat.js'
-import { getAuthUrl, handleCallback, isAuthenticated, uploadToDrive } from './google-drive.js'
+import { getAuthUrl, handleCallback, isAuthenticated, uploadToDrive } from './_google-drive.js'
 import { createHmac } from 'crypto'
 
 const app = express()
@@ -27,12 +24,10 @@ app.use((req, res, next) => {
 })
 app.use(express.json({ limit: '25mb' }))
 
-app.post('/api/analyze',                  (req, res) => handler(req, res))
-app.post('/api/send-email',               (req, res) => emailHandler(req, res))
-app.post('/api/send-payment-reminder',    (req, res) => paymentReminderHandler(req, res))
-app.post('/api/send-followup',            (req, res) => followupHandler(req, res))
-app.post('/api/send-closeout',            (req, res) => closeoutHandler(req, res))
-app.get('/api/messages',                  (req, res) => messagesHandler(req, res))
+app.post('/api/analyze',       (req, res) => handler(req, res))
+app.post('/api/email',         (req, res) => emailHandler(req, res))
+app.post('/api/send-email',    (req, res) => emailHandler(req, res))  // backward compat alias
+app.get('/api/messages',       (req, res) => messagesHandler(req, res))
 app.post('/api/messages',      (req, res) => messagesHandler(req, res))
 app.delete('/api/messages',    (req, res) => messagesHandler(req, res))
 app.post('/api/inbound-email', (req, res) => inboundHandler(req, res))
