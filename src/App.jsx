@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon, Sun, Moon, Users, FileSignature, LogOut, TrendingUp } from 'lucide-react'
+import { LayoutDashboard, FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon, Sun, Moon, Users, FileSignature, LogOut, TrendingUp, Menu } from 'lucide-react'
 import { Component, useEffect, useState, useRef } from 'react'
 import Dashboard from './pages/Dashboard'
 import Analyze from './pages/Analyze'
@@ -159,18 +159,25 @@ function AppShell() {
   const theme          = useStore(s => s.theme)
   const setTheme       = useStore(s => s.setTheme)
   const [inboxUnread, setInboxUnread] = useState(0)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const isDark = theme === 'dark'
+  const closeSidebar = () => setSidebarOpen(false)
 
-  // Apply brand CSS variables whenever the stored color changes
   useEffect(() => {
     applyBrandStyles(branding?.primaryColor || DEFAULT_BRAND_COLOR)
   }, [branding?.primaryColor])
 
-  // Apply light/dark theme
   useEffect(() => {
     applyTheme(isDark)
   }, [isDark])
+
+  // Close sidebar on resize to desktop
+  useEffect(() => {
+    const onResize = () => { if (window.innerWidth >= 1024) setSidebarOpen(false) }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   const dueCount = proposals.reduce((count, p) => {
     const today = new Date(); today.setHours(0, 0, 0, 0)
@@ -186,42 +193,53 @@ function AppShell() {
         const { messages } = await res.json()
         const readSet = new Set(readMessageIds || [])
         setInboxUnread(messages.filter(m => m.direction === 'inbound' && !readSet.has(m.id)).length)
-      } catch {
-        // Backend not running — inbox polling disabled
-      }
+      } catch {}
     }
-    // Only poll if backend appears reachable
-    const timer = setInterval(async () => {
-      try { await check() } catch {}
-    }, UNREAD_POLL)
+    const timer = setInterval(async () => { try { await check() } catch {} }, UNREAD_POLL)
     return () => clearInterval(timer)
   }, [readMessageIds])
 
   const companyName = branding?.companyName || 'QUOTEX'
-  const tagline     = branding?.tagline     || 'Smart Contractor Pricing'
   const logo        = branding?.logo        || null
 
   return (
     <div className="min-h-screen flex" style={{ backgroundColor: 'var(--brand-50)' }}>
-      {/* Sidebar */}
-      <aside className="w-56 flex flex-col no-print shrink-0 shadow-lg" style={{ backgroundColor: 'var(--brand-700)' }}>
 
-        {/* Logo */}
-        <div className="px-5 py-5 border-b flex flex-col items-center" style={{ borderColor: 'var(--brand-600)' }}>
-          {logo
-            ? <img src={logo} alt="logo" className="h-12 object-contain" />
-            : <h1 className="text-xl font-black text-white tracking-widest leading-tight">{companyName}</h1>}
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={closeSidebar} />
+      )}
+
+      {/* Sidebar — fixed drawer on mobile, inline on desktop */}
+      <aside
+        className={`w-64 flex flex-col no-print shrink-0 shadow-lg
+          fixed lg:relative inset-y-0 left-0 z-50 h-full
+          transition-transform duration-200 ease-in-out
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
+        style={{ backgroundColor: 'var(--brand-700)' }}
+      >
+        {/* Logo + close button on mobile */}
+        <div className="px-5 py-5 border-b flex items-center justify-between" style={{ borderColor: 'var(--brand-600)' }}>
+          <div className="flex-1 flex justify-center">
+            {logo
+              ? <img src={logo} alt="logo" className="h-12 object-contain" />
+              : <h1 className="text-xl font-black text-white tracking-widest leading-tight">{companyName}</h1>}
+          </div>
+          <button onClick={closeSidebar} className="lg:hidden text-white/60 hover:text-white ml-2">
+            <X size={18} />
+          </button>
         </div>
 
         {/* Nav links */}
-        <nav className="flex-1 py-4 space-y-0.5 px-2">
+        <nav className="flex-1 py-4 space-y-0.5 px-2 overflow-y-auto">
           {NAV.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
               end={to === '/'}
+              onClick={closeSidebar}
               className={({ isActive }) =>
-                `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                `flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   isActive ? 'brand-nav-active' : 'brand-nav-inactive'
                 }`
               }
@@ -242,12 +260,12 @@ function AppShell() {
           ))}
         </nav>
 
-        {/* Settings link at bottom */}
         <div className="px-2 pb-2">
           <NavLink
             to="/settings"
+            onClick={closeSidebar}
             className={({ isActive }) =>
-              `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              `flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 isActive ? 'brand-nav-active' : 'brand-nav-inactive'
               }`
             }
@@ -262,16 +280,11 @@ function AppShell() {
           <div className="flex items-center gap-1">
             <button
               onClick={() => setTheme(isDark ? 'light' : 'dark')}
-              title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
               className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors brand-nav-inactive hover:bg-white/10"
             >
               {isDark ? <Sun size={15} /> : <Moon size={15} />}
             </button>
-            <button
-              onClick={logout}
-              title="Sign out"
-              className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors brand-nav-inactive hover:bg-white/10"
-            >
+            <button onClick={logout} className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors brand-nav-inactive hover:bg-white/10">
               <LogOut size={15} />
             </button>
           </div>
@@ -279,10 +292,19 @@ function AppShell() {
       </aside>
 
       {/* Main column */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top header with search */}
-        <header className="h-12 bg-white border-b border-gray-200 flex items-center justify-end px-4 no-print shrink-0">
-          <GlobalSearch />
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        {/* Top header */}
+        <header className="h-12 bg-white border-b border-gray-200 flex items-center gap-3 px-4 no-print shrink-0">
+          {/* Hamburger — mobile only */}
+          <button
+            className="lg:hidden p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors shrink-0"
+            onClick={() => setSidebarOpen(true)}
+          >
+            <Menu size={20} />
+          </button>
+          <div className="ml-auto hidden sm:block">
+            <GlobalSearch />
+          </div>
         </header>
 
         {/* Page content */}
