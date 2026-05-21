@@ -247,41 +247,41 @@ export default function ContractsList() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto">
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-5 gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Contracts</h1>
-          <p className="text-sm text-gray-500 mt-0.5">All contracts from won proposals</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Contracts</h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">All contracts from won proposals</p>
         </div>
-        <div className="text-sm text-gray-400">
-          {wonProposals.length} won proposal{wonProposals.length !== 1 ? 's' : ''}
+        <div className="text-xs sm:text-sm text-gray-400 shrink-0">
+          {wonProposals.length} won
         </div>
       </div>
 
       {/* Filter tabs + search */}
-      <div className="flex items-center justify-between mb-5 gap-4 flex-wrap">
-        <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
+        <div className="flex gap-1 bg-gray-100 rounded-xl p-1 self-start">
           {FILTERS.map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
                 filter === f
                   ? 'bg-white shadow-sm text-gray-900'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               {f}
-              <span className={`ml-1.5 text-xs ${filter === f ? 'text-[var(--brand-600)]' : 'text-gray-400'}`}>
+              <span className={`ml-1 sm:ml-1.5 text-xs ${filter === f ? 'text-[var(--brand-600)]' : 'text-gray-400'}`}>
                 {counts[f]}
               </span>
             </button>
           ))}
         </div>
 
-        <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-1.5 bg-white w-56">
+        <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-1.5 bg-white w-full sm:w-56">
           <Search size={14} className="text-gray-400 shrink-0" />
           <input
             className="flex-1 text-sm bg-transparent outline-none placeholder:text-gray-400"
@@ -336,7 +336,7 @@ export default function ContractsList() {
                   status === 'signed' ? 'border-emerald-100' : 'border-gray-100'
                 }`}
               >
-                <div className="flex items-center gap-5 px-5 py-4">
+                <div className="flex items-start gap-3 sm:gap-5 px-4 sm:px-5 py-4">
 
                   {/* Icon */}
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
@@ -377,7 +377,7 @@ export default function ContractsList() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-wrap justify-end">
                     {draft.signRecordId && (
                       <button
                         onClick={() => setViewingRecordId(draft.signRecordId)}

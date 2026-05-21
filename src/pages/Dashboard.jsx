@@ -186,7 +186,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="p-6 max-w-7xl space-y-6">
+    <div className="p-4 sm:p-6 max-w-7xl space-y-4 sm:space-y-6">
 
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -203,7 +203,7 @@ export default function Dashboard() {
       </div>
 
       {/* KPI strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
         <KpiCard
           icon={DollarSign} label="Won Revenue" color="bg-green-500"
           value={`$${fmt(wonRevenue)}`}
@@ -338,43 +338,37 @@ export default function Dashboard() {
               </button>
             </div>
           ) : (
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-100">
-                <tr>
-                  <th className="px-5 py-2.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Client</th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider w-28">Status</th>
-                  <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider w-24">Total</th>
-                  <th className="px-5 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider w-24">Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {recent.map(p => (
-                  <tr
-                    key={p.id}
-                    onClick={() => openProposal(p)}
-                    className="hover:bg-sky-50 cursor-pointer transition-colors"
-                  >
-                    <td className="px-5 py-3">
-                      <p className="font-medium text-gray-900">{p.client || <span className="italic text-gray-400">Unnamed</span>}</p>
-                      {p.email && <p className="text-xs text-gray-400 mt-0.5 truncate max-w-[180px]">{p.email}</p>}
-                    </td>
-                    <td className="px-3 py-3">
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_BADGE[p.status] || 'bg-gray-100 text-gray-600'}`}>
-                        {p.status}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3 text-right font-semibold text-gray-900 text-xs">
-                      ${fmt(p.total || 0)}
-                    </td>
-                    <td className="px-5 py-3 text-right text-xs text-gray-400 whitespace-nowrap">
-                      {p.createdAt
-                        ? new Date(p.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                        : '—'}
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[400px]">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Client</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider w-24">Status</th>
+                    <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider w-20">Total</th>
+                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider w-16">Date</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {recent.map(p => (
+                    <tr key={p.id} onClick={() => openProposal(p)} className="hover:bg-sky-50 cursor-pointer transition-colors">
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-gray-900 truncate max-w-[140px] sm:max-w-none">{p.client || <span className="italic text-gray-400">Unnamed</span>}</p>
+                        {p.email && <p className="text-xs text-gray-400 mt-0.5 truncate max-w-[140px] sm:max-w-[180px] hidden sm:block">{p.email}</p>}
+                      </td>
+                      <td className="px-3 py-3">
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_BADGE[p.status] || 'bg-gray-100 text-gray-600'}`}>
+                          {p.status}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-right font-semibold text-gray-900 text-xs">${fmt(p.total || 0)}</td>
+                      <td className="px-4 py-3 text-right text-xs text-gray-400 whitespace-nowrap">
+                        {p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
