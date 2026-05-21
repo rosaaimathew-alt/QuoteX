@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox,
   MessageSquareMore, DollarSign, TrendingUp, Award, Package,
-  Plus, ArrowRight, Bell, AlertCircle, Clock, ChevronRight, CalendarDays,
+  Plus, ArrowRight, AlertCircle, Clock, ChevronRight, CalendarDays,
   ChevronLeft,
 } from 'lucide-react'
 import { useStore } from '../store'
@@ -235,6 +235,47 @@ export default function Dashboard() {
           onClick={() => navigate('/tracker')}
         />
       </div>
+
+      {/* Aging quote alerts */}
+      {(() => {
+        const now = Date.now()
+        const aging = proposals
+          .filter(p => ['Sent', 'Followed Up'].includes(p.status) && p.sentAt)
+          .map(p => ({ ...p, daysSince: Math.floor((now - new Date(p.sentAt)) / 86400000) }))
+          .filter(p => p.daysSince >= 7)
+          .sort((a, b) => b.daysSince - a.daysSince)
+          .slice(0, 5)
+        if (!aging.length) return null
+        return (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertCircle size={15} className="text-amber-600 shrink-0" />
+              <p className="text-sm font-semibold text-amber-800">Quotes Awaiting Response</p>
+            </div>
+            <div className="space-y-2">
+              {aging.map(p => (
+                <div key={p.id} onClick={() => navigate('/tracker')}
+                  className="flex items-center justify-between gap-3 bg-white rounded-lg px-3 py-2 cursor-pointer hover:bg-amber-50 transition-colors border border-amber-100">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{p.client || 'Unnamed'}</p>
+                    <p className="text-xs text-gray-400">${fmt(p.total || 0)} · Sent {new Date(p.sentAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+                  </div>
+                  <span className={`text-xs font-bold shrink-0 px-2 py-0.5 rounded-full ${
+                    p.daysSince >= 30 ? 'bg-red-100 text-red-700' :
+                    p.daysSince >= 14 ? 'bg-amber-100 text-amber-700' :
+                    'bg-yellow-100 text-yellow-700'
+                  }`}>
+                    {p.daysSince}d ago
+                  </span>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => navigate('/tracker')} className="mt-3 text-xs text-amber-700 hover:underline font-medium">
+              View all in tracker →
+            </button>
+          </div>
+        )
+      })()}
 
       {/* Period Chart */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">

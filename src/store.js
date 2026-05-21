@@ -326,6 +326,27 @@ export const useStore = create(
           ),
         })),
 
+      // ── Job Management (stages, notes, dates per won proposal) ──────────
+      updateJobData: (proposalId, changes) =>
+        set((s) => ({
+          proposals: s.proposals.map((p) =>
+            p.id === proposalId
+              ? { ...p, jobData: { ...(p.jobData || {}), ...changes } }
+              : p
+          ),
+        })),
+
+      toggleJobStage: (proposalId, stageKey) =>
+        set((s) => ({
+          proposals: s.proposals.map((p) => {
+            if (p.id !== proposalId) return p
+            const completed = new Set(p.jobData?.completedStages || [])
+            if (completed.has(stageKey)) completed.delete(stageKey)
+            else completed.add(stageKey)
+            return { ...p, jobData: { ...(p.jobData || {}), completedStages: [...completed] } }
+          }),
+        })),
+
       // ── Job Costs (actual costs entered per won proposal) ────────────────
       jobCosts: {},
 
