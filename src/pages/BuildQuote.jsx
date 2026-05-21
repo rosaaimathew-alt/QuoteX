@@ -138,9 +138,9 @@ export default function BuildQuote() {
   }
 
   return (
-    <div className="p-6 flex gap-5 h-full min-h-screen">
+    <div className="p-4 sm:p-6 flex flex-col lg:flex-row gap-5 h-full min-h-screen">
       {/* Left: Catalog picker */}
-      <div className="w-64 shrink-0 flex flex-col gap-3">
+      <div className="lg:w-64 shrink-0 flex flex-col gap-3">
         <h3 className="font-semibold text-gray-800 text-sm">Catalog</h3>
         <div className="relative">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />

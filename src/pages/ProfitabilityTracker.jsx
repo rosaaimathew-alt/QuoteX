@@ -285,12 +285,12 @@ export default function ProfitabilityTracker() {
   }
 
   return (
-    <div className="p-6 max-w-7xl">
+    <div className="p-4 sm:p-6 max-w-7xl">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Profitability Tracker</h2>
-          <p className="text-sm text-gray-500 mt-0.5">Enter actual job costs to see your real margins.</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Profitability Tracker</h2>
+          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Enter actual job costs to see your real margins.</p>
         </div>
         {stats.jobsPending > 0 && (
           <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">

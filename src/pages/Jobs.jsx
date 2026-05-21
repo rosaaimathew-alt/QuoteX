@@ -4,7 +4,7 @@ import { useStore } from '../store'
 import {
   CheckCircle2, Circle, ChevronDown, ChevronUp, CalendarDays,
   FileSignature, ClipboardList, MapPin, DollarSign, X, Plus,
-  AlertTriangle, CheckCheck, Clock, Wrench, FileText,
+  AlertTriangle, CheckCheck, Clock, Wrench, FileText, Mail, Send,
 } from 'lucide-react'
 
 const fmt    = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
@@ -385,6 +385,245 @@ function WarrantyTab({ proposal }) {
   )
 }
 
+// ── Payment Reminder Modal ───────────────────────────────────────────────────
+function PaymentReminderModal({ proposal, onClose }) {
+  const draft = proposal.contractDraft || {}
+  const contractNum = draft.contractNum || `EOL${String(70000 + proposal.id).padStart(6, '0')}`
+  const projectTypes = (draft.projectTypes || []).join(', ') || ''
+
+  const [form, setForm] = useState({
+    milestone: 'Progress Payment',
+    amount: '',
+    dueDate: '',
+  })
+  const [sending, setSending] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [error, setError] = useState('')
+
+  const send = async () => {
+    if (!proposal.email) { setError('No email on file for this client.'); return }
+    setSending(true); setError('')
+    try {
+      const res = await fetch('/api/send-payment-reminder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          toEmail: proposal.email,
+          client: proposal.client,
+          amount: form.amount,
+          milestone: form.milestone,
+          dueDate: form.dueDate,
+          contractNum,
+          address: proposal.address,
+          projectType: projectTypes,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to send')
+      setSent(true)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-100">
+          <div>
+            <p className="font-semibold text-gray-900">Send Payment Reminder</p>
+            <p className="text-xs text-gray-500 mt-0.5">{proposal.client} · {proposal.email || 'No email on file'}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={15} /></button>
+        </div>
+
+        {sent ? (
+          <div className="px-5 py-8 text-center">
+            <CheckCircle2 size={36} className="text-green-500 mx-auto mb-3" />
+            <p className="font-semibold text-gray-900">Reminder Sent!</p>
+            <p className="text-sm text-gray-500 mt-1">Payment reminder emailed to {proposal.email}</p>
+            <button onClick={onClose} className="mt-4 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">Done</button>
+          </div>
+        ) : (
+          <div className="px-5 py-4 space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Payment Milestone</label>
+              <select value={form.milestone} onChange={e => setForm(f => ({ ...f, milestone: e.target.value }))}
+                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300">
+                <option>Deposit (20%)</option>
+                <option>Progress Payment</option>
+                <option>Draw #2</option>
+                <option>Final Payment</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Amount Due ($)</label>
+              <input type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
+                placeholder="e.g. 2500.00"
+                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Due Date (optional)</label>
+              <input type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))}
+                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+            </div>
+            {error && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+            {!proposal.email && <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">No email address on file — add one to the original proposal first.</p>}
+            <div className="flex gap-2 pt-1">
+              <button onClick={send} disabled={sending || !proposal.email}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors">
+                {sending ? 'Sending…' : <><Send size={14} /> Send Reminder</>}
+              </button>
+              <button onClick={onClose} className="flex-1 py-2.5 border border-gray-200 text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Close-Out Modal ──────────────────────────────────────────────────────────
+function CloseOutModal({ proposal, onClose }) {
+  const { toggleJobStage, updateJobData } = useStore()
+  const draft = proposal.contractDraft || {}
+  const contractNum = draft.contractNum || `EOL${String(70000 + proposal.id).padStart(6, '0')}`
+  const projectTypes = (draft.projectTypes || []).join(', ') || ''
+
+  const [completionDate, setCompletionDate] = useState(today())
+  const [sendEmail, setSendEmail] = useState(true)
+  const [closing, setClosing] = useState(false)
+  const [error, setError] = useState('')
+
+  const closeOut = async () => {
+    setClosing(true); setError('')
+    try {
+      updateJobData(proposal.id, { completionDate, closedAt: new Date().toISOString() })
+      toggleJobStage(proposal.id, 'payment')
+      toggleJobStage(proposal.id, 'closed')
+
+      if (sendEmail && proposal.email) {
+        const html = buildCloseOutHtml({ client: proposal.client, contractNum, address: proposal.address, projectType: projectTypes, completionDate })
+        await fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            proposal: { email: proposal.email, client: proposal.client },
+            subject: `Project Complete — Thank You! · ${contractNum}`,
+            replyText: '',
+            customSubject: `Project Complete — Thank You! · ${contractNum}`,
+          }),
+        })
+        // Send the close-out via the generic endpoint with custom HTML
+        await fetch('/api/send-closeout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            toEmail: proposal.email,
+            client: proposal.client,
+            contractNum,
+            address: proposal.address,
+            projectType: projectTypes,
+            completionDate,
+          }),
+        })
+      }
+      onClose(true)
+    } catch (e) {
+      setError(e.message)
+      setClosing(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => onClose(false)}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-100">
+          <div>
+            <p className="font-semibold text-gray-900">Close Out Job</p>
+            <p className="text-xs text-gray-500 mt-0.5">{proposal.client} · {contractNum}</p>
+          </div>
+          <button onClick={() => onClose(false)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={15} /></button>
+        </div>
+
+        <div className="px-5 py-4 space-y-4">
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+            <p className="text-sm font-semibold text-emerald-800 mb-1">Ready to close this job?</p>
+            <p className="text-xs text-emerald-700">This will mark the job as complete and check off the Final Payment and Job Closed stages.</p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Completion Date</label>
+            <input type="date" value={completionDate} onChange={e => setCompletionDate(e.target.value)}
+              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-300" />
+          </div>
+
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" checked={sendEmail} onChange={e => setSendEmail(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-300" />
+            <span className="text-sm text-gray-700">
+              Send close-out email to client
+              {!proposal.email && <span className="text-xs text-amber-600 ml-1">(no email on file)</span>}
+            </span>
+          </label>
+
+          {error && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+
+          <div className="flex gap-2 pt-1">
+            <button onClick={closeOut} disabled={closing}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-40 transition-colors">
+              {closing ? 'Closing…' : <><CheckCheck size={15} /> Close Job</>}
+            </button>
+            <button onClick={() => onClose(false)} className="flex-1 py-2.5 border border-gray-200 text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function buildCloseOutHtml({ client, contractNum, address, projectType, completionDate }) {
+  const company = 'Ebony Outdoor Living'
+  const completionFormatted = completionDate
+    ? new Date(completionDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+    : 'recently'
+
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 16px;">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;">
+      <tr><td style="background:#064e3b;padding:28px 40px;">
+        <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;">${company}</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#6ee7b7;">Project Complete</p>
+      </td></tr>
+      <tr><td style="padding:32px 40px 24px;">
+        <p style="margin:0 0 16px;font-size:15px;color:#1e293b;">Hi ${client || 'there'},</p>
+        <p style="margin:0 0 16px;font-size:14px;color:#475569;line-height:1.7;">
+          We're thrilled to let you know that your project has been completed on <strong>${completionFormatted}</strong>.
+          It was a pleasure working with you, and we hope you love the final result!
+        </p>
+        ${address ? `<p style="margin:0 0 16px;font-size:13px;color:#64748b;">Project at: ${address}</p>` : ''}
+        <p style="margin:0;font-size:14px;color:#475569;line-height:1.7;">
+          If you have any questions or need anything in the future, please don't hesitate to reach out.
+          We'd also love it if you could share your experience — referrals mean the world to us!
+        </p>
+      </td></tr>
+      <tr><td style="background:#f0fdf4;padding:20px 40px;border-top:1px solid #d1fae5;">
+        <p style="margin:0;font-size:12px;color:#6b7280;">
+          <strong style="color:#374151;">${company}</strong> · Thank you for choosing us!
+        </p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`
+}
+
 // ── Job Card ────────────────────────────────────────────────────────────────
 function JobCard({ proposal }) {
   const { toggleJobStage, updateJobData } = useStore()
@@ -392,6 +631,8 @@ function JobCard({ proposal }) {
   const [tab, setTab] = useState('stages')
   const [editingNote, setEditingNote] = useState(false)
   const [noteText, setNoteText] = useState(proposal.jobData?.notes || '')
+  const [showReminder, setShowReminder] = useState(false)
+  const [showCloseOut, setShowCloseOut] = useState(false)
 
   const jobData = proposal.jobData || {}
   const completedStages = jobData.completedStages || []
@@ -452,15 +693,36 @@ function JobCard({ proposal }) {
           <p className="text-[10px] text-gray-400 mt-0.5">{done} of {stages.length} stages complete</p>
         </div>
 
-        <div className="shrink-0 flex flex-col items-end gap-1">
+        <div className="shrink-0 flex flex-col items-end gap-1.5">
           {jobData.startDate && (
             <span className="text-xs text-gray-400 flex items-center gap-1">
               <CalendarDays size={10} /> {jobData.startDate}
             </span>
           )}
-          {expanded ? <ChevronUp size={15} className="text-gray-400" /> : <ChevronDown size={15} className="text-gray-400" />}
+          <div className="flex items-center gap-1">
+            {!isClosed && (
+              <>
+                <button
+                  onClick={e => { e.stopPropagation(); setShowReminder(true) }}
+                  title="Send payment reminder"
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                  <Mail size={13} />
+                </button>
+                <button
+                  onClick={e => { e.stopPropagation(); setShowCloseOut(true) }}
+                  title="Close out job"
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors">
+                  <CheckCheck size={13} />
+                </button>
+              </>
+            )}
+            {expanded ? <ChevronUp size={15} className="text-gray-400" /> : <ChevronDown size={15} className="text-gray-400" />}
+          </div>
         </div>
       </div>
+
+      {showReminder && <PaymentReminderModal proposal={proposal} onClose={() => setShowReminder(false)} />}
+      {showCloseOut && <CloseOutModal proposal={proposal} onClose={(closed) => { setShowCloseOut(false); if (closed) setExpanded(false) }} />}
 
       {/* Expanded */}
       {expanded && (

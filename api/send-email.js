@@ -2,6 +2,7 @@ import { fileURLToPath } from 'url'
 import { dirname, resolve } from 'path'
 import dotenv from 'dotenv'
 import { saveMessage } from './_store.js'
+import { sendMail, isMailerConfigured } from './mailer.js'
 
 dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../.env') })
 
@@ -124,17 +125,12 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const RESEND_API_KEY = process.env.RESEND_API_KEY
-  if (!RESEND_API_KEY) {
-    return res.status(500).json({ error: 'RESEND_API_KEY not configured. Add it to your environment variables.' })
+  if (!isMailerConfigured()) {
+    return res.status(500).json({ error: 'Gmail SMTP not configured. Add GMAIL_USER and GMAIL_APP_PASSWORD to your Vercel environment variables.' })
   }
 
   const { proposal, fromName, fromEmail, replyText, inReplyTo, subject: customSubject, pdfBase64, pdfFilename } = req.body
 
-  // Support three modes:
-  // 1. Proposal send with PDF attachment: { proposal, fromName, fromEmail, pdfBase64, pdfFilename }
-  // 2. Proposal send HTML only:           { proposal, fromName, fromEmail }
-  // 3. Reply send:                        { proposal: { email, client }, fromName, fromEmail, replyText, inReplyTo, subject }
   const recipientEmail = proposal?.email
   if (!recipientEmail) {
     return res.status(400).json({ error: 'Recipient email is required.' })
@@ -149,7 +145,6 @@ export default async function handler(req, res) {
     html    = `<div style="font-family:-apple-system,sans-serif;font-size:14px;line-height:1.6;color:#1e293b;max-width:600px;margin:0 auto;padding:24px;">${replyText.replace(/\n/g, '<br>')}</div>`
     subject = customSubject || `Re: Your Proposal`
   } else if (pdfBase64) {
-    // PDF attachment mode — keep email body minimal
     const client = proposal?.client || 'there'
     const expLine = proposal?.expiration
       ? `This proposal is valid until <strong>${new Date(proposal.expiration + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</strong>.`
@@ -187,56 +182,31 @@ export default async function handler(req, res) {
     subject = customSubject || `Proposal for ${proposal.client || 'Your Project'}${proposal.expiration ? ` — Valid Until ${new Date(proposal.expiration + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}`
   }
 
-  const fromAddress = fromName && fromEmail
-    ? `${fromName} <${fromEmail}>`
-    : 'QUOTEX <onboarding@resend.dev>'
+  const attachments = pdfBase64
+    ? [{ filename: pdfFilename || 'Proposal.pdf', content: Buffer.from(pdfBase64, 'base64'), contentType: 'application/pdf' }]
+    : undefined
 
-  try {
-    const payload = {
-      from: fromAddress,
-      to: [recipientEmail],
-      subject,
-      html,
-    }
-    if (pdfBase64) {
-      payload.attachments = [{ filename: pdfFilename || 'Proposal.pdf', content: pdfBase64 }]
-    }
-    if (inReplyTo) {
-      payload.headers = { 'In-Reply-To': inReplyTo, 'References': inReplyTo }
-    }
+  const result = await sendMail({ to: recipientEmail, subject, html, attachments })
 
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    })
-
-    const result = await response.json()
-    if (!response.ok) {
-      return res.status(response.status).json({ error: result.message || 'Failed to send email.' })
-    }
-
-    // Persist outbound message to KV so it appears in the inbox
-    const msgId = `out_${result.id || Date.now()}`
-    await saveMessage({
-      id: msgId,
-      direction: 'outbound',
-      from: { name: fromName || 'You', email: fromEmail || 'noreply@estimateiq' },
-      to: [recipientEmail],
-      subject,
-      textBody: isReply ? replyText : '',
-      htmlBody: html,
-      messageId: result.id || msgId,
-      inReplyTo: inReplyTo || null,
-      receivedAt: new Date().toISOString(),
-      read: true,
-    })
-
-    return res.status(200).json({ success: true, id: result.id })
-  } catch (err) {
-    return res.status(500).json({ error: err.message })
+  if (result.error) {
+    return res.status(500).json({ error: result.error })
   }
+
+  // Persist outbound message to KV so it appears in the inbox
+  const msgId = `out_${result.messageId || Date.now()}`
+  await saveMessage({
+    id: msgId,
+    direction: 'outbound',
+    from: { name: fromName || 'You', email: process.env.GMAIL_USER || 'noreply' },
+    to: [recipientEmail],
+    subject,
+    textBody: isReply ? replyText : '',
+    htmlBody: html,
+    messageId: result.messageId || msgId,
+    inReplyTo: inReplyTo || null,
+    receivedAt: new Date().toISOString(),
+    read: true,
+  })
+
+  return res.status(200).json({ success: true, id: result.messageId })
 }

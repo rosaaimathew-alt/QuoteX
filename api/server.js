@@ -8,6 +8,9 @@ dotenv.config({ path: resolve(__dirname, '../.env') })
 import express from 'express'
 import handler from './analyze.js'
 import emailHandler from './send-email.js'
+import paymentReminderHandler from './send-payment-reminder.js'
+import followupHandler from './send-followup.js'
+import closeoutHandler from './send-closeout.js'
 import messagesHandler from './messages.js'
 import inboundHandler from './inbound-email.js'
 import aiChatHandler from './ai-chat.js'
@@ -24,9 +27,12 @@ app.use((req, res, next) => {
 })
 app.use(express.json({ limit: '25mb' }))
 
-app.post('/api/analyze',       (req, res) => handler(req, res))
-app.post('/api/send-email',    (req, res) => emailHandler(req, res))
-app.get('/api/messages',       (req, res) => messagesHandler(req, res))
+app.post('/api/analyze',                  (req, res) => handler(req, res))
+app.post('/api/send-email',               (req, res) => emailHandler(req, res))
+app.post('/api/send-payment-reminder',    (req, res) => paymentReminderHandler(req, res))
+app.post('/api/send-followup',            (req, res) => followupHandler(req, res))
+app.post('/api/send-closeout',            (req, res) => closeoutHandler(req, res))
+app.get('/api/messages',                  (req, res) => messagesHandler(req, res))
 app.post('/api/messages',      (req, res) => messagesHandler(req, res))
 app.delete('/api/messages',    (req, res) => messagesHandler(req, res))
 app.post('/api/inbound-email', (req, res) => inboundHandler(req, res))
@@ -88,9 +94,9 @@ app.post('/api/sign/:token',  (req, res) => { req.query.token = req.params.token
 
 const PORT = process.env.API_PORT || 3001
 app.listen(PORT, () => {
-  const hasResend = !!process.env.RESEND_API_KEY
+  const hasGmail = !!(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD)
   const hasClient = !!process.env.GOOGLE_CLIENT_ID
   console.log(`API server running on http://localhost:${PORT}`)
-  console.log(`RESEND_API_KEY:   ${hasResend ? 'loaded ✓' : 'MISSING ✗'}`)
-  console.log(`GOOGLE_CLIENT_ID: ${hasClient ? 'loaded ✓' : 'MISSING ✗'}`)
+  console.log(`GMAIL_USER/APP_PASSWORD: ${hasGmail ? 'loaded ✓' : 'MISSING ✗ (add to .env to send emails)'}`)
+  console.log(`GOOGLE_CLIENT_ID:        ${hasClient ? 'loaded ✓' : 'MISSING ✗'}`)
 })

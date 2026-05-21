@@ -6,7 +6,7 @@ import {
 import {
   Bell, Trash2, X, CheckCircle, AlertCircle, Clock, TrendingUp,
   DollarSign, FileText, Plus, ChevronDown, ChevronUp, MessageSquare,
-  Phone, Mail, Users, BarChart2, Columns, List, Award, ThumbsDown,
+  Phone, Mail, Send, Users, BarChart2, Columns, List, Award, ThumbsDown,
   Eye, Copy, GitBranch, FileSignature, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { getPeriodRange, shiftPeriod, isCurrentPeriod } from '../periodUtils'
@@ -246,6 +246,102 @@ function ReminderBadges({ proposal, onAdd }) {
   )
 }
 
+// ── Follow-Up Email Modal ──────────────────────────────────────────────────
+function FollowUpModal({ proposal, onClose }) {
+  const { markProposalSent, updateProposalStatus } = useStore()
+  const sentDaysAgo = proposal.sentAt
+    ? Math.round((Date.now() - new Date(proposal.sentAt)) / 86400000)
+    : 0
+
+  const [sending, setSending] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [error, setError] = useState('')
+
+  const contractNum = proposal.contractDraft?.contractNum || ''
+  const projectTypes = (proposal.contractDraft?.projectTypes || []).join(', ') || ''
+
+  const send = async () => {
+    if (!proposal.email) { setError('No email on file for this proposal.'); return }
+    setSending(true); setError('')
+    try {
+      const res = await fetch('/api/send-followup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          toEmail: proposal.email,
+          client: proposal.client,
+          total: proposal.total,
+          address: proposal.address,
+          projectType: projectTypes,
+          sentAt: proposal.sentAt,
+          expiration: proposal.expiration,
+          contractNum,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to send')
+      if (proposal.status === 'Sent') updateProposalStatus(proposal.id, 'Followed Up')
+      setSent(true)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-100">
+          <div>
+            <p className="font-semibold text-gray-900">Send Follow-Up Email</p>
+            <p className="text-xs text-gray-500 mt-0.5">{proposal.client} · {proposal.email || 'No email on file'}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={15} /></button>
+        </div>
+
+        {sent ? (
+          <div className="px-5 py-8 text-center">
+            <CheckCircle size={36} className="text-green-500 mx-auto mb-3" />
+            <p className="font-semibold text-gray-900">Follow-Up Sent!</p>
+            <p className="text-sm text-gray-500 mt-1">Email sent to {proposal.email}{proposal.status === 'Sent' ? ' · Status updated to Followed Up' : ''}.</p>
+            <button onClick={onClose} className="mt-4 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">Done</button>
+          </div>
+        ) : (
+          <div className="px-5 py-4 space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+              <p className="text-sm text-blue-800 font-medium mb-1">
+                {sentDaysAgo >= 14 ? 'Final follow-up (14+ day template)' : 'First follow-up (7-day template)'}
+              </p>
+              <p className="text-xs text-blue-700">
+                Proposal was sent {sentDaysAgo > 0 ? `${sentDaysAgo} day${sentDaysAgo !== 1 ? 's' : ''} ago` : 'recently'}.
+                {proposal.status === 'Sent' ? ' Status will update to "Followed Up" automatically.' : ''}
+              </p>
+            </div>
+
+            <div className="space-y-1 text-sm text-gray-700">
+              {proposal.total > 0 && <p><span className="text-gray-400 text-xs">Total:</span> <strong>${Number(proposal.total).toLocaleString()}</strong></p>}
+              {proposal.address && <p><span className="text-gray-400 text-xs">Address:</span> {proposal.address}</p>}
+              {projectTypes && <p><span className="text-gray-400 text-xs">Project:</span> {projectTypes}</p>}
+            </div>
+
+            {error && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+            {!proposal.email && <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">No email address on file for this proposal.</p>}
+
+            <div className="flex gap-2 pt-1">
+              <button onClick={send} disabled={sending || !proposal.email}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors">
+                {sending ? 'Sending…' : <><Send size={14} /> Send Follow-Up</>}
+              </button>
+              <button onClick={onClose} className="flex-1 py-2.5 border border-gray-200 text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── List View ──────────────────────────────────────────────────────────────
 // Rank to pick the "best" proposal to surface as the primary row
 const STATUS_RANK = { Won: 6, Negotiating: 5, 'Followed Up': 4, Sent: 3, Draft: 2, Lost: 1 }
@@ -257,6 +353,7 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
   const { deleteProposal } = useStore()
   const [expandedLog, setExpandedLog] = useState(null)   // proposal id with activity log open
   const [expandedAlts, setExpandedAlts] = useState(null) // root id with alts expanded
+  const [followUpProposal, setFollowUpProposal] = useState(null)
 
   const allGroups = buildGroups(proposals)
   const groups = filterStatus === 'All'
@@ -330,6 +427,11 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
                   <FileSignature size={13} />
                 </button>
               )}
+              {(p.status === 'Sent' || p.status === 'Followed Up') && p.email && (
+                <button onClick={() => setFollowUpProposal(p)} className="p-1.5 rounded text-gray-300 hover:text-purple-600 hover:bg-purple-50" title="Send follow-up email">
+                  <Send size={13} />
+                </button>
+              )}
               <button onClick={() => setExpandedLog(expandedLog === p.id ? null : p.id)} className="p-1.5 rounded text-gray-300 hover:text-blue-500 hover:bg-blue-50" title="Activity log">
                 {expandedLog === p.id ? <ChevronUp size={13} /> : <MessageSquare size={13} />}
               </button>
@@ -352,13 +454,15 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      {followUpProposal && <FollowUpModal proposal={followUpProposal} onClose={() => setFollowUpProposal(null)} />}
       {groups.length === 0 ? (
         <div className="py-16 text-center text-gray-400">
           <FileText size={32} className="mx-auto mb-3 opacity-30" />
           <p className="text-sm">No proposals match this filter.</p>
         </div>
       ) : (
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[640px]">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Client</th>
@@ -415,6 +519,7 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
             })}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   )
@@ -772,12 +877,12 @@ export default function ProposalTracker() {
   ]
 
   return (
-    <div className="p-6 max-w-7xl">
+    <div className="p-4 sm:p-6 max-w-7xl">
       {/* Header */}
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Proposal Tracker</h2>
-          <p className="text-sm text-gray-500 mt-0.5">Manage your pipeline from quote to close.</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Proposal Tracker</h2>
+          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Manage your pipeline from quote to close.</p>
         </div>
         {dueCount > 0 && (
           <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-300 rounded-lg text-sm font-medium text-amber-800">
