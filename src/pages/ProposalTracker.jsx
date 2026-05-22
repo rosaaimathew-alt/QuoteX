@@ -37,10 +37,7 @@ function clientOutcomes(proposals) {
 const fmt = (n) =>
   Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
-const fmtShort = (n) =>
-  Number(n) >= 1000
-    ? `$${(Number(n) / 1000).toFixed(1)}k`
-    : `$${Number(n).toFixed(0)}`
+const fmtShort = (n) => { const v = Number(n); if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(2)}M`; if (v >= 1_000) return `$${(v / 1_000).toFixed(1)}k`; return `$${v.toFixed(0)}` }
 
 const STATUS_STYLES = {
   Draft:         'bg-gray-100 text-gray-600',
