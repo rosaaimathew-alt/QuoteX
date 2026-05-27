@@ -629,10 +629,11 @@ function AnalyticsView({ proposals: allProposals }) {
   const pipelineValue = active.reduce((s, p) => s + (p.total || 0), 0)
   const wonRevenue = won.reduce((s, p) => s + (p.total || 0), 0)
 
-  // Win/Loss reason breakdown
+  // Win/Loss reason breakdown — only count proposals currently in Won or Lost status
+  // (a proposal previously marked Lost then changed back to Sent still has winLossReason set)
   const reasonCount = {}
   proposals.forEach(p => {
-    if (p.winLossReason?.category) {
+    if (p.winLossReason?.category && (p.status === 'Won' || p.status === 'Lost')) {
       const key = `${p.status === 'Won' ? '✓' : '✗'} ${p.winLossReason.category}`
       reasonCount[key] = (reasonCount[key] || 0) + 1
     }
