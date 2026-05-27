@@ -7,7 +7,7 @@ import {
   Bell, Trash2, X, CheckCircle, AlertCircle, Clock, TrendingUp,
   DollarSign, FileText, Plus, ChevronDown, ChevronUp, MessageSquare,
   Phone, Mail, Send, Users, BarChart2, Columns, List, Award, ThumbsDown,
-  Eye, Copy, GitBranch, FileSignature, ChevronLeft, ChevronRight,
+  Eye, Copy, GitBranch, FileSignature, ChevronLeft, ChevronRight, ShoppingCart,
 } from 'lucide-react'
 import { getPeriodRange, shiftPeriod, isCurrentPeriod } from '../periodUtils'
 
@@ -799,8 +799,17 @@ export default function ProposalTracker() {
     navigate('/proposal')
   }
 
-  // Generate contract package for a Won proposal
-  const handleGenerateContract = (proposal) => {
+  // A la carte item selection modal state
+  const [aLaCarteProposal, setALaCarteProposal] = useState(null)
+  const [selectedLineIds, setSelectedLineIds] = useState(new Set())
+
+  const toggleLineId = (id) => setSelectedLineIds(prev => {
+    const next = new Set(prev)
+    next.has(id) ? next.delete(id) : next.add(id)
+    return next
+  })
+
+  const launchContract = (proposal, lines) => {
     const contractNumber = `EOL${String(70000 + proposal.id).padStart(6, '0')}`
     sessionStorage.setItem('contract', JSON.stringify({
       proposalId: proposal.id,
@@ -808,15 +817,25 @@ export default function ProposalTracker() {
       email: proposal.email,
       phone: proposal.phone,
       address: proposal.address,
-      total: proposal.total || 0,
-      lines: proposal.lines || [],
+      total: lines.reduce((s, l) => s + (l.qty || 1) * (l.unitPrice || 0), 0),
+      lines,
       projectTypes: proposal.projectTypes || [],
       projectSummary: proposal.projectSummary || '',
-      isAlaCarte: proposal.isAlaCarte || false,
+      isAlaCarte: false,
       contractNumber,
       salesperson: 'Mathew Rosa',
     }))
     navigate('/contract')
+  }
+
+  // Generate contract package for a Won proposal
+  const handleGenerateContract = (proposal) => {
+    if (proposal.isAlaCarte && (proposal.lines || []).length > 0) {
+      setSelectedLineIds(new Set((proposal.lines || []).map(l => l.id)))
+      setALaCarteProposal(proposal)
+      return
+    }
+    launchContract(proposal, proposal.lines || [])
   }
 
   // Open BuildQuote pre-filled to create a new revision
@@ -975,6 +994,70 @@ export default function ProposalTracker() {
       )}
       {tab === 'analytics' && (
         <AnalyticsView proposals={proposals} />
+      )}
+
+      {/* A la Carte Item Selection Modal */}
+      {aLaCarteProposal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h2 className="font-bold text-gray-900 text-base flex items-center gap-2">
+                  <ShoppingCart size={16} className="text-blue-600" /> Select Items for Contract
+                </h2>
+                <p className="text-xs text-gray-400 mt-0.5">{aLaCarteProposal.client} · check which items the client is moving forward with</p>
+              </div>
+              <button onClick={() => setALaCarteProposal(null)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 px-6 py-4 space-y-2">
+              {(aLaCarteProposal.lines || []).map(line => {
+                const checked = selectedLineIds.has(line.id)
+                const lineTotal = (line.qty || 1) * (line.unitPrice || 0)
+                return (
+                  <label key={line.id} className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${checked ? 'border-blue-300 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <input type="checkbox" className="mt-0.5 accent-blue-600" checked={checked} onChange={() => toggleLineId(line.id)} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-800">{line.name}</p>
+                      {line.description && <p className="text-xs text-gray-400 mt-0.5 truncate">{line.description}</p>}
+                    </div>
+                    <span className="text-sm font-bold text-gray-700 whitespace-nowrap">${lineTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </label>
+                )
+              })}
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-100">
+              <div className="flex items-center justify-between mb-3 text-sm">
+                <span className="text-gray-500">{selectedLineIds.size} of {(aLaCarteProposal.lines || []).length} items selected</span>
+                <span className="font-bold text-gray-800">
+                  Total: ${(aLaCarteProposal.lines || [])
+                    .filter(l => selectedLineIds.has(l.id))
+                    .reduce((s, l) => s + (l.qty || 1) * (l.unitPrice || 0), 0)
+                    .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setALaCarteProposal(null)} className="flex-1 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">
+                  Cancel
+                </button>
+                <button
+                  disabled={selectedLineIds.size === 0}
+                  onClick={() => {
+                    const selected = (aLaCarteProposal.lines || []).filter(l => selectedLineIds.has(l.id))
+                    setALaCarteProposal(null)
+                    launchContract(aLaCarteProposal, selected)
+                  }}
+                  className="flex-1 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700 disabled:opacity-40 transition-colors"
+                >
+                  Build Contract →
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Win/Loss Reason Modal */}

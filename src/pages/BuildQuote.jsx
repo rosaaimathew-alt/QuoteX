@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Plus, Trash2, ChevronDown, ChevronUp, Eye, EyeOff, BookTemplate, X, Save, Copy } from 'lucide-react'
+import { Search, Plus, Trash2, ChevronDown, ChevronUp, Eye, EyeOff, BookTemplate, X, Save, Copy, BookPlus, Check } from 'lucide-react'
 import { useStore } from '../store'
 
 const MARGIN_DEFAULT = 30
@@ -8,7 +8,8 @@ const MARGIN_DEFAULT = 30
 export default function BuildQuote() {
   const catalog = useStore(s => s.catalog)
   const templates = useStore(s => s.templates)
-  const { saveTemplate, deleteTemplate } = useStore()
+  const { saveTemplate, deleteTemplate, addCatalogItems } = useStore()
+  const [savedToLog, setSavedToLog] = useState(new Set())
   const navigate = useNavigate()
 
   const [search, setSearch] = useState('')
@@ -331,10 +332,34 @@ export default function BuildQuote() {
                     <td className="px-4 pt-3 text-right font-medium text-gray-800 whitespace-nowrap">
                       ${(line.qty * line.unitPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
-                    <td className="px-2 pt-3">
-                      <button onClick={() => removeLine(line.id)} className="p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50">
-                        <Trash2 size={13} />
-                      </button>
+                    <td className="px-2 pt-2.5">
+                      <div className="flex flex-col gap-1">
+                        {line.catalogId === null && !savedToLog.has(line.id) && line.name?.trim() && (
+                          <button
+                            title="Save to catalog"
+                            onClick={() => {
+                              addCatalogItems([{
+                                name: line.name.trim(),
+                                description: line.description || '',
+                                unit: line.unit || 'EA',
+                                unitPrice: Number(line.unitPrice) || 0,
+                                category: line.category || 'General',
+                                section: line.section || '',
+                              }])
+                              setSavedToLog(prev => new Set([...prev, line.id]))
+                            }}
+                            className="p-1 rounded text-gray-300 hover:text-blue-500 hover:bg-blue-50"
+                          >
+                            <BookPlus size={13} />
+                          </button>
+                        )}
+                        {savedToLog.has(line.id) && (
+                          <span className="p-1 text-green-500"><Check size={13} /></span>
+                        )}
+                        <button onClick={() => removeLine(line.id)} className="p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50">
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
