@@ -102,8 +102,34 @@ function EditRow({ item, onSave, onCancel }) {
         </td>
       </tr>
       <tr className="bg-blue-50 border-b border-blue-100">
-        <td colSpan={9} className="px-4 pb-2">
-          <textarea rows={2} className="w-full text-xs border border-blue-300 rounded px-2 py-1 focus:outline-none resize-none text-gray-600 italic" placeholder="Scope description..." value={form.description || ''} onChange={e => set('description', e.target.value)} />
+        <td colSpan={9} className="px-4 pb-3">
+          <textarea rows={2} className="w-full text-xs border border-blue-300 rounded px-2 py-1 focus:outline-none resize-none text-gray-600 italic mb-2" placeholder="Scope description..." value={form.description || ''} onChange={e => set('description', e.target.value)} />
+          <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            <p className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-2">Internal Cost Breakdown (not client-facing)</p>
+            <div className="flex gap-4 flex-wrap">
+              <label className="flex items-center gap-1.5 text-xs text-gray-600">
+                Materials cost:
+                <span className="text-gray-400">$</span>
+                <input type="number" min="0" step="0.01" className="w-24 border border-amber-300 rounded px-2 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-amber-400"
+                  value={form.costMaterials || 0} onChange={e => set('costMaterials', parseFloat(e.target.value) || 0)} />
+              </label>
+              <label className="flex items-center gap-1.5 text-xs text-gray-600">
+                Subcontractor cost:
+                <span className="text-gray-400">$</span>
+                <input type="number" min="0" step="0.01" className="w-24 border border-amber-300 rounded px-2 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-amber-400"
+                  value={form.costSub || 0} onChange={e => set('costSub', parseFloat(e.target.value) || 0)} />
+              </label>
+              <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                Total cost: <strong className="text-gray-700">${fmt((form.costMaterials || 0) + (form.costSub || 0))}</strong>
+              </span>
+              <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                Margin: <strong className={`${form.unitPrice - (form.costMaterials || 0) - (form.costSub || 0) >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                  ${fmt(form.unitPrice - (form.costMaterials || 0) - (form.costSub || 0))}
+                  {form.unitPrice > 0 ? ` (${Math.round((form.unitPrice - (form.costMaterials || 0) - (form.costSub || 0)) / form.unitPrice * 100)}%)` : ''}
+                </strong>
+              </span>
+            </div>
+          </div>
         </td>
       </tr>
     </>
@@ -153,8 +179,21 @@ function TableView({ filtered, editId, setEditId, onSave, onDelete, onMove, addi
                   <td className="px-4 py-2"><div className="flex gap-1"><button onClick={saveNew} className="p-1 rounded text-green-600 hover:bg-green-100"><Check size={14} /></button><button onClick={() => setAddingNew(false)} className="p-1 rounded text-gray-400 hover:bg-gray-100"><X size={14} /></button></div></td>
                 </tr>
                 <tr className="bg-green-50 border-b border-green-100">
-                  <td colSpan={9} className="px-4 pb-2">
-                    <textarea rows={2} className="w-full text-xs border border-green-300 rounded px-2 py-1 focus:outline-none resize-none text-gray-600 italic" placeholder="Scope description..." value={newForm.description} onChange={e => setNewForm(f => ({ ...f, description: e.target.value }))} />
+                  <td colSpan={9} className="px-4 pb-3">
+                    <textarea rows={2} className="w-full text-xs border border-green-300 rounded px-2 py-1 focus:outline-none resize-none text-gray-600 italic mb-2" placeholder="Scope description..." value={newForm.description} onChange={e => setNewForm(f => ({ ...f, description: e.target.value }))} />
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                      <p className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-2">Internal Cost Breakdown (not client-facing)</p>
+                      <div className="flex gap-4 flex-wrap">
+                        <label className="flex items-center gap-1.5 text-xs text-gray-600">Materials cost: <span className="text-gray-400">$</span>
+                          <input type="number" min="0" step="0.01" className="w-24 border border-amber-300 rounded px-2 py-0.5 text-sm focus:outline-none"
+                            value={newForm.costMaterials || 0} onChange={e => setNewForm(f => ({ ...f, costMaterials: parseFloat(e.target.value) || 0 }))} />
+                        </label>
+                        <label className="flex items-center gap-1.5 text-xs text-gray-600">Subcontractor cost: <span className="text-gray-400">$</span>
+                          <input type="number" min="0" step="0.01" className="w-24 border border-amber-300 rounded px-2 py-0.5 text-sm focus:outline-none"
+                            value={newForm.costSub || 0} onChange={e => setNewForm(f => ({ ...f, costSub: parseFloat(e.target.value) || 0 }))} />
+                        </label>
+                      </div>
+                    </div>
                   </td>
                 </tr>
               </>
@@ -176,7 +215,12 @@ function TableView({ filtered, editId, setEditId, onSave, onDelete, onMove, addi
                   </td>
                   <td className="px-4 py-2.5"><span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{item.category}</span></td>
                   <td className="px-4 py-2.5 text-gray-500">{item.unit}</td>
-                  <td className="px-4 py-2.5 font-semibold text-gray-900">${fmt(item.unitPrice)}</td>
+                  <td className="px-4 py-2.5">
+                    <p className="font-semibold text-gray-900">${fmt(item.unitPrice)}</p>
+                    {((item.costMaterials || 0) + (item.costSub || 0)) > 0 && (
+                      <p className="text-[10px] text-amber-600 mt-0.5">cost ${fmt((item.costMaterials||0)+(item.costSub||0))}</p>
+                    )}
+                  </td>
                   <td className="px-4 py-2.5 text-gray-400 text-xs">${item.minPrice} – ${item.maxPrice}</td>
                   <td className="px-4 py-2.5 text-center text-gray-500">{item.count}</td>
                   <td className="px-4 py-2.5"><ConfidenceBadge value={item.confidence} /></td>

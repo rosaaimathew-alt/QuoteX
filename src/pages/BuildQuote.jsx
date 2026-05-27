@@ -73,6 +73,8 @@ export default function BuildQuote() {
         qty: 1,
         unitPrice: item.unitPrice,
         category: item.category,
+        costMaterials: item.costMaterials || 0,
+        costSub: item.costSub || 0,
       }]
     })
   }

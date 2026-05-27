@@ -424,6 +424,117 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
   )
 }
 
+// ── Budget tab ────────────────────────────────────────────────────────────────
+function BudgetTab({ proposal }) {
+  const fmtD = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const lines = proposal.lines || []
+  const hasCostData = lines.some(l => (l.costMaterials || 0) + (l.costSub || 0) > 0)
+
+  const rows = lines.map(l => {
+    const qty        = Number(l.qty) || 1
+    const revenue    = qty * (Number(l.unitPrice) || 0)
+    const matCost    = qty * (Number(l.costMaterials) || 0)
+    const subCost    = qty * (Number(l.costSub) || 0)
+    const totalCost  = matCost + subCost
+    const margin     = revenue - totalCost
+    const marginPct  = revenue > 0 ? Math.round(margin / revenue * 100) : null
+    return { ...l, qty, revenue, matCost, subCost, totalCost, margin, marginPct }
+  })
+
+  const totals = rows.reduce((acc, r) => ({
+    revenue:   acc.revenue   + r.revenue,
+    matCost:   acc.matCost   + r.matCost,
+    subCost:   acc.subCost   + r.subCost,
+    totalCost: acc.totalCost + r.totalCost,
+    margin:    acc.margin    + r.margin,
+  }), { revenue: 0, matCost: 0, subCost: 0, totalCost: 0, margin: 0 })
+
+  const overallMarginPct = totals.revenue > 0
+    ? Math.round(totals.margin / totals.revenue * 100)
+    : null
+
+  if (lines.length === 0) {
+    return (
+      <div className="p-6 text-center text-gray-400 text-sm">
+        No line items found. Budget is generated from the proposal's line items.
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-4 space-y-4">
+      {!hasCostData && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-700">
+          No cost data found on these line items. Add material and subcontractor costs in the Item Catalog to populate this budget.
+        </div>
+      )}
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'Contract Value',    value: `$${fmtD(totals.revenue)}`,   color: 'text-gray-900' },
+          { label: 'Materials Budget',  value: `$${fmtD(totals.matCost)}`,   color: 'text-blue-700' },
+          { label: 'Sub Budget',        value: `$${fmtD(totals.subCost)}`,   color: 'text-purple-700' },
+          { label: 'Gross Profit',      value: `$${fmtD(totals.margin)}${overallMarginPct !== null ? ` (${overallMarginPct}%)` : ''}`,
+            color: totals.margin >= 0 ? 'text-green-700' : 'text-red-600' },
+        ].map(c => (
+          <div key={c.label} className="bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
+            <p className="text-xs text-gray-400 mb-0.5">{c.label}</p>
+            <p className={`text-base font-bold ${c.color}`}>{c.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Line-item breakdown */}
+      <div className="overflow-x-auto rounded-xl border border-gray-200">
+        <table className="w-full text-xs">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              {['Item', 'Qty', 'Client Price', 'Materials', 'Sub', 'Total Cost', 'Margin'].map(h => (
+                <th key={h} className="px-3 py-2.5 text-left font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {rows.map((r, i) => (
+              <tr key={i} className="hover:bg-gray-50">
+                <td className="px-3 py-2.5 font-medium text-gray-800 max-w-[160px]">
+                  <p className="truncate">{r.name}</p>
+                  {r.description && <p className="text-gray-400 italic truncate">{r.description}</p>}
+                </td>
+                <td className="px-3 py-2.5 text-gray-500">{r.qty}</td>
+                <td className="px-3 py-2.5 font-semibold text-gray-900">${fmtD(r.revenue)}</td>
+                <td className="px-3 py-2.5 text-blue-700">{r.matCost > 0 ? `$${fmtD(r.matCost)}` : <span className="text-gray-300">—</span>}</td>
+                <td className="px-3 py-2.5 text-purple-700">{r.subCost > 0 ? `$${fmtD(r.subCost)}` : <span className="text-gray-300">—</span>}</td>
+                <td className="px-3 py-2.5 text-gray-700">{r.totalCost > 0 ? `$${fmtD(r.totalCost)}` : <span className="text-gray-300">—</span>}</td>
+                <td className="px-3 py-2.5">
+                  {r.totalCost > 0 ? (
+                    <span className={`font-semibold ${r.margin >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                      ${fmtD(r.margin)}{r.marginPct !== null ? ` (${r.marginPct}%)` : ''}
+                    </span>
+                  ) : <span className="text-gray-300">—</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot className="bg-gray-50 border-t-2 border-gray-300">
+            <tr>
+              <td colSpan={2} className="px-3 py-2.5 font-bold text-gray-700 uppercase text-xs tracking-wider">TOTAL</td>
+              <td className="px-3 py-2.5 font-bold text-gray-900">${fmtD(totals.revenue)}</td>
+              <td className="px-3 py-2.5 font-bold text-blue-700">${fmtD(totals.matCost)}</td>
+              <td className="px-3 py-2.5 font-bold text-purple-700">${fmtD(totals.subCost)}</td>
+              <td className="px-3 py-2.5 font-bold text-gray-700">${fmtD(totals.totalCost)}</td>
+              <td className="px-3 py-2.5 font-bold text-green-700">
+                ${fmtD(totals.margin)}{overallMarginPct !== null ? ` (${overallMarginPct}%)` : ''}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 // ── Change Orders tab ──────────────────────────────────────────────────────────
 function ChangeOrdersTab({ proposal }) {
   const { addChangeOrder, updateChangeOrder, deleteChangeOrder } = useStore()
@@ -1201,6 +1312,7 @@ function JobCard({ proposal }) {
 
   const TABS = [
     { key: 'stages',  label: 'Stages' },
+    { key: 'budget',  label: 'Budget' },
     { key: 'co',      label: `Change Orders${coCount ? ` (${coCount})` : ''}` },
     { key: 'log',     label: `Daily Log${logCount ? ` (${logCount})` : ''}` },
     { key: 'warranty',label: `Warranty${openWarranty ? ` (${openWarranty})` : ''}` },
@@ -1391,6 +1503,7 @@ function JobCard({ proposal }) {
                 </div>
               </div>
             )}
+            {tab === 'budget'  && <BudgetTab proposal={proposal} />}
             {tab === 'co'      && <ChangeOrdersTab proposal={proposal} />}
             {tab === 'log'     && <DailyLogTab proposal={proposal} />}
             {tab === 'warranty'&& <WarrantyTab proposal={proposal} />}
