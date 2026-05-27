@@ -580,6 +580,9 @@ export default function SignPage() {
               {PROJECT_TYPES.map(t => <span key={t}><CB checked={projectTypes.includes(t)} />{t}</span>)}
             </p>
             <p className="mb-1">( &nbsp; ) Other _______________________________________________________________________________</p>
+            {projectSummary && (
+              <p className="mt-2 mb-1 text-[10pt] text-justify whitespace-pre-wrap">{projectSummary}</p>
+            )}
             <div className="border-b border-gray-300 mb-4 mt-2" />
 
             <p className="mb-3 text-justify"><strong>1.</strong> BUILDER shall furnish the services and material for performance of the WORK on the PREMISES described on the SCOPE OF WORK each attached to and made part of this CONTRACT, for and in consideration of the payment to BUILDER by the PURCHASER of <strong>${fmt(total)}</strong> for the WORK. Together with any amounts set forth in any addenda hereto (TOTAL CONTRACT SUM).</p>
