@@ -12,6 +12,22 @@ import { getPeriodRange, shiftPeriod, getPeriodSegments, isCurrentPeriod } from 
 const fmt   = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const fmtSh = (n) => { const v = Number(n); if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(2)}M`; if (v >= 1_000) return `$${(v / 1_000).toFixed(1)}k`; return `$${v.toFixed(0)}` }
 
+function buildGroups(proposals) {
+  const ids = new Set(proposals.map(p => p.id))
+  const roots = proposals.filter(p => !p.parentId || !ids.has(p.parentId))
+  return roots.map(root => ({
+    root,
+    revisions: proposals.filter(p => p.parentId === root.id).sort((a, b) => (a.version || 2) - (b.version || 2)),
+  }))
+}
+function clientOutcomes(proposals) {
+  return buildGroups(proposals).map(({ root, revisions }) => {
+    const all = [root, ...revisions]
+    const isWon = all.some(p => p.status === 'Won')
+    return { all, isWon }
+  })
+}
+
 const STATUS_BADGE = {
   Won:           'bg-green-100 text-green-700',
   Lost:          'bg-red-100 text-red-700',
@@ -119,14 +135,15 @@ export default function Dashboard() {
   // Period-filtered proposals
   const periodProps = proposals.filter(inPeriod)
 
-  // KPI calculations — won/lost/winRate scoped to period; pipeline always current
-  // winRate = won ÷ all proposals generated (including active) — intentional close rate metric
-  const won        = periodProps.filter(p => p.status === 'Won')
-  const lost       = periodProps.filter(p => p.status !== 'Won')
-  const active     = proposals.filter(p => ['Sent', 'Followed Up', 'Negotiating'].includes(p.status))
-  const wonRevenue = won.reduce((s, p) => s + (p.total || 0), 0)
-  const pipeline   = active.reduce((s, p) => s + (p.total || 0), 0)
-  const winRate    = periodProps.length > 0 ? Math.round(won.length / periodProps.length * 100) : null
+  // KPI calculations — client-level outcomes scoped to period; pipeline always current
+  const outcomes    = clientOutcomes(periodProps)
+  const wonClients  = outcomes.filter(o => o.isWon)
+  const lostClients = outcomes.filter(o => !o.isWon)
+  const won         = periodProps.filter(p => p.status === 'Won')
+  const active      = proposals.filter(p => ['Sent', 'Followed Up', 'Negotiating'].includes(p.status))
+  const wonRevenue  = won.reduce((s, p) => s + (p.total || 0), 0)
+  const pipeline    = active.reduce((s, p) => s + (p.total || 0), 0)
+  const winRate     = outcomes.length > 0 ? Math.round(wonClients.length / outcomes.length * 100) : null
   const periodTotal = periodProps.reduce((s, p) => s + (p.total || 0), 0)
 
   // Bar chart segments
@@ -219,7 +236,7 @@ export default function Dashboard() {
         <KpiCard
           icon={Award} label="Win Rate" color="bg-[var(--brand-500)]"
           value={winRate !== null ? `${winRate}%` : '—'}
-          sub={`${won.length}W · ${lost.length} not won · ${pLabel}`}
+          sub={`${wonClients.length}W · ${lostClients.length} not won · ${outcomes.length} clients · ${pLabel}`}
           onClick={() => navigate('/tracker')}
         />
         <KpiCard
