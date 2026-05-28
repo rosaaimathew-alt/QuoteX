@@ -900,6 +900,14 @@ export default function ContractView() {
                 </div>
               ))}
 
+              {/* Project Description */}
+              <div className="col-span-2">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Project Description <span className="font-normal text-gray-400">(appears at top of contract &amp; scope of work)</span></label>
+                <textarea rows={3} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  value={projectSummary} onChange={e => setProjectSummary(e.target.value)}
+                  placeholder="e.g. 16×16 Gable Roof Eze-Breeze Porch with vaulted ceilings and TimberTech Prime Plus open deck…" />
+              </div>
+
               {/* Special instructions & directions */}
               {[
                 ['Special Instructions', specialInstructions, setSpecialInstructions],
@@ -1016,6 +1024,9 @@ export default function ContractView() {
               ))}
             </p>
             <p className="mb-1">( &nbsp; ) Other _______________________________________________________________________________</p>
+            {projectSummary && (
+              <p className="mt-2 mb-1 text-[10pt] text-justify whitespace-pre-wrap">{projectSummary}</p>
+            )}
             <div className="border-b border-gray-300 mb-4 mt-2" />
 
             <p className="mb-3 text-justify">
