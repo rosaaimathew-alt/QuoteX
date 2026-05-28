@@ -109,6 +109,12 @@ const PAYMENT_MILESTONES_UNDER20K = [
   { label: 'Substantial completion payment',     pct: 0.40 },
 ]
 
+const PAYMENT_MILESTONES_HARDSCAPE = [
+  { label: 'Schedule deposit — @ sign contract', pct: 0.20 },
+  { label: 'Material delivery / Work Start',     pct: 0.40 },
+  { label: 'Substantial completion payment',     pct: 0.40 },
+]
+
 // Locked disclosures — never editable
 const GENERAL_NOTES = [
   { text: 'Ebony To Provide all labor, material sufficient to complete the accepted scope', bold: false },
@@ -210,6 +216,7 @@ export default function ContractView() {
   const [showItemPicker,       setShowItemPicker]       = useState(false)
   const [pickerSelection,      setPickerSelection]      = useState(new Set())
   const [milestoneLabels,      setMilestoneLabels]      = useState([])
+  const [isHardscape,          setIsHardscape]          = useState(false)
   const [showScopeTemplates,   setShowScopeTemplates]   = useState(false)
   const [showSaveScopeTemplate,setShowSaveScopeTemplate]= useState(false)
   const [scopeTemplateName,    setScopeTemplateName]    = useState('')
@@ -273,7 +280,9 @@ export default function ContractView() {
       })))
       setCeilingFanNote(draft.ceilingFanNote ?? 'Homeowner to provide 1 ceiling fan with downrod')
       setSavedAt(draft.savedAt ?? null)
-      const templateMs = d.total < 20000 ? PAYMENT_MILESTONES_UNDER20K : PAYMENT_MILESTONES
+      const hs = draft.isHardscape ?? false
+      setIsHardscape(hs)
+      const templateMs = hs ? PAYMENT_MILESTONES_HARDSCAPE : d.total < 20000 ? PAYMENT_MILESTONES_UNDER20K : PAYMENT_MILESTONES
       setMilestoneLabels(draft.milestoneLabels ?? templateMs.map(m => m.label))
     } else {
       // Fresh start
@@ -332,7 +341,9 @@ export default function ContractView() {
 
   const isSmallContract = total < 40000
   const isUnder20K     = total < 20000
-  const milestones     = isUnder20K ? PAYMENT_MILESTONES_UNDER20K : PAYMENT_MILESTONES
+  const milestones     = isHardscape ? PAYMENT_MILESTONES_HARDSCAPE
+                       : isUnder20K  ? PAYMENT_MILESTONES_UNDER20K
+                       :               PAYMENT_MILESTONES
   const payments       = milestones.map((m, i) => ({
     ...m,
     label:  milestoneLabels[i] ?? m.label,
@@ -403,6 +414,7 @@ export default function ContractView() {
         projectSummary,
         ceilingFanNote,
         milestoneLabels,
+        isHardscape,
         // Branding (with logo)
         branding:          fullBranding,
         // Computed flags so SignPage matches ContractView behavior
@@ -436,7 +448,7 @@ export default function ContractView() {
             specialInstructions, directions, lumberDrop, power, gateCode,
             paymentMethods, otherTerms, includesElectrical, recessedSize,
             homePhone, cellPhone, elecItems, projectSummary, scopeLines,
-            ceilingFanNote, milestoneLabels,
+            ceilingFanNote, milestoneLabels, isHardscape,
             signRecordId: result.recordId,
             signLinks:    result.links,
             linksSentAt:  new Date().toISOString(),
@@ -719,7 +731,7 @@ export default function ContractView() {
               specialInstructions, directions, lumberDrop, power, gateCode,
               paymentMethods, otherTerms, includesElectrical, recessedSize,
               homePhone, cellPhone, elecItems, projectSummary, scopeLines,
-              ceilingFanNote, milestoneLabels,
+              ceilingFanNote, milestoneLabels, isHardscape,
             })
             // Learn from scope bullets written for this contract
             const examples = scopeLines
@@ -949,6 +961,28 @@ export default function ContractView() {
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Gate Code <span className="font-normal text-gray-400">(optional)</span></label>
                 <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                   value={gateCode} onChange={e => setGateCode(e.target.value)} />
+              </div>
+
+              {/* Hardscape / patio toggle */}
+              <div className="col-span-2 border-t border-gray-100 pt-4">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Hardscape / Patio Only? <span className="font-normal text-gray-400">(no roofing — uses 20/40/40 payment schedule)</span></label>
+                <div className="flex gap-2">
+                  {['yes','no'].map(v => (
+                    <button key={v} onClick={() => {
+                      const val = v === 'yes'
+                      setIsHardscape(val)
+                      const templateMs = val ? PAYMENT_MILESTONES_HARDSCAPE : total < 20000 ? PAYMENT_MILESTONES_UNDER20K : PAYMENT_MILESTONES
+                      setMilestoneLabels(templateMs.map(m => m.label))
+                    }}
+                      className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+                        (v === 'yes') === isHardscape
+                          ? 'bg-orange-500 text-white border-orange-500'
+                          : 'bg-white text-gray-600 border-gray-300'
+                      }`}>
+                      {v.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Electrical work toggle */}
