@@ -121,11 +121,12 @@ export default function Dashboard() {
 
   // KPI calculations — won/lost/winRate scoped to period; pipeline always current
   const won        = periodProps.filter(p => p.status === 'Won')
-  const lost       = periodProps.filter(p => p.status !== 'Won')
+  const lost       = periodProps.filter(p => p.status === 'Lost')
+  const decided    = won.length + lost.length
   const active     = proposals.filter(p => ['Sent', 'Followed Up', 'Negotiating'].includes(p.status))
   const wonRevenue = won.reduce((s, p) => s + (p.total || 0), 0)
   const pipeline   = active.reduce((s, p) => s + (p.total || 0), 0)
-  const winRate    = periodProps.length > 0 ? Math.round(won.length / periodProps.length * 100) : null
+  const winRate    = decided > 0 ? Math.round(won.length / decided * 100) : null
   const periodTotal = periodProps.reduce((s, p) => s + (p.total || 0), 0)
 
   // Bar chart segments
