@@ -115,6 +115,43 @@ const PAYMENT_MILESTONES_HARDSCAPE = [
   { label: 'Substantial completion payment',     pct: 0.40 },
 ]
 
+const PAYMENT_MILESTONES_30_50_20 = [
+  { label: 'Schedule deposit — @ sign contract', pct: 0.30 },
+  { label: 'Material drop / Framing Start',      pct: 0.50 },
+  { label: 'Substantial completion payment',     pct: 0.20 },
+]
+
+const PAYMENT_MILESTONES_50_50 = [
+  { label: 'Schedule deposit — @ sign contract', pct: 0.50 },
+  { label: 'Substantial completion payment',     pct: 0.50 },
+]
+
+const PAYMENT_MILESTONES_20_30_40_10 = [
+  { label: 'Schedule deposit — @ sign contract',            pct: 0.20 },
+  { label: 'Start payment — Material drop / Framing Start', pct: 0.30 },
+  { label: 'Roof Completion',                               pct: 0.40 },
+  { label: 'Substantial completion payment',                pct: 0.10 },
+]
+
+const SCHEDULE_OPTIONS = [
+  { key: 'auto',         label: 'Auto' },
+  { key: '20_30_40_5_5', label: '20 / 30 / 40 / 5 / 5' },
+  { key: '20_30_40_10',  label: '20 / 30 / 40 / 10' },
+  { key: '30_50_20',     label: '30 / 50 / 20' },
+  { key: '50_50',        label: '50 / 50' },
+]
+
+function getMilestoneSet(key, projectTag, total) {
+  if (key === '20_30_40_5_5') return PAYMENT_MILESTONES
+  if (key === '20_30_40_10')  return PAYMENT_MILESTONES_20_30_40_10
+  if (key === '30_50_20')     return PAYMENT_MILESTONES_30_50_20
+  if (key === '50_50')        return PAYMENT_MILESTONES_50_50
+  // auto
+  if (projectTag === 'Hardscapes' || projectTag === 'Porch Conversion') return PAYMENT_MILESTONES_HARDSCAPE
+  if (total < 20000) return PAYMENT_MILESTONES_UNDER20K
+  return PAYMENT_MILESTONES
+}
+
 // Locked disclosures — never editable
 const GENERAL_NOTES = [
   { text: 'Ebony To Provide all labor, material sufficient to complete the accepted scope', bold: false },
@@ -288,12 +325,7 @@ export default function ContractView() {
       setIsHardscape(hs)
       setProjectTag(tag)
       setPaymentScheduleOverride(pso)
-      const templateMs = pso === 'standard' ? PAYMENT_MILESTONES
-                       : pso === 'simple'   ? PAYMENT_MILESTONES_UNDER20K
-                       : pso === 'hardscape'? PAYMENT_MILESTONES_HARDSCAPE
-                       : (tag === 'Hardscapes' || tag === 'Patio') ? PAYMENT_MILESTONES_HARDSCAPE
-                       : d.total < 20000 ? PAYMENT_MILESTONES_UNDER20K : PAYMENT_MILESTONES
-      setMilestoneLabels(draft.milestoneLabels ?? templateMs.map(m => m.label))
+      setMilestoneLabels(draft.milestoneLabels ?? getMilestoneSet(pso, tag, d.total).map(m => m.label))
     } else {
       // Fresh start
       setContractNum(d.contractNumber || '')
@@ -351,12 +383,7 @@ export default function ContractView() {
 
   const isSmallContract = total < 40000
   const isUnder20K     = total < 20000
-  const milestones     = paymentScheduleOverride === 'standard'  ? PAYMENT_MILESTONES
-                       : paymentScheduleOverride === 'simple'    ? PAYMENT_MILESTONES_UNDER20K
-                       : paymentScheduleOverride === 'hardscape' ? PAYMENT_MILESTONES_HARDSCAPE
-                       : (projectTag === 'Hardscapes' || projectTag === 'Patio') ? PAYMENT_MILESTONES_HARDSCAPE
-                       : isUnder20K ? PAYMENT_MILESTONES_UNDER20K
-                       : PAYMENT_MILESTONES
+  const milestones     = getMilestoneSet(paymentScheduleOverride, projectTag, total)
   const payments       = milestones.map((m, i) => ({
     ...m,
     label:  milestoneLabels[i] ?? m.label,
@@ -860,14 +887,12 @@ export default function ContractView() {
           <div>
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-2">Project Type</label>
             <div className="flex gap-2 flex-wrap">
-              {['Hardscapes','Patio','Porch','Porch with Deck','Deck'].map(tag => (
+              {['Hardscapes','Porch Conversion','Porch','Porch with Deck','Deck'].map(tag => (
                 <button key={tag} onClick={() => {
                   const next = projectTag === tag ? null : tag
                   setProjectTag(next)
                   if (paymentScheduleOverride === 'auto') {
-                    const ms = (next === 'Hardscapes' || next === 'Patio') ? PAYMENT_MILESTONES_HARDSCAPE
-                             : total < 20000 ? PAYMENT_MILESTONES_UNDER20K : PAYMENT_MILESTONES
-                    setMilestoneLabels(ms.map(m => m.label))
+                    setMilestoneLabels(getMilestoneSet('auto', next, total).map(m => m.label))
                   }
                 }}
                   className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${
@@ -886,26 +911,14 @@ export default function ContractView() {
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-2">
               Payment Schedule
               {paymentScheduleOverride === 'auto' && projectTag && (
-                <span className="ml-2 font-normal text-gray-400 normal-case">
-                  (auto-selected from project type)
-                </span>
+                <span className="ml-2 font-normal text-gray-400 normal-case">(auto-selected from project type)</span>
               )}
             </label>
             <div className="flex gap-2 flex-wrap">
-              {[
-                { key: 'auto',      label: 'Auto' },
-                { key: 'standard',  label: 'Standard — 20/30/40/5/5' },
-                { key: 'simple',    label: 'Simple — 20/40/40' },
-                { key: 'hardscape', label: 'Hardscape — 20/40/40' },
-              ].map(({ key, label }) => (
+              {SCHEDULE_OPTIONS.map(({ key, label }) => (
                 <button key={key} onClick={() => {
                   setPaymentScheduleOverride(key)
-                  const ms = key === 'standard' ? PAYMENT_MILESTONES
-                           : key === 'simple'   ? PAYMENT_MILESTONES_UNDER20K
-                           : key === 'hardscape'? PAYMENT_MILESTONES_HARDSCAPE
-                           : (projectTag === 'Hardscapes' || projectTag === 'Patio') ? PAYMENT_MILESTONES_HARDSCAPE
-                           : total < 20000 ? PAYMENT_MILESTONES_UNDER20K : PAYMENT_MILESTONES
-                  setMilestoneLabels(ms.map(m => m.label))
+                  setMilestoneLabels(getMilestoneSet(key, projectTag, total).map(m => m.label))
                 }}
                   className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
                     paymentScheduleOverride === key
