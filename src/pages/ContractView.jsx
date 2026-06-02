@@ -253,6 +253,8 @@ export default function ContractView() {
   const [showItemPicker,       setShowItemPicker]       = useState(false)
   const [pickerSelection,      setPickerSelection]      = useState(new Set())
   const [milestoneLabels,        setMilestoneLabels]        = useState([])
+  const [milestonePcts,          setMilestonePcts]          = useState([])
+  const [showMilestoneEditor,    setShowMilestoneEditor]    = useState(false)
   const [isHardscape,            setIsHardscape]            = useState(false)
   const [projectTag,             setProjectTag]             = useState(null)
   const [paymentScheduleOverride,setPaymentScheduleOverride]= useState('auto')
@@ -326,6 +328,7 @@ export default function ContractView() {
       setProjectTag(tag)
       setPaymentScheduleOverride(pso)
       setMilestoneLabels(draft.milestoneLabels ?? getMilestoneSet(pso, tag, d.total).map(m => m.label))
+      setMilestonePcts(draft.milestonePcts ?? [])
     } else {
       // Fresh start
       setContractNum(d.contractNumber || '')
@@ -384,11 +387,11 @@ export default function ContractView() {
   const isSmallContract = total < 40000
   const isUnder20K     = total < 20000
   const milestones     = getMilestoneSet(paymentScheduleOverride, projectTag, total)
-  const payments       = milestones.map((m, i) => ({
-    ...m,
-    label:  milestoneLabels[i] ?? m.label,
-    amount: total * m.pct,
-  }))
+  const payments       = milestones.map((m, i) => {
+    const pct = milestonePcts[i] != null ? milestonePcts[i] / 100 : m.pct
+    return { ...m, pct, label: milestoneLabels[i] ?? m.label, amount: total * pct }
+  })
+  const pctSum = payments.reduce((s, p) => s + Math.round(p.pct * 100), 0)
 
   const updateMilestoneLabel = (i, val) =>
     setMilestoneLabels(prev => prev.map((l, idx) => idx === i ? val : l))
@@ -454,6 +457,7 @@ export default function ContractView() {
         projectSummary,
         ceilingFanNote,
         milestoneLabels,
+        milestonePcts,
         isHardscape,
         projectTag,
         paymentScheduleOverride,
@@ -490,7 +494,7 @@ export default function ContractView() {
             specialInstructions, directions, lumberDrop, power, gateCode,
             paymentMethods, otherTerms, includesElectrical, recessedSize,
             homePhone, cellPhone, elecItems, projectSummary, scopeLines,
-            ceilingFanNote, milestoneLabels, isHardscape, projectTag, paymentScheduleOverride,
+            ceilingFanNote, milestoneLabels, milestonePcts, isHardscape, projectTag, paymentScheduleOverride,
             signRecordId: result.recordId,
             signLinks:    result.links,
             linksSentAt:  new Date().toISOString(),
@@ -773,7 +777,7 @@ export default function ContractView() {
               specialInstructions, directions, lumberDrop, power, gateCode,
               paymentMethods, otherTerms, includesElectrical, recessedSize,
               homePhone, cellPhone, elecItems, projectSummary, scopeLines,
-              ceilingFanNote, milestoneLabels, isHardscape, projectTag, paymentScheduleOverride,
+              ceilingFanNote, milestoneLabels, milestonePcts, isHardscape, projectTag, paymentScheduleOverride,
             })
             // Learn from scope bullets written for this contract
             const examples = scopeLines
@@ -918,6 +922,7 @@ export default function ContractView() {
               {SCHEDULE_OPTIONS.map(({ key, label }) => (
                 <button key={key} onClick={() => {
                   setPaymentScheduleOverride(key)
+                  setMilestonePcts([])
                   setMilestoneLabels(getMilestoneSet(key, projectTag, total).map(m => m.label))
                 }}
                   className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
@@ -928,6 +933,62 @@ export default function ContractView() {
                   {label}
                 </button>
               ))}
+            </div>
+
+            {/* Milestone editor — expands after selecting a schedule */}
+            <div className="mt-3">
+              <button
+                onClick={() => setShowMilestoneEditor(v => !v)}
+                className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
+              >
+                <ChevronDown size={13} className={`transition-transform ${showMilestoneEditor ? 'rotate-180' : ''}`} />
+                {showMilestoneEditor ? 'Hide' : 'Edit'} milestone details
+              </button>
+
+              {showMilestoneEditor && (
+                <div className="mt-3 space-y-2">
+                  {pctSum !== 100 && (
+                    <p className="text-xs text-red-500 font-medium mb-2">⚠ Percentages total {pctSum}% — must equal 100%</p>
+                  )}
+                  {milestones.map((m, i) => {
+                    const currentPct = milestonePcts[i] != null ? milestonePcts[i] : Math.round(m.pct * 100)
+                    const currentLabel = milestoneLabels[i] ?? m.label
+                    return (
+                      <div key={i} className="flex gap-2 items-center">
+                        <div className="flex items-center gap-1 shrink-0">
+                          <input
+                            type="number"
+                            min={1} max={99}
+                            className="w-14 border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-center focus:outline-none focus:ring-2 focus:ring-blue-300"
+                            value={currentPct}
+                            onChange={e => {
+                              const v = Number(e.target.value)
+                              setMilestonePcts(prev => {
+                                const next = [...prev]
+                                next[i] = isNaN(v) ? Math.round(m.pct * 100) : v
+                                return next
+                              })
+                            }}
+                          />
+                          <span className="text-xs text-gray-400">%</span>
+                        </div>
+                        <input
+                          className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-300"
+                          value={currentLabel}
+                          onChange={e => setMilestoneLabels(prev => {
+                            const next = [...prev]
+                            next[i] = e.target.value
+                            return next
+                          })}
+                        />
+                        <span className="text-xs text-gray-400 shrink-0 w-20 text-right">
+                          ${fmt(total * (milestonePcts[i] != null ? milestonePcts[i] / 100 : m.pct))}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>
