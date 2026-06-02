@@ -215,8 +215,10 @@ export default function ContractView() {
   const [city,            setCity]            = useState('')
   const [showItemPicker,       setShowItemPicker]       = useState(false)
   const [pickerSelection,      setPickerSelection]      = useState(new Set())
-  const [milestoneLabels,      setMilestoneLabels]      = useState([])
-  const [isHardscape,          setIsHardscape]          = useState(false)
+  const [milestoneLabels,        setMilestoneLabels]        = useState([])
+  const [isHardscape,            setIsHardscape]            = useState(false)
+  const [projectTag,             setProjectTag]             = useState(null)
+  const [paymentScheduleOverride,setPaymentScheduleOverride]= useState('auto')
   const [showScopeTemplates,   setShowScopeTemplates]   = useState(false)
   const [showSaveScopeTemplate,setShowSaveScopeTemplate]= useState(false)
   const [scopeTemplateName,    setScopeTemplateName]    = useState('')
@@ -280,9 +282,17 @@ export default function ContractView() {
       })))
       setCeilingFanNote(draft.ceilingFanNote ?? 'Homeowner to provide 1 ceiling fan with downrod')
       setSavedAt(draft.savedAt ?? null)
-      const hs = draft.isHardscape ?? false
+      const hs  = draft.isHardscape ?? false
+      const tag = draft.projectTag ?? null
+      const pso = draft.paymentScheduleOverride ?? 'auto'
       setIsHardscape(hs)
-      const templateMs = hs ? PAYMENT_MILESTONES_HARDSCAPE : d.total < 20000 ? PAYMENT_MILESTONES_UNDER20K : PAYMENT_MILESTONES
+      setProjectTag(tag)
+      setPaymentScheduleOverride(pso)
+      const templateMs = pso === 'standard' ? PAYMENT_MILESTONES
+                       : pso === 'simple'   ? PAYMENT_MILESTONES_UNDER20K
+                       : pso === 'hardscape'? PAYMENT_MILESTONES_HARDSCAPE
+                       : (tag === 'Hardscapes' || tag === 'Patio') ? PAYMENT_MILESTONES_HARDSCAPE
+                       : d.total < 20000 ? PAYMENT_MILESTONES_UNDER20K : PAYMENT_MILESTONES
       setMilestoneLabels(draft.milestoneLabels ?? templateMs.map(m => m.label))
     } else {
       // Fresh start
@@ -341,9 +351,12 @@ export default function ContractView() {
 
   const isSmallContract = total < 40000
   const isUnder20K     = total < 20000
-  const milestones     = isHardscape ? PAYMENT_MILESTONES_HARDSCAPE
-                       : isUnder20K  ? PAYMENT_MILESTONES_UNDER20K
-                       :               PAYMENT_MILESTONES
+  const milestones     = paymentScheduleOverride === 'standard'  ? PAYMENT_MILESTONES
+                       : paymentScheduleOverride === 'simple'    ? PAYMENT_MILESTONES_UNDER20K
+                       : paymentScheduleOverride === 'hardscape' ? PAYMENT_MILESTONES_HARDSCAPE
+                       : (projectTag === 'Hardscapes' || projectTag === 'Patio') ? PAYMENT_MILESTONES_HARDSCAPE
+                       : isUnder20K ? PAYMENT_MILESTONES_UNDER20K
+                       : PAYMENT_MILESTONES
   const payments       = milestones.map((m, i) => ({
     ...m,
     label:  milestoneLabels[i] ?? m.label,
@@ -415,6 +428,8 @@ export default function ContractView() {
         ceilingFanNote,
         milestoneLabels,
         isHardscape,
+        projectTag,
+        paymentScheduleOverride,
         // Branding (with logo)
         branding:          fullBranding,
         // Computed flags so SignPage matches ContractView behavior
@@ -448,7 +463,7 @@ export default function ContractView() {
             specialInstructions, directions, lumberDrop, power, gateCode,
             paymentMethods, otherTerms, includesElectrical, recessedSize,
             homePhone, cellPhone, elecItems, projectSummary, scopeLines,
-            ceilingFanNote, milestoneLabels, isHardscape,
+            ceilingFanNote, milestoneLabels, isHardscape, projectTag, paymentScheduleOverride,
             signRecordId: result.recordId,
             signLinks:    result.links,
             linksSentAt:  new Date().toISOString(),
@@ -651,7 +666,7 @@ export default function ContractView() {
           messages: [
             {
               role: 'system',
-              content: `You are a professional scope of work writer for Ebony Outdoor Living, an outdoor construction company specializing in decks, porches, pergolas, sunrooms, and outdoor structures. Write clear, professional, complete scope of work bullet points.${styleContext}`,
+              content: `You are a professional scope of work writer for Ebony Outdoor Living, an outdoor construction company specializing in decks, porches, pergolas, sunrooms, and outdoor structures. Write clear, professional, complete scope of work bullet points.${projectTag ? ` This is a ${projectTag} project.` : ''}${styleContext}`,
             },
             {
               role: 'user',
@@ -731,7 +746,7 @@ export default function ContractView() {
               specialInstructions, directions, lumberDrop, power, gateCode,
               paymentMethods, otherTerms, includesElectrical, recessedSize,
               homePhone, cellPhone, elecItems, projectSummary, scopeLines,
-              ceilingFanNote, milestoneLabels, isHardscape,
+              ceilingFanNote, milestoneLabels, isHardscape, projectTag, paymentScheduleOverride,
             })
             // Learn from scope bullets written for this contract
             const examples = scopeLines
@@ -837,6 +852,73 @@ export default function ContractView() {
           </div>
         </div>
       )}
+
+      {/* ── Project Type & Payment Schedule card ────────────────────── */}
+      <div className="no-print max-w-4xl mx-auto mt-6 px-4">
+        <div className="bg-white border border-gray-200 rounded-xl px-5 py-4 space-y-4">
+          {/* Project type tags */}
+          <div>
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-2">Project Type</label>
+            <div className="flex gap-2 flex-wrap">
+              {['Hardscapes','Patio','Porch','Porch with Deck','Deck'].map(tag => (
+                <button key={tag} onClick={() => {
+                  const next = projectTag === tag ? null : tag
+                  setProjectTag(next)
+                  if (paymentScheduleOverride === 'auto') {
+                    const ms = (next === 'Hardscapes' || next === 'Patio') ? PAYMENT_MILESTONES_HARDSCAPE
+                             : total < 20000 ? PAYMENT_MILESTONES_UNDER20K : PAYMENT_MILESTONES
+                    setMilestoneLabels(ms.map(m => m.label))
+                  }
+                }}
+                  className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${
+                    projectTag === tag
+                      ? 'bg-gray-900 text-white border-gray-900'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500'
+                  }`}>
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Payment schedule selector */}
+          <div>
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-2">
+              Payment Schedule
+              {paymentScheduleOverride === 'auto' && projectTag && (
+                <span className="ml-2 font-normal text-gray-400 normal-case">
+                  (auto-selected from project type)
+                </span>
+              )}
+            </label>
+            <div className="flex gap-2 flex-wrap">
+              {[
+                { key: 'auto',      label: 'Auto' },
+                { key: 'standard',  label: 'Standard — 20/30/40/5/5' },
+                { key: 'simple',    label: 'Simple — 20/40/40' },
+                { key: 'hardscape', label: 'Hardscape — 20/40/40' },
+              ].map(({ key, label }) => (
+                <button key={key} onClick={() => {
+                  setPaymentScheduleOverride(key)
+                  const ms = key === 'standard' ? PAYMENT_MILESTONES
+                           : key === 'simple'   ? PAYMENT_MILESTONES_UNDER20K
+                           : key === 'hardscape'? PAYMENT_MILESTONES_HARDSCAPE
+                           : (projectTag === 'Hardscapes' || projectTag === 'Patio') ? PAYMENT_MILESTONES_HARDSCAPE
+                           : total < 20000 ? PAYMENT_MILESTONES_UNDER20K : PAYMENT_MILESTONES
+                  setMilestoneLabels(ms.map(m => m.label))
+                }}
+                  className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+                    paymentScheduleOverride === key
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300'
+                  }`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* ── Draft restored banner ────────────────────────────────────── */}
       {savedAt && (
@@ -961,28 +1043,6 @@ export default function ContractView() {
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Gate Code <span className="font-normal text-gray-400">(optional)</span></label>
                 <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                   value={gateCode} onChange={e => setGateCode(e.target.value)} />
-              </div>
-
-              {/* Hardscape / patio toggle */}
-              <div className="col-span-2 border-t border-gray-100 pt-4">
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Hardscape / Patio Only? <span className="font-normal text-gray-400">(no roofing — uses 20/40/40 payment schedule)</span></label>
-                <div className="flex gap-2">
-                  {['yes','no'].map(v => (
-                    <button key={v} onClick={() => {
-                      const val = v === 'yes'
-                      setIsHardscape(val)
-                      const templateMs = val ? PAYMENT_MILESTONES_HARDSCAPE : total < 20000 ? PAYMENT_MILESTONES_UNDER20K : PAYMENT_MILESTONES
-                      setMilestoneLabels(templateMs.map(m => m.label))
-                    }}
-                      className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
-                        (v === 'yes') === isHardscape
-                          ? 'bg-orange-500 text-white border-orange-500'
-                          : 'bg-white text-gray-600 border-gray-300'
-                      }`}>
-                      {v.toUpperCase()}
-                    </button>
-                  ))}
-                </div>
               </div>
 
               {/* Electrical work toggle */}
@@ -1576,7 +1636,14 @@ export default function ContractView() {
               <tbody>
                 {scopeLines.map(line => (
                   <tr key={line.id}>
-                    <td className="border border-gray-300 px-3 py-3 font-bold">{line.name.toUpperCase()}</td>
+                    <td className="border border-gray-300 px-3 py-2 font-bold">
+                      <input
+                        className="no-print w-full bg-transparent border-b border-transparent hover:border-blue-300 focus:border-blue-400 focus:outline-none font-bold text-sm py-0.5 uppercase transition-colors"
+                        value={line.name || ''}
+                        onChange={e => setScopeLines(prev => prev.map(l => l.id === line.id ? { ...l, name: e.target.value } : l))}
+                      />
+                      <span className="print-only">{(line.name || '').toUpperCase()}</span>
+                    </td>
                     <td className="border border-gray-300 px-3 py-3 font-semibold">${fmt(line.price)}</td>
                     <td className="border border-gray-300 px-3 py-3"><div className="border-b border-gray-400 mx-4 mt-5" /></td>
                   </tr>
