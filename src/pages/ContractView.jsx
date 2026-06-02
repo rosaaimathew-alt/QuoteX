@@ -203,9 +203,14 @@ export default function ContractView() {
   const saveContractDraft    = useStore(s => s.saveContractDraft)
   const scopeExamples        = useStore(s => s.scopeExamples)
   const saveScopeExamples    = useStore(s => s.saveScopeExamples)
-  const scopeTemplates       = useStore(s => s.scopeTemplates)
-  const saveScopeTemplate    = useStore(s => s.saveScopeTemplate)
-  const deleteScopeTemplate  = useStore(s => s.deleteScopeTemplate)
+  const scopeTemplates         = useStore(s => s.scopeTemplates)
+  const saveScopeTemplate      = useStore(s => s.saveScopeTemplate)
+  const deleteScopeTemplate    = useStore(s => s.deleteScopeTemplate)
+  const paymentSchedules          = useStore(s => s.paymentSchedules)
+  const savePaymentSchedule       = useStore(s => s.savePaymentSchedule)
+  const deletePaymentSchedule     = useStore(s => s.deletePaymentSchedule)
+  const paymentScheduleLearning   = useStore(s => s.paymentScheduleLearning)
+  const recordPaymentScheduleUsage= useStore(s => s.recordPaymentScheduleUsage)
   const palette            = generatePalette(branding?.primaryColor || DEFAULT_BRAND_COLOR)
   const [savedAt,          setSavedAt]         = useState(null)
 
@@ -255,6 +260,8 @@ export default function ContractView() {
   const [milestoneLabels,        setMilestoneLabels]        = useState([])
   const [milestonePcts,          setMilestonePcts]          = useState([])
   const [showMilestoneEditor,    setShowMilestoneEditor]    = useState(false)
+  const [schedSaveName,          setSchedSaveName]          = useState('')
+  const [schedSaved,             setSchedSaved]             = useState(false)
   const [isHardscape,            setIsHardscape]            = useState(false)
   const [projectTag,             setProjectTag]             = useState(null)
   const [paymentScheduleOverride,setPaymentScheduleOverride]= useState('auto')
@@ -410,9 +417,18 @@ export default function ContractView() {
 
   const apiBase = ''
 
+  const effectiveScheduleKey = (() => {
+    if (paymentScheduleOverride !== 'auto') return paymentScheduleOverride
+    const ms = getMilestoneSet('auto', projectTag, total)
+    if (ms === PAYMENT_MILESTONES)           return '20_30_40_5_5'
+    if (ms === PAYMENT_MILESTONES_UNDER20K)  return 'simple'
+    return 'hardscape'
+  })()
+
   const handleGetSigningLink = async () => {
     setLinkLoading(true)
     setSignError('')
+    if (projectTag) recordPaymentScheduleUsage(projectTag, effectiveScheduleKey)
     try {
       // Include the logo. Most logos are under 100KB and we need it on the
       // signing page. We still gate the total request body at 4MB below to
@@ -918,22 +934,38 @@ export default function ContractView() {
                 <span className="ml-2 font-normal text-gray-400 normal-case">(auto-selected from project type)</span>
               )}
             </label>
-            <div className="flex gap-2 flex-wrap">
-              {SCHEDULE_OPTIONS.map(({ key, label }) => (
-                <button key={key} onClick={() => {
-                  setPaymentScheduleOverride(key)
-                  setMilestonePcts([])
-                  setMilestoneLabels(getMilestoneSet(key, projectTag, total).map(m => m.label))
-                }}
-                  className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
-                    paymentScheduleOverride === key
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300'
-                  }`}>
-                  {label}
-                </button>
-              ))}
-            </div>
+            {(() => {
+              const tagHistory = projectTag ? (paymentScheduleLearning[projectTag] || {}) : {}
+              const suggestedKey = Object.keys(tagHistory).sort((a, b) => tagHistory[b] - tagHistory[a])[0]
+              const suggestedCount = suggestedKey ? tagHistory[suggestedKey] : 0
+              return (
+                <>
+                  {suggestedKey && paymentScheduleOverride === 'auto' && (
+                    <p className="text-xs text-blue-600 mb-2">
+                      💡 Used <strong>{SCHEDULE_OPTIONS.find(o => o.key === suggestedKey)?.label ?? suggestedKey}</strong> on {suggestedCount} past {projectTag} job{suggestedCount !== 1 ? 's' : ''}
+                    </p>
+                  )}
+                  <div className="flex gap-2 flex-wrap">
+                    {SCHEDULE_OPTIONS.map(({ key, label }) => (
+                      <button key={key} onClick={() => {
+                        setPaymentScheduleOverride(key)
+                        setMilestonePcts([])
+                        setMilestoneLabels(getMilestoneSet(key, projectTag, total).map(m => m.label))
+                      }}
+                        className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+                          paymentScheduleOverride === key
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : suggestedKey === key && paymentScheduleOverride === 'auto'
+                            ? 'bg-blue-50 text-blue-700 border-blue-300'
+                            : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300'
+                        }`}>
+                        {label}{suggestedKey === key ? ' ★' : ''}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )
+            })()}
 
             {/* Milestone editor — expands after selecting a schedule */}
             <div className="mt-3">
@@ -987,6 +1019,63 @@ export default function ContractView() {
                       </div>
                     )
                   })}
+
+                  {/* Save schedule row */}
+                  <div className="flex gap-2 items-center pt-2 border-t border-gray-100 mt-1">
+                    <input
+                      className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-300"
+                      placeholder="Name this schedule (e.g. Deck Standard, HOA Porch…)"
+                      value={schedSaveName}
+                      onChange={e => { setSchedSaveName(e.target.value); setSchedSaved(false) }}
+                    />
+                    <button
+                      disabled={!schedSaveName.trim() || pctSum !== 100}
+                      onClick={() => {
+                        savePaymentSchedule({
+                          name: schedSaveName.trim(),
+                          milestones: milestones.map((m, i) => ({
+                            label: milestoneLabels[i] ?? m.label,
+                            pct: milestonePcts[i] != null ? milestonePcts[i] / 100 : m.pct,
+                          })),
+                        })
+                        setSchedSaved(true)
+                        setSchedSaveName('')
+                      }}
+                      className="shrink-0 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700 disabled:opacity-40"
+                    >
+                      {schedSaved ? '✓ Saved' : 'Save schedule'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Saved schedules */}
+              {paymentSchedules.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Saved Schedules</p>
+                  <div className="flex gap-2 flex-wrap">
+                    {paymentSchedules.map(sched => (
+                      <div key={sched.id} className="flex items-center gap-1">
+                        <button
+                          onClick={() => {
+                            setPaymentScheduleOverride('auto')
+                            setMilestoneLabels(sched.milestones.map(m => m.label))
+                            setMilestonePcts(sched.milestones.map(m => Math.round(m.pct * 100)))
+                          }}
+                          className="px-3 py-1.5 rounded-l-lg border border-r-0 text-xs font-medium bg-white text-gray-700 border-gray-300 hover:bg-gray-50 transition-colors"
+                        >
+                          {sched.name}
+                          <span className="ml-1.5 text-gray-400">
+                            {sched.milestones.map(m => Math.round(m.pct * 100)).join('/')}
+                          </span>
+                        </button>
+                        <button
+                          onClick={() => deletePaymentSchedule(sched.id)}
+                          className="px-2 py-1.5 rounded-r-lg border text-xs text-gray-400 border-gray-300 hover:text-red-500 hover:border-red-300 transition-colors"
+                        >×</button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

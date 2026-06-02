@@ -174,6 +174,38 @@ export const useStore = create(
       deleteScopeTemplate: (id) =>
         set((s) => ({ scopeTemplates: s.scopeTemplates.filter((t) => t.id !== id) })),
 
+      // ── Payment Schedule Templates ─────────────────────────────────────────
+      paymentSchedules: [],
+      nextPaymentScheduleId: 1,
+
+      savePaymentSchedule: ({ name, milestones }) => {
+        const { paymentSchedules, nextPaymentScheduleId } = get()
+        set({
+          paymentSchedules: [
+            { id: nextPaymentScheduleId, name, milestones, createdAt: new Date().toISOString() },
+            ...paymentSchedules,
+          ],
+          nextPaymentScheduleId: nextPaymentScheduleId + 1,
+        })
+      },
+
+      deletePaymentSchedule: (id) =>
+        set((s) => ({ paymentSchedules: s.paymentSchedules.filter((t) => t.id !== id) })),
+
+      // ── Payment Schedule Learning ──────────────────────────────────────────
+      // Tracks { [projectTag]: { [scheduleKey]: usageCount } }
+      paymentScheduleLearning: {},
+
+      recordPaymentScheduleUsage: (tag, scheduleKey) => {
+        if (!tag || !scheduleKey || scheduleKey === 'auto') return
+        set(s => {
+          const learning = { ...s.paymentScheduleLearning }
+          if (!learning[tag]) learning[tag] = {}
+          learning[tag] = { ...learning[tag], [scheduleKey]: (learning[tag][scheduleKey] || 0) + 1 }
+          return { paymentScheduleLearning: learning }
+        })
+      },
+
       // ── Proposals (CRM log) ───────────────────────────────────────────────
       proposals: [],
       nextProposalId: 1,
@@ -570,8 +602,11 @@ export const useStore = create(
           nextCatalogId: Math.max(SEED_CATALOG.length + 1, maxId + 1, persisted?.nextCatalogId || 0),
           templates:          persisted?.templates          || [],
           nextTemplateId:     persisted?.nextTemplateId     || 1,
-          scopeTemplates:      persisted?.scopeTemplates      || [],
-          nextScopeTemplateId: persisted?.nextScopeTemplateId || 1,
+          scopeTemplates:        persisted?.scopeTemplates        || [],
+          nextScopeTemplateId:   persisted?.nextScopeTemplateId   || 1,
+          paymentSchedules:        persisted?.paymentSchedules        || [],
+          nextPaymentScheduleId:   persisted?.nextPaymentScheduleId   || 1,
+          paymentScheduleLearning: persisted?.paymentScheduleLearning || {},
           subcontractors:      persisted?.subcontractors      || [],
           nextSubId:           persisted?.nextSubId           || 1,
           proposals:          persisted?.proposals          || [],
