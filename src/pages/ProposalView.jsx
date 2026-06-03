@@ -67,7 +67,7 @@ export default function ProposalView() {
     )
   }
 
-  const { client, email, phone, address, expiration, lines, isAlaCarte } = data
+  const { client, email, phone, address, expiration, lines, isAlaCarte, showBreakdown = true } = data
   const subtotal = lines.reduce((s, l) => s + l.qty * l.unitPrice, 0)
   const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
   const expirationFormatted = expiration
@@ -333,19 +333,21 @@ export default function ProposalView() {
         )}
 
         {/* Scope of Work */}
-        <div className="px-10 py-7 border-b border-gray-100">
-          <p className="text-xs font-semibold uppercase tracking-widest mb-5" style={{ color: palette[700] }}>Scope of Work</p>
-          <div className="space-y-2">
-            {lines.map(line => (
-              <div key={line.id} className="border-l-2 border-gray-100 pl-3">
-                <p className="text-sm font-semibold text-gray-800">{line.name}</p>
-                {line.description && (
-                  <p className="text-sm text-gray-500 leading-relaxed mt-0.5">{line.description}</p>
-                )}
-              </div>
-            ))}
+        {showBreakdown && (
+          <div className="px-10 py-7 border-b border-gray-100">
+            <p className="text-xs font-semibold uppercase tracking-widest mb-5" style={{ color: palette[700] }}>Scope of Work</p>
+            <div className="space-y-2">
+              {lines.map(line => (
+                <div key={line.id} className="border-l-2 border-gray-100 pl-3">
+                  <p className="text-sm font-semibold text-gray-800">{line.name}</p>
+                  {line.description && (
+                    <p className="text-sm text-gray-500 leading-relaxed mt-0.5">{line.description}</p>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Pricing Table */}
         <div className="px-10 py-7">
@@ -367,7 +369,7 @@ export default function ProposalView() {
               </tr>
             </thead>
             <tbody>
-              {lines.map((line, i) => (
+              {showBreakdown ? lines.map((line, i) => (
                 <tr key={line.id} className={`border-b border-gray-50 ${i % 2 === 0 ? '' : 'bg-gray-50'}`}>
                   <td className="py-2.5 text-gray-800 font-medium">{line.name || '—'}</td>
                   <td className="py-2.5 text-right font-semibold text-gray-900">${fmt(line.qty * line.unitPrice)}</td>
@@ -377,7 +379,12 @@ export default function ProposalView() {
                     </td>
                   )}
                 </tr>
-              ))}
+              )) : (
+                <tr>
+                  <td className="py-2.5 text-gray-800 font-medium">Project Total</td>
+                  <td className="py-2.5 text-right font-semibold text-gray-900">${fmt(subtotal)}</td>
+                </tr>
+              )}
             </tbody>
           </table>
           {/* Total — only shown in summed mode */}
