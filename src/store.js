@@ -338,7 +338,7 @@ export const useStore = create(
       saveContractDraft: (proposalId, draft) =>
         set((s) => ({
           proposals: s.proposals.map((p) =>
-            p.id === proposalId ? { ...p, contractDraft: { ...draft, savedAt: new Date().toISOString() } } : p
+            p.id === proposalId ? { ...p, contractDraft: { ...(p.contractDraft || {}), ...draft, savedAt: new Date().toISOString() } } : p
           ),
         })),
 

@@ -44,11 +44,16 @@ export default async function handler(req, res) {
         status:      'pending',
         createdAt:   Date.now(),
         signatures:  {},
+        roleTokens,
       }, { ex: ttl })
 
       await Promise.all(ROLES.map(role =>
         kv.set(`link:${roleTokens[role]}`, { recordId, role }, { ex: ttl })
       ))
+
+      if (contractNum) {
+        await kv.set(`sign-by-contract:${contractNum}`, recordId, { ex: ttl })
+      }
 
       const host  = req.headers['x-forwarded-host'] || req.headers.host || 'quotexsolutions.com'
       const proto = host.includes('localhost') ? 'http' : 'https'
@@ -78,6 +83,54 @@ export default async function handler(req, res) {
         status:       rec.status,
         createdAt:    rec.createdAt,
         signatures:   rec.signatures || {},
+      })
+    }
+
+    // ── Recover signing links from a record: /api/sign/recover-<recordId> ──
+    // Returns reconstructed signing URLs using roleTokens stored in the record.
+    if (token.startsWith('recover-') && req.method === 'GET') {
+      const recordId = token.slice('recover-'.length)
+      const rec = await kv.get(`sign:${recordId}`)
+      if (!rec) return res.status(404).json({ error: 'Record not found or expired' })
+      if (!rec.roleTokens) return res.status(404).json({ error: 'No role tokens stored — this record predates link recovery support' })
+
+      const host  = req.headers['x-forwarded-host'] || req.headers.host || 'quotexsolutions.com'
+      const proto = host.includes('localhost') ? 'http' : 'https'
+      return res.json({
+        recordId,
+        status:     rec.status,
+        signatures: rec.signatures || {},
+        links: {
+          client:  `${proto}://${host}/sign/${rec.roleTokens.client}`,
+          builder: `${proto}://${host}/sign/${rec.roleTokens.builder}`,
+          gc:      `${proto}://${host}/sign/${rec.roleTokens.gc}`,
+        },
+      })
+    }
+
+    // ── Lookup by contract number: /api/sign/lookup-<contractNum> ────────────
+    // Falls back to secondary index for cases where signRecordId is missing from draft.
+    if (token.startsWith('lookup-') && req.method === 'GET') {
+      const contractNum = decodeURIComponent(token.slice('lookup-'.length))
+      const recordId    = await kv.get(`sign-by-contract:${contractNum}`)
+      if (!recordId) return res.status(404).json({ error: 'No signing record found for this contract number' })
+
+      const rec = await kv.get(`sign:${recordId}`)
+      if (!rec) return res.status(404).json({ error: 'Signing record has expired' })
+      if (!rec.roleTokens) return res.status(404).json({ error: 'No role tokens stored in this record' })
+
+      const host  = req.headers['x-forwarded-host'] || req.headers.host || 'quotexsolutions.com'
+      const proto = host.includes('localhost') ? 'http' : 'https'
+      return res.json({
+        recordId,
+        status:      rec.status,
+        contractNum: rec.contractNum,
+        signatures:  rec.signatures || {},
+        links: {
+          client:  `${proto}://${host}/sign/${rec.roleTokens.client}`,
+          builder: `${proto}://${host}/sign/${rec.roleTokens.builder}`,
+          gc:      `${proto}://${host}/sign/${rec.roleTokens.gc}`,
+        },
       })
     }
 

@@ -162,11 +162,39 @@ export default function ContractsList() {
   const navigate             = useNavigate()
   const proposals            = useStore(s => s.proposals)
   const markContractSigned   = useStore(s => s.markContractSigned)
+  const saveContractDraft    = useStore(s => s.saveContractDraft)
 
   const [filter, setFilter]  = useState('All')
   const [query,  setQuery]   = useState('')
   const [viewingRecordId, setViewingRecordId] = useState(null)
   const [viewingLinks,    setViewingLinks]    = useState(null)
+  const [recovering,      setRecovering]      = useState(null)
+
+  const handleRecoverLinks = async (p) => {
+    const draft = p.contractDraft || {}
+    setRecovering(p.id)
+    try {
+      let url
+      if (draft.signRecordId) {
+        url = `/api/sign/recover-${draft.signRecordId}`
+      } else {
+        const contractNum = draft.contractNum || `EOL${String(70000 + p.id).padStart(6, '0')}`
+        url = `/api/sign/lookup-${encodeURIComponent(contractNum)}`
+      }
+      const res  = await fetch(url)
+      const data = await res.json()
+      if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`)
+      saveContractDraft(p.id, {
+        signRecordId: data.recordId,
+        signLinks:    data.links,
+      })
+      setViewingLinks(data.links)
+    } catch (err) {
+      alert(`Could not recover links: ${err.message}`)
+    } finally {
+      setRecovering(null)
+    }
+  }
 
   // Only Won proposals are relevant to contracts
   const wonProposals = proposals.filter(p => p.status === 'Won')
@@ -394,6 +422,18 @@ export default function ContractsList() {
                         title="Show signing links"
                       >
                         <Copy size={12} /> Links
+                      </button>
+                    )}
+                    {status === 'in-progress' && !draft.signLinks && (
+                      <button
+                        onClick={() => handleRecoverLinks(p)}
+                        disabled={recovering === p.id}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 text-orange-600 border border-orange-200 rounded-lg text-xs font-medium hover:bg-orange-100 transition-colors disabled:opacity-50"
+                        title="Try to recover signing links from server"
+                      >
+                        {recovering === p.id
+                          ? <><Loader2 size={12} className="animate-spin" /> Finding…</>
+                          : <><Copy size={12} /> Find Links</>}
                       </button>
                     )}
                     {status !== 'signed' && (
