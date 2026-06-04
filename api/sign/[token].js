@@ -10,12 +10,12 @@ export default async function handler(req, res) {
   const token = req.query.token
   if (!token) return res.status(400).json({ error: 'Missing token' })
 
-  // Health check — tells the client which version is deployed and if KV is wired up
+  // Health check
   if (token === 'ping') {
     return res.json({
       ok: true,
       ts: new Date().toISOString(),
-      version: 'bold-scope-v5',
+      version: 'recovery-v1',
       hasKvUrl: !!(process.env.KV_URL || process.env.KV_REST_API_URL),
       env: process.env.VERCEL_ENV || 'local',
     })
@@ -68,10 +68,6 @@ export default async function handler(req, res) {
     }
 
     // ── Admin record lookup: /api/sign/record-<recordId> ─────────────
-    // Returns the full signed record (with all signatures) so the contractor
-    // can view what was signed by each party. Used by the in-app contracts
-    // viewer. Tokens prefixed "record-" are admin lookups by recordId rather
-    // than role-specific signing tokens.
     if (token.startsWith('record-') && req.method === 'GET') {
       const recordId = token.slice('record-'.length)
       const rec = await kv.get(`sign:${recordId}`)
@@ -87,7 +83,6 @@ export default async function handler(req, res) {
     }
 
     // ── Recover signing links from a record: /api/sign/recover-<recordId> ──
-    // Returns reconstructed signing URLs using roleTokens stored in the record.
     if (token.startsWith('recover-') && req.method === 'GET') {
       const recordId = token.slice('recover-'.length)
       const rec = await kv.get(`sign:${recordId}`)
@@ -109,7 +104,6 @@ export default async function handler(req, res) {
     }
 
     // ── Lookup by contract number: /api/sign/lookup-<contractNum> ────────────
-    // Falls back to secondary index for cases where signRecordId is missing from draft.
     if (token.startsWith('lookup-') && req.method === 'GET') {
       const contractNum = decodeURIComponent(token.slice('lookup-'.length))
       const recordId    = await kv.get(`sign-by-contract:${contractNum}`)
