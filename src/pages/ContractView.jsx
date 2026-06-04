@@ -1343,7 +1343,7 @@ export default function ContractView() {
             {!isSmallContract && (
               <p className="mb-3 text-justify text-sm"><strong>B.</strong> As General contractors we have <strong>All-In-One Solutions</strong> that operate as part of Ebony Outdoor Living team. All-In-One Solutions serves as the licensed General Contractor and is responsible for maintaining the applicable licenses and overall legal and regulatory compliance required for the project. All-In-One Solutions also acts as a general supervisor of the project, performing occasional site visits during the progress of the work for purposes of overall oversight and supervision. However, All-In-One Solutions is not involved in the daily management of the job site, operational coordination of crews, or direct execution of the services.</p>
             )}
-            <p className="mb-4 text-sm"><strong>7.</strong> This CONTRACT shall not be effective and binding upon BUILDER until countersigned by BUILDER and GENERAL CONTRACTOR.</p>
+            <p className="mb-4 text-sm"><strong>7.</strong> This CONTRACT shall not be effective and binding upon BUILDER until countersigned by BUILDER{!isSmallContract && ' and GENERAL CONTRACTOR'}.</p>
             <p className="text-center font-bold mb-3">ADDITIONAL TERMS ON NEXT PAGE</p>
 
             {isSmallContract ? (
@@ -1765,6 +1765,9 @@ export default function ContractView() {
             )}
 
           {/* ── SCOPE PAGE 2 · General Notes + Pricing Table ───────── */}
+          </div>
+          <PageBreak />
+          <div className={bodyPad}>
             {/* Locked disclosures */}
             <div className="no-print flex items-center gap-1.5 mb-2 text-xs text-amber-700 bg-amber-50 rounded px-2 py-1.5">
               <Lock size={11} />
@@ -1837,6 +1840,9 @@ export default function ContractView() {
             </table>
 
           {/* ── SCOPE PAGE 3 · Payment Schedule + Sigs ─────────────── */}
+          </div>
+          <PageBreak />
+          <div className={bodyPad}>
             <table className="w-full text-sm border-collapse mb-3">
               <thead>
                 <tr className="bg-blue-50">
@@ -2049,14 +2055,14 @@ export default function ContractView() {
                 signingLinks ? (
                   <>
                     <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-4 py-3 rounded-xl text-sm font-medium">
-                      ✓ 3 unique signing links generated
+                      ✓ {isSmallContract ? '2' : '3'} unique signing links generated
                     </div>
                     <p className="text-sm text-gray-500">Send each link to the right party — they can only sign their own section.</p>
                     {[
                       { role: 'client',  label: 'Client',                color: 'bg-blue-50 border-blue-200' },
                       { role: 'builder', label: 'Builder (Ebony)',       color: 'bg-emerald-50 border-emerald-200' },
                       { role: 'gc',      label: 'GC (All-In-One)',       color: 'bg-amber-50 border-amber-200' },
-                    ].map(({ role, label, color }) => (
+                    ].filter(({ role }) => !(isSmallContract && role === 'gc')).map(({ role, label, color }) => (
                       <div key={role} className={`border rounded-xl p-3 ${color}`}>
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-xs font-bold uppercase tracking-wider text-gray-600">{label}</span>
@@ -2073,7 +2079,7 @@ export default function ContractView() {
                   </>
                 ) : (
                   <>
-                    <p className="text-sm text-gray-600">Generate three separate signing links — one for the Client, one for the Builder, and one for the GC. Each link only lets the assigned party sign their own section.</p>
+                    <p className="text-sm text-gray-600">Generate {isSmallContract ? 'two' : 'three'} separate signing links — one for the Client{isSmallContract ? '' : ', one for the GC,'} and one for the Builder. Each link only lets the assigned party sign their own section.</p>
                     <p className="text-xs text-gray-400">IP address + timestamp recorded for legal audit trail.</p>
                     {signError && <p className="text-sm text-red-600">{signError}</p>}
                     <button
