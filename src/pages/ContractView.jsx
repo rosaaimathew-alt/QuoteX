@@ -1700,7 +1700,12 @@ export default function ContractView() {
                         <div className="flex gap-2">
                           <button
                             onClick={() => {
-                              setScopeLines(t.bullets.map((txt, i) => ({ id: Date.now() + i, text: txt })))
+                              setScopeLines(prev => t.bullets.map((txt, i) => ({
+                                id: prev[i]?.id ?? Date.now() + i,
+                                name: prev[i]?.name ?? '',
+                                price: prev[i]?.price ?? 0,
+                                text: txt,
+                              })))
                               setShowScopeTemplates(false)
                             }}
                             className="flex-1 py-1.5 bg-purple-600 text-white text-xs font-medium rounded-lg hover:bg-purple-700 transition-colors">
@@ -1708,7 +1713,7 @@ export default function ContractView() {
                           </button>
                           <button
                             onClick={() => {
-                              const newLines = t.bullets.map((txt, i) => ({ id: Date.now() + i + 1000, text: txt }))
+                              const newLines = t.bullets.map((txt, i) => ({ id: Date.now() + i + 1000, name: '', price: 0, text: txt }))
                               setScopeLines(prev => [...prev, ...newLines])
                               setShowScopeTemplates(false)
                             }}
