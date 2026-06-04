@@ -335,6 +335,8 @@ export const useStore = create(
       deleteProposal: (id) =>
         set((s) => ({ proposals: s.proposals.filter((p) => p.id !== id) })),
 
+      clearAllProposals: () => set({ proposals: [], nextProposalId: 1 }),
+
       saveContractDraft: (proposalId, draft) =>
         set((s) => ({
           proposals: s.proposals.map((p) =>

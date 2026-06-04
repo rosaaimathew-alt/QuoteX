@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Upload, Trash2, CheckCircle, RefreshCw, Palette, Building2, Eye, Download, FolderOpen, AlertTriangle } from 'lucide-react'
+import { Upload, Trash2, CheckCircle, RefreshCw, Palette, Building2, Eye, Download, FolderOpen, AlertTriangle, ShieldAlert } from 'lucide-react'
 import { useStore } from '../store'
 import { extractDominantColor, generatePalette, applyBrandStyles, DEFAULT_BRAND_COLOR } from '../brand'
 
@@ -56,6 +56,20 @@ function DataManagement() {
   const importRef = useRef()
   const [importStatus, setImportStatus] = useState(null) // null | 'ok' | 'error'
   const [importMsg, setImportMsg]       = useState('')
+  const [clearing, setClearing]         = useState(false)
+
+  const handleClearContracts = async () => {
+    const count = store.proposals?.length || 0
+    if (!window.confirm(`This will permanently delete ALL ${count} contract(s) from the cloud database. This cannot be undone.\n\nAre you sure?`)) return
+    setClearing(true)
+    store.clearAllProposals()
+    // Give the smartStorage fire-and-forget POST time to finish
+    await new Promise(r => setTimeout(r, 1500))
+    setClearing(false)
+    setImportStatus('ok')
+    setImportMsg('All contracts deleted. The page will reload.')
+    setTimeout(() => { window.location.reload() }, 1200)
+  }
 
   const handleExport = () => {
     const data = {
@@ -136,6 +150,24 @@ function DataManagement() {
             onChange={e => handleImport(e.target.files[0])}
           />
         </label>
+      </div>
+
+      <div className="mt-5 pt-5 border-t border-red-100">
+        <div className="flex items-center gap-2 mb-1">
+          <ShieldAlert size={15} className="text-red-500" />
+          <h4 className="font-semibold text-red-700 text-sm">Delete All Contracts</h4>
+        </div>
+        <p className="text-xs text-gray-400 mb-3">
+          Permanently removes all proposals and contract data from the cloud database. Cannot be undone. Export a backup first if you need to keep records.
+        </p>
+        <button
+          onClick={handleClearContracts}
+          disabled={clearing || (store.proposals?.length || 0) === 0}
+          className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          {clearing ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />}
+          {clearing ? 'Deleting…' : `Delete All ${store.proposals?.length || 0} Contract(s)`}
+        </button>
       </div>
 
       {importStatus && (

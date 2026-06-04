@@ -604,7 +604,7 @@ export default function SignPage() {
 
             <p className="mb-3 text-justify text-[10pt]"><strong>6. a.</strong> The WORK will be warranted by BUILDER . Existing structures to which the WORK may be affixed or interconnected are not part of the WORK and will not be covered under the Warranty. This Warrant is issued to and only applicable to the PURCHASER after payment in full of the TOTAL CONTRACT SUM .</p>
             {!isSmallContract && <p className="mb-3 text-justify text-[10pt]"><strong>B.</strong> As General contractors we have <strong>All-In-One Solutions</strong> that operate as part of Ebony Outdoor Living team. All-In-One Solutions serves as the licensed General Contractor and is responsible for maintaining the applicable licenses and overall legal and regulatory compliance required for the project. All-In-One Solutions also acts as a general supervisor of the project, performing occasional site visits during the progress of the work for purposes of overall oversight and supervision. However, All-In-One Solutions is not involved in the daily management of the job site, operational coordination of crews, or direct execution of the services.</p>}
-            <p className="mb-4 text-[10pt]"><strong>7.</strong> This CONTRACT shall not be effective and binding upon BUILDER until countersigned by BUILDER and GENERAL CONTRACTOR.</p>
+            <p className="mb-4 text-[10pt]"><strong>7.</strong> This CONTRACT shall not be effective and binding upon BUILDER until countersigned by BUILDER{!isSmallContract && ' and GENERAL CONTRACTOR'}.</p>
             <p className="text-center font-bold mb-3">ADDITIONAL TERMS ON NEXT PAGE</p>
 
             {isSmallContract ? (
