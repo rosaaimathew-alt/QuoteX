@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FileText, BookOpen, ClipboardList, FileCheck, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon, Sun, Moon, Users, FileSignature, LogOut, TrendingUp, Menu, HardHat, Wrench, CalendarDays, Kanban } from 'lucide-react'
+import { LayoutDashboard, FileText, BookOpen, ClipboardList, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon, Sun, Moon, Users, FileSignature, LogOut, TrendingUp, Menu, HardHat, Wrench, CalendarDays, Kanban } from 'lucide-react'
 import { Component, useEffect, useState, useRef } from 'react'
 import Dashboard from './pages/Dashboard'
 import Analyze from './pages/Analyze'
@@ -32,7 +32,6 @@ const NAV = [
   { to: '/ai',      label: 'AI Assistant',     icon: MessageSquareMore },
   { to: '/catalog', label: 'Item Catalog',     icon: BookOpen },
   { to: '/quote',   label: 'Build Quote',      icon: ClipboardList },
-  { to: '/proposal',label: 'Proposal',         icon: FileCheck },
   { to: '/tracker',   label: 'Proposal Tracker', icon: BarChart2 },
   { to: '/pipeline',  label: 'Pipeline',         icon: Kanban },
   { to: '/contracts',    label: 'Contracts',       icon: FileSignature },
