@@ -777,6 +777,7 @@ export default function ProposalTracker() {
 
   const [tab, setTab] = useState('list')
   const [filterStatus, setFilterStatus] = useState('All')
+  const [periodFilter, setPeriodFilter] = useState('all-time')
   const [winLossTarget, setWinLossTarget] = useState(null)
   const [reminderProposalId, setReminderProposalId] = useState(null)
   const [reminderDate, setReminderDate] = useState('')
@@ -913,14 +914,34 @@ export default function ProposalTracker() {
 
       {/* Stats strip */}
       {(() => {
+        const now = new Date()
+        const inPeriod = (p) => {
+          const d = new Date(p.closedAt || p.createdAt || p.sentAt || Date.now())
+          if (periodFilter === 'this-month')  return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+          if (periodFilter === 'last-month') { const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1); return d.getMonth() === lm.getMonth() && d.getFullYear() === lm.getFullYear() }
+          if (periodFilter === 'this-quarter') { const q = Math.floor(now.getMonth() / 3); return Math.floor(d.getMonth() / 3) === q && d.getFullYear() === now.getFullYear() }
+          if (periodFilter === 'this-year')   return d.getFullYear() === now.getFullYear()
+          return true
+        }
+        const PERIODS = [
+          { id: 'this-month',   label: 'This Month' },
+          { id: 'last-month',   label: 'Last Month' },
+          { id: 'this-quarter', label: 'This Quarter' },
+          { id: 'this-year',    label: 'This Year' },
+          { id: 'all-time',     label: 'All Time' },
+        ]
         const clientCount = buildGroups(proposals).length
+        const wonInPeriod = proposals.filter(p => p.status === 'Won' && inPeriod(p))
+        const wonRevenue  = wonInPeriod.reduce((s, p) => s + (p.total || 0), 0)
+        const pipeline    = proposals.filter(p => ['Sent','Followed Up','Negotiating'].includes(p.status)).reduce((s, p) => s + (p.total || 0), 0)
         const stats = [
-          { label: 'Won Revenue', value: `$${fmt(proposals.filter(p => p.status === 'Won').reduce((s, p) => s + (p.total || 0), 0))}`, icon: DollarSign, color: 'text-green-500' },
-          { label: 'Open Pipeline', value: `$${fmt(proposals.filter(p => ['Sent','Followed Up','Negotiating'].includes(p.status)).reduce((s, p) => s + (p.total || 0), 0))}`, icon: TrendingUp, color: 'text-green-600' },
-          { label: 'Won', value: proposals.filter(p => p.status === 'Won').length, icon: CheckCircle, color: 'text-[var(--brand-400)]' },
+          { label: 'Won Revenue', value: `$${fmt(wonRevenue)}`, icon: DollarSign, color: 'text-green-500' },
+          { label: 'Open Pipeline', value: `$${fmt(pipeline)}`, icon: TrendingUp, color: 'text-green-600' },
+          { label: 'Jobs Won', value: wonInPeriod.length, icon: CheckCircle, color: 'text-[var(--brand-400)]' },
         ]
         return (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+          <>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-2">
             {/* Total Proposals — shows unique clients, total proposals as sub */}
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <div className="flex items-center gap-1.5 mb-1">
@@ -940,6 +961,23 @@ export default function ProposalTracker() {
               </div>
             ))}
           </div>
+          {/* Period filter buttons */}
+          <div className="flex gap-1.5 flex-wrap mb-4">
+            {PERIODS.map(({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => setPeriodFilter(id)}
+                className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                  periodFilter === id
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-50'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          </>
         )
       })()}
 
