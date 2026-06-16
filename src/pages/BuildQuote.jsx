@@ -40,21 +40,52 @@ export default function BuildQuote() {
   const [templateDesc, setTemplateDesc] = useState('')
   const [revisingParentId, setRevisingParentId] = useState(null)
 
-  // Pre-fill when opening a revision from the Proposal Tracker
+  const DRAFT_KEY = 'quotex:draft-proposal'
+
+  // Pre-fill when opening a revision from the Proposal Tracker; otherwise restore draft
   useEffect(() => {
     const raw = sessionStorage.getItem('revise-proposal')
-    if (!raw) return
-    sessionStorage.removeItem('revise-proposal')
-    const d = JSON.parse(raw)
-    setClient(d.client || '')
-    setEmail(d.email || '')
-    setPhone(d.phone || '')
-    setAddress(d.address || '')
-    setExpiration(d.expiration || '')
-    setLines((d.lines || []).map(l => ({ ...l, id: Date.now() + Math.random() })))
-    if (d.showBreakdown !== undefined) setShowBreakdown(d.showBreakdown)
-    setRevisingParentId(d.parentId || null)
+    if (raw) {
+      sessionStorage.removeItem('revise-proposal')
+      const d = JSON.parse(raw)
+      setClient(d.client || '')
+      setEmail(d.email || '')
+      setPhone(d.phone || '')
+      setAddress(d.address || '')
+      setExpiration(d.expiration || '')
+      setLines((d.lines || []).map(l => ({ ...l, id: Date.now() + Math.random() })))
+      if (d.showBreakdown !== undefined) setShowBreakdown(d.showBreakdown)
+      setRevisingParentId(d.parentId || null)
+      return
+    }
+    const draft = localStorage.getItem(DRAFT_KEY)
+    if (!draft) return
+    try {
+      const d = JSON.parse(draft)
+      setClient(d.client || '')
+      setEmail(d.email || '')
+      setPhone(d.phone || '')
+      setAddress(d.address || '')
+      setExpiration(d.expiration || '')
+      setMargin(d.margin ?? MARGIN_DEFAULT)
+      setLines((d.lines || []).map(l => ({ ...l, id: Date.now() + Math.random() })))
+      setIsAlaCarte(d.isAlaCarte || false)
+      setShowBreakdown(d.showBreakdown ?? true)
+      setProjectTypes(d.projectTypes || [])
+      setProjectSummary(d.projectSummary || '')
+      setRevisingParentId(d.revisingParentId || null)
+    } catch {}
   }, [])
+
+  // Auto-save draft to localStorage whenever form state changes
+  useEffect(() => {
+    const isEmpty = !client && !email && !phone && !address && lines.length === 0 && !projectSummary
+    if (isEmpty) return
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+      client, email, phone, address, expiration, margin, lines,
+      isAlaCarte, showBreakdown, projectTypes, projectSummary, revisingParentId,
+    }))
+  }, [client, email, phone, address, expiration, margin, lines, isAlaCarte, showBreakdown, projectTypes, projectSummary, revisingParentId])
 
   const cats = ['All', ...new Set(catalog.map(c => c.category))]
   const filtered = catalog
@@ -119,6 +150,7 @@ export default function BuildQuote() {
       client, email, phone, address, expiration, lines, margin, isAlaCarte, showBreakdown, projectTypes, projectSummary,
       ...(revisingParentId ? { parentId: revisingParentId } : {}),
     }))
+    localStorage.removeItem(DRAFT_KEY)
     navigate('/proposal')
   }
 
