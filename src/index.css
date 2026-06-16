@@ -62,16 +62,17 @@
 
   /* ── Contract page-break rules ─────────────────────────────────────── */
 
-  /* Each major contract section (Scope of Work, PT Wood, etc.) starts on
-     a fresh page. Both the modern property and the legacy property are set
-     so every browser/OS combination honours it. */
-  .contract-section {
-    break-before: page !important;
-    page-break-before: always !important;
+  /* Explicit page-break divs used in ContractViewFull and ContractView.
+     Both modern and legacy properties are set for broadest browser support. */
+  .pdf-page-break {
+    break-after: page !important;
+    page-break-after: always !important;
+    height: 0 !important;
+    overflow: hidden !important;
   }
 
-  /* Within any contract page, paragraphs, list items, and table rows must
-     not be orphaned across a page boundary. */
+  /* Within any contract page, keep paragraphs, list items, table rows, and
+     signature blocks from splitting mid-element across a page boundary. */
   .contract-doc p,
   .contract-doc li,
   .contract-doc tr {
@@ -79,7 +80,12 @@
     page-break-inside: avoid !important;
   }
 
-  /* Keep section headings attached to the content that follows them. */
+  /* Prevent a table from being separated from its header row. */
+  .contract-doc table {
+    break-inside: auto !important;
+  }
+
+  /* Keep section headings attached to the content immediately below them. */
   .contract-doc h2,
   .contract-doc h3 {
     break-after: avoid !important;
@@ -92,15 +98,7 @@
     page-break-inside: avoid !important;
   }
 
-  /* Legacy pdf-page-break markers in ContractView.jsx */
-  .pdf-page-break {
-    break-after: page !important;
-    page-break-after: always !important;
-    height: 0 !important;
-    overflow: hidden !important;
-  }
-
-  /* Strip screen-only chrome from the contract wrapper for print. */
+  /* Strip screen-only chrome from the contract wrapper. */
   .contract-doc {
     border-radius: 0 !important;
     box-shadow: none !important;

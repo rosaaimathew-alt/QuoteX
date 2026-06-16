@@ -35,6 +35,9 @@ const GENERAL_NOTES = [
 const ordinal = n => { const s=['th','st','nd','rd'],v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]) }
 const CB = ({checked}) => <span className="inline-block w-3.5 h-3.5 border border-gray-700 mr-1 align-middle text-center text-[10px] leading-[14px]">{checked?'X':' '}</span>
 
+// Explicit page-break marker — more reliable than CSS break-before in Chrome
+const PageBreak = () => <div style={{ pageBreakAfter: 'always', breakAfter: 'page', height: 0, overflow: 'hidden' }} />
+
 // Returns the best signature dataUrl for a given role/fieldId from the signatures store
 function getSig(signatures, role, fieldId) {
   const s = signatures?.[role]
@@ -261,8 +264,10 @@ export default function ContractViewFull() {
             {!isSmallContract && <S fieldId="g-clauses" role="gc" label="GC Signature" />}
           </div>
 
+          <PageBreak />
+
           {/* Scope & Final Payment Clarification */}
-          <div className="px-6 sm:px-12 py-6 border-t border-gray-200 contract-section">
+          <div className="px-6 sm:px-12 py-6 border-t border-gray-200">
             <h2 className="text-center font-bold text-base mb-5">SCOPE OF WORK &amp; FINAL PAYMENT CLARIFICATION</h2>
             <p className="text-[10pt] mb-3">Ebony Outdoor Living and All in one Solutions's aim for customer service as our #1 priority. In order to provide you with the best possible customer experience, we are fully committed to providing you with <strong>everything</strong> written in the scope of work, specifications, and drawing.</p>
             <ul className="text-[10pt] space-y-2 mb-5 ml-2">
@@ -280,8 +285,10 @@ export default function ContractViewFull() {
             <I fieldId="c-scope-clarity" role="client" label="Signature" />
           </div>
 
+          <PageBreak />
+
           {/* PT Wood */}
-          <div className="px-6 sm:px-12 py-6 border-t border-gray-200 contract-section">
+          <div className="px-6 sm:px-12 py-6 border-t border-gray-200">
             <h2 className="text-center font-bold text-base mb-4">PRESSURE-TREATED WOOD INFORMATION</h2>
             <ul className="text-[10pt] space-y-2 ml-1 mb-4">
               {[
@@ -304,8 +311,10 @@ export default function ContractViewFull() {
             <I fieldId="c-ptwood" role="client" label="Signature" withDate />
           </div>
 
+          <PageBreak />
+
           {/* Unforeseen */}
-          <div className="px-6 sm:px-12 py-6 border-t border-gray-200 contract-section">
+          <div className="px-6 sm:px-12 py-6 border-t border-gray-200">
             <h2 className="text-center font-bold text-base mb-4">UNFORESEEN SITE CONDITIONS POLICY</h2>
             <p className="text-[10pt] mb-3">As described in Paragraph 12(a) of the Contract, the Builder Shall not be responsible for any additional work required due to unforeseen site conditions, which include but are not limited to the following:</p>
             <ul className="text-[10pt] space-y-1.5 ml-2 mb-4">
@@ -326,8 +335,10 @@ export default function ContractViewFull() {
             <I fieldId="c-unforeseen" role="client" label="Signature" />
           </div>
 
+          <PageBreak />
+
           {/* Processing Form */}
-          <div className="px-6 sm:px-12 py-6 border-t border-gray-200 contract-section">
+          <div className="px-6 sm:px-12 py-6 border-t border-gray-200">
             <div className="text-xl font-bold mb-1" style={{fontFamily:'Arial,sans-serif'}}>PROCESSING FORM</div>
             <div className="border-b border-gray-400 mb-4" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 text-[10pt] mb-4">
@@ -356,7 +367,9 @@ export default function ContractViewFull() {
 
           {/* Client Acknowledgment */}
           {!isSmallContract && (
-            <div className="px-6 sm:px-12 py-6 border-t border-gray-200 contract-section">
+            <>
+            <PageBreak />
+            <div className="px-6 sm:px-12 py-6 border-t border-gray-200">
               <h2 className="text-center font-bold text-base mb-5">Client Acknowledgment and Agreement</h2>
               <div className="text-[10pt] space-y-4">
                 <p>At <strong>Ebony Outdoor Living</strong>, we are committed to transparency, contractual clarity, and professional communication with our clients. This document is intended to formalize the understanding between the parties regarding the operational structure and distribution of responsibilities related to the contracted project. Ebony Outdoor Living and <strong>All-In-One Solutions</strong> operate collaboratively as part of the same project team. All-In-One Solutions serves as the licensed General Contractor and is responsible for maintaining the applicable licenses and overall legal and regulatory compliance required for the project.</p>
@@ -370,10 +383,13 @@ export default function ContractViewFull() {
               <S fieldId="b-ack" role="builder" label="Builder Signature" />
               <S fieldId="g-ack" role="gc"      label="General Contractor Signature" date={false} />
             </div>
+            </>
           )}
 
+          <PageBreak />
+
           {/* Scope of Work */}
-          <div className="px-6 sm:px-12 py-6 border-t border-gray-200 contract-section">
+          <div className="px-6 sm:px-12 py-6 border-t border-gray-200">
             <div className="flex justify-between items-center mb-1">
               {logo ? <img src={logo} alt="logo" className="h-10 object-contain" />
                 : <div className="text-base font-black tracking-widest" style={{fontFamily:'Arial,sans-serif'}}>{companyName.toUpperCase()}</div>}
@@ -425,7 +441,9 @@ export default function ContractViewFull() {
 
           {/* Electrical */}
           {includesElectrical && (
-            <div className="px-6 sm:px-12 py-6 border-t border-gray-200 contract-section">
+            <>
+            <PageBreak />
+            <div className="px-6 sm:px-12 py-6 border-t border-gray-200">
               <div className="flex justify-between items-center mb-1">
                 {logo ? <img src={logo} alt="logo" className="h-10 object-contain" />
                   : <div className="text-base font-black tracking-widest" style={{fontFamily:'Arial,sans-serif'}}>{companyName.toUpperCase()}</div>}
@@ -445,6 +463,7 @@ export default function ContractViewFull() {
                 <div><S fieldId="b-elec" role="builder" label="Builder Signature" /></div>
               </div>
             </div>
+            </>
           )}
 
           {/* Audit trail */}
