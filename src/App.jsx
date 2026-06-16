@@ -1,10 +1,11 @@
 import { BrowserRouter, Routes, Route, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FileText, BookOpen, ClipboardList, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon, Sun, Moon, Users, FileSignature, LogOut, TrendingUp, Menu, HardHat, Wrench, CalendarDays, Kanban } from 'lucide-react'
+import { LayoutDashboard, FileText, BookOpen, ClipboardList, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon, Sun, Moon, Users, FileSignature, LogOut, TrendingUp, Menu, HardHat, Wrench, CalendarDays, Kanban, PieChart } from 'lucide-react'
 import { Component, useEffect, useState, useRef } from 'react'
 import Dashboard from './pages/Dashboard'
 import Analyze from './pages/Analyze'
 import ItemCatalog from './pages/ItemCatalog'
 import BuildQuote from './pages/BuildQuote'
+import Analytics from './pages/Analytics'
 import ProposalView from './pages/ProposalView'
 import ProposalTracker from './pages/ProposalTracker'
 import InboxPage from './pages/Inbox'
@@ -31,8 +32,9 @@ const NAV = [
   { to: '/analyze', label: 'Analyze',          icon: FileText },
   { to: '/ai',      label: 'AI Assistant',     icon: MessageSquareMore },
   { to: '/catalog', label: 'Item Catalog',     icon: BookOpen },
-  { to: '/quote',   label: 'Build Quote',      icon: ClipboardList },
+  { to: '/quote',      label: 'Build Quote',      icon: ClipboardList },
   { to: '/tracker',   label: 'Proposal Tracker', icon: BarChart2 },
+  { to: '/analytics', label: 'Analytics',         icon: PieChart },
   { to: '/pipeline',  label: 'Pipeline',         icon: Kanban },
   { to: '/contracts',    label: 'Contracts',       icon: FileSignature },
   { to: '/jobs',         label: 'Job Management', icon: HardHat },
@@ -322,8 +324,9 @@ function AppShell() {
             <Route path="/analyze"  element={<Analyze />} />
             <Route path="/ai"       element={<AiChat />} />
             <Route path="/catalog"  element={<ItemCatalog />} />
-            <Route path="/quote"    element={<BuildQuote />} />
-            <Route path="/proposal" element={<ProposalView />} />
+            <Route path="/quote"     element={<BuildQuote />} />
+            <Route path="/analytics" element={<Analytics />} />
+            <Route path="/proposal"  element={<ProposalView />} />
             <Route path="/clients"  element={<ClientList />} />
             <Route path="/tracker"  element={<ProposalTracker />} />
             <Route path="/inbox"    element={<InboxPage />} />
