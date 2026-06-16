@@ -1,6 +1,156 @@
 import { useMemo, useState, useRef } from 'react'
 import { useStore } from '../store'
-import { TrendingUp, DollarSign, Award, XCircle, Target } from 'lucide-react'
+import { TrendingUp, DollarSign, Award, XCircle, Target, Plus, ChevronDown, ChevronUp, Trash2, Clock } from 'lucide-react'
+
+const PROJECT_TYPES = ['Deck', 'Screened Porch', 'Sunroom', 'Pergola', 'Gazebo', 'Open Porch', 'Other']
+
+const EMPTY_FORM = { client: '', address: '', saleDate: '', total: '', projectType: 'Deck' }
+
+function PastJobPanel() {
+  const { proposals, importHistoricalJob, deleteProposal } = useStore()
+  const [open, setOpen] = useState(false)
+  const [form, setForm] = useState(EMPTY_FORM)
+  const [error, setError] = useState('')
+
+  const historical = proposals
+    .filter(p => p.isHistorical)
+    .sort((a, b) => new Date(b.closedAt) - new Date(a.closedAt))
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const submit = () => {
+    if (!form.client.trim()) { setError('Client name is required.'); return }
+    if (!form.saleDate)       { setError('Sale date is required.'); return }
+    if (!form.total || isNaN(Number(form.total))) { setError('Enter a valid dollar amount.'); return }
+    setError('')
+    importHistoricalJob({
+      client: form.client.trim(),
+      address: form.address.trim(),
+      projectTypes: [form.projectType],
+      total: Number(form.total),
+      saleDate: form.saleDate,
+    })
+    setForm(f => ({ ...EMPTY_FORM, projectType: f.projectType, saleDate: f.saleDate })) // keep type+date for fast repeat entry
+  }
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 mb-6">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-5 py-3.5 text-left"
+      >
+        <div className="flex items-center gap-2">
+          <Clock size={15} className="text-indigo-500" />
+          <span className="text-sm font-semibold text-gray-800">Log Past Jobs</span>
+          {historical.length > 0 && (
+            <span className="text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full font-medium">
+              {historical.length} logged
+            </span>
+          )}
+        </div>
+        {open ? <ChevronUp size={15} className="text-gray-400" /> : <ChevronDown size={15} className="text-gray-400" />}
+      </button>
+
+      {open && (
+        <div className="border-t border-gray-100 px-5 py-4">
+          <p className="text-xs text-gray-400 mb-4">
+            Enter jobs sold before you started using QuoteX. They'll count toward all revenue totals and the trendline, bucketed by sale date.
+          </p>
+
+          {/* Entry form */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 mb-2">
+            <input
+              placeholder="Client name *"
+              value={form.client}
+              onChange={e => set('client', e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && submit()}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 lg:col-span-1"
+            />
+            <input
+              placeholder="Address (optional)"
+              value={form.address}
+              onChange={e => set('address', e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && submit()}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 lg:col-span-1"
+            />
+            <select
+              value={form.projectType}
+              onChange={e => set('projectType', e.target.value)}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            >
+              {PROJECT_TYPES.map(t => <option key={t}>{t}</option>)}
+            </select>
+            <input
+              type="date"
+              value={form.saleDate}
+              onChange={e => set('saleDate', e.target.value)}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            />
+            <div className="flex gap-2">
+              <input
+                type="number"
+                placeholder="Total $"
+                value={form.total}
+                onChange={e => set('total', e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && submit()}
+                className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              />
+              <button
+                onClick={submit}
+                className="flex items-center gap-1 px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+              >
+                <Plus size={14} /> Add
+              </button>
+            </div>
+          </div>
+          {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
+
+          {/* Logged jobs list */}
+          {historical.length > 0 && (
+            <div className="mt-4 border-t border-gray-100 pt-4">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                {historical.length} historical job{historical.length !== 1 ? 's' : ''} logged
+              </p>
+              <div className="space-y-1.5 max-h-56 overflow-y-auto">
+                {historical.map(p => (
+                  <div key={p.id} className="flex items-center justify-between gap-3 px-3 py-2 bg-gray-50 rounded-lg group">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-sm font-medium text-gray-800 truncate">{p.client}</span>
+                      {p.projectTypes?.[0] && (
+                        <span className="text-xs px-1.5 py-0.5 bg-white border border-gray-200 rounded text-gray-500 shrink-0">
+                          {p.projectTypes[0]}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-xs text-gray-400">
+                        {new Date(p.closedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </span>
+                      <span className="text-sm font-semibold text-gray-700">
+                        ${Number(p.total).toLocaleString()}
+                      </span>
+                      <button
+                        onClick={() => deleteProposal(p.id)}
+                        className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-opacity"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-gray-400 mt-2">
+                Total: <strong className="text-gray-700">
+                  ${historical.reduce((s, p) => s + Number(p.total || 0), 0).toLocaleString()}
+                </strong>
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 const fmt  = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 const fmtK = n => n >= 1000 ? `$${(n / 1000).toFixed(0)}k` : `$${fmt(n)}`
@@ -263,7 +413,7 @@ export default function Analytics() {
       }
     })
     won.forEach(p => {
-      const d = new Date(p.createdAt || p.sentAt || Date.now())
+      const d = new Date(p.closedAt || p.createdAt || p.sentAt || Date.now())
       const m = months.find(m => m.year === d.getFullYear() && m.month === d.getMonth())
       if (!m) return
       const rev = Number(p.total || 0)
@@ -292,6 +442,8 @@ export default function Analytics() {
         <h1 className="text-xl font-bold text-gray-900">Analytics</h1>
         <p className="text-sm text-gray-400 mt-0.5">Business performance &amp; seasonality across all proposals</p>
       </div>
+
+      <PastJobPanel />
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">

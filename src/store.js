@@ -332,6 +332,47 @@ export const useStore = create(
           ),
         })),
 
+      // Import a historical won job with a real sale date (bypasses saveProposal's
+      // forced status=Draft and createdAt=now so analytics bucket it correctly).
+      importHistoricalJob: ({ client, address, projectTypes, total, saleDate }) =>
+        set((s) => {
+          const id = s.nextProposalId
+          const iso = saleDate
+            ? new Date(saleDate + 'T12:00:00').toISOString()
+            : new Date().toISOString()
+          return {
+            proposals: [
+              ...s.proposals,
+              {
+                id,
+                parentId: null,
+                version: 1,
+                client: client || '',
+                email: '',
+                phone: '',
+                address: address || '',
+                total: Number(total) || 0,
+                projectTypes: projectTypes || [],
+                projectSummary: '',
+                lines: [],
+                isAlaCarte: false,
+                showBreakdown: false,
+                margin: 0,
+                expiration: '',
+                status: 'Won',
+                createdAt: iso,
+                sentAt: iso,
+                closedAt: iso,
+                winLossReason: null,
+                activities: [],
+                reminders: [],
+                isHistorical: true,
+              },
+            ],
+            nextProposalId: id + 1,
+          }
+        }),
+
       deleteProposal: (id) =>
         set((s) => ({ proposals: s.proposals.filter((p) => p.id !== id) })),
 
