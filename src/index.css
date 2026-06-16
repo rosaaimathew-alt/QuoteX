@@ -59,4 +59,50 @@
   }
 
   * { box-shadow: none !important; }
+
+  /* ── Contract page-break rules ─────────────────────────────────────── */
+
+  /* Each major contract section (Scope of Work, PT Wood, etc.) starts on
+     a fresh page. Both the modern property and the legacy property are set
+     so every browser/OS combination honours it. */
+  .contract-section {
+    break-before: page !important;
+    page-break-before: always !important;
+  }
+
+  /* Within any contract page, paragraphs, list items, and table rows must
+     not be orphaned across a page boundary. */
+  .contract-doc p,
+  .contract-doc li,
+  .contract-doc tr {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Keep section headings attached to the content that follows them. */
+  .contract-doc h2,
+  .contract-doc h3 {
+    break-after: avoid !important;
+    page-break-after: avoid !important;
+  }
+
+  /* Signature blocks (name line + date line + label) must stay together. */
+  .contract-sig {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Legacy pdf-page-break markers in ContractView.jsx */
+  .pdf-page-break {
+    break-after: page !important;
+    page-break-after: always !important;
+    height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  /* Strip screen-only chrome from the contract wrapper for print. */
+  .contract-doc {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
 }

@@ -47,7 +47,7 @@ function SigBlock({ signatures, role, fieldId, label, date = true }) {
   const sig = signatures?.[role]
   const sigDate = sig?.signedAt ? new Date(sig.signedAt).toLocaleDateString('en-US',{month:'numeric',day:'numeric',year:'numeric'}) : ''
   return (
-    <div className="mt-4">
+    <div className="mt-4 contract-sig">
       <div className="flex gap-6 items-end">
         <div className="flex-1 border-b border-gray-500 pb-5 relative min-h-[48px]">
           {sigUrl && <img src={sigUrl} alt="sig" className="absolute left-0 bottom-0.5 h-10 object-contain" />}
@@ -70,7 +70,7 @@ function InlineSigBlock({ signatures, role, fieldId, label, withDate }) {
   const sigDate = sig?.signedAt ? new Date(sig.signedAt).toLocaleDateString('en-US',{month:'numeric',day:'numeric',year:'numeric'}) : ''
   if (withDate) {
     return (
-      <div className="flex gap-8 mt-4">
+      <div className="flex gap-8 mt-4 contract-sig">
         <div>
           <div className="border-b border-gray-500 w-48 pb-5 relative min-h-[44px]">
             {sigUrl && <img src={sigUrl} alt="sig" className="absolute left-0 bottom-0.5 h-10 object-contain" />}
@@ -87,7 +87,7 @@ function InlineSigBlock({ signatures, role, fieldId, label, withDate }) {
     )
   }
   return (
-    <div className="mt-5">
+    <div className="mt-5 contract-sig">
       <div className="border-b border-gray-500 w-56 pb-5 relative min-h-[44px]">
         {sigUrl && <img src={sigUrl} alt="sig" className="absolute left-0 bottom-0.5 h-10 object-contain" />}
       </div>
@@ -199,7 +199,7 @@ export default function ContractViewFull() {
       </div>
 
       <div className="max-w-4xl mx-auto my-4 px-2 sm:px-4">
-        <div className="bg-white shadow-lg rounded-sm overflow-hidden" style={docStyle}>
+        <div className="bg-white shadow-lg rounded-sm overflow-hidden contract-doc" style={docStyle}>
 
           {/* PAGE 1 */}
           <div className="px-6 sm:px-12 py-6">
@@ -262,7 +262,7 @@ export default function ContractViewFull() {
           </div>
 
           {/* Scope & Final Payment Clarification */}
-          <div className="px-6 sm:px-12 py-6 border-t border-gray-200">
+          <div className="px-6 sm:px-12 py-6 border-t border-gray-200 contract-section">
             <h2 className="text-center font-bold text-base mb-5">SCOPE OF WORK &amp; FINAL PAYMENT CLARIFICATION</h2>
             <p className="text-[10pt] mb-3">Ebony Outdoor Living and All in one Solutions's aim for customer service as our #1 priority. In order to provide you with the best possible customer experience, we are fully committed to providing you with <strong>everything</strong> written in the scope of work, specifications, and drawing.</p>
             <ul className="text-[10pt] space-y-2 mb-5 ml-2">
@@ -281,7 +281,7 @@ export default function ContractViewFull() {
           </div>
 
           {/* PT Wood */}
-          <div className="px-6 sm:px-12 py-6 border-t border-gray-200">
+          <div className="px-6 sm:px-12 py-6 border-t border-gray-200 contract-section">
             <h2 className="text-center font-bold text-base mb-4">PRESSURE-TREATED WOOD INFORMATION</h2>
             <ul className="text-[10pt] space-y-2 ml-1 mb-4">
               {[
@@ -305,7 +305,7 @@ export default function ContractViewFull() {
           </div>
 
           {/* Unforeseen */}
-          <div className="px-6 sm:px-12 py-6 border-t border-gray-200">
+          <div className="px-6 sm:px-12 py-6 border-t border-gray-200 contract-section">
             <h2 className="text-center font-bold text-base mb-4">UNFORESEEN SITE CONDITIONS POLICY</h2>
             <p className="text-[10pt] mb-3">As described in Paragraph 12(a) of the Contract, the Builder Shall not be responsible for any additional work required due to unforeseen site conditions, which include but are not limited to the following:</p>
             <ul className="text-[10pt] space-y-1.5 ml-2 mb-4">
@@ -327,7 +327,7 @@ export default function ContractViewFull() {
           </div>
 
           {/* Processing Form */}
-          <div className="px-6 sm:px-12 py-6 border-t border-gray-200">
+          <div className="px-6 sm:px-12 py-6 border-t border-gray-200 contract-section">
             <div className="text-xl font-bold mb-1" style={{fontFamily:'Arial,sans-serif'}}>PROCESSING FORM</div>
             <div className="border-b border-gray-400 mb-4" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 text-[10pt] mb-4">
@@ -356,7 +356,7 @@ export default function ContractViewFull() {
 
           {/* Client Acknowledgment */}
           {!isSmallContract && (
-            <div className="px-6 sm:px-12 py-6 border-t border-gray-200">
+            <div className="px-6 sm:px-12 py-6 border-t border-gray-200 contract-section">
               <h2 className="text-center font-bold text-base mb-5">Client Acknowledgment and Agreement</h2>
               <div className="text-[10pt] space-y-4">
                 <p>At <strong>Ebony Outdoor Living</strong>, we are committed to transparency, contractual clarity, and professional communication with our clients. This document is intended to formalize the understanding between the parties regarding the operational structure and distribution of responsibilities related to the contracted project. Ebony Outdoor Living and <strong>All-In-One Solutions</strong> operate collaboratively as part of the same project team. All-In-One Solutions serves as the licensed General Contractor and is responsible for maintaining the applicable licenses and overall legal and regulatory compliance required for the project.</p>
@@ -373,7 +373,7 @@ export default function ContractViewFull() {
           )}
 
           {/* Scope of Work */}
-          <div className="px-6 sm:px-12 py-6 border-t border-gray-200">
+          <div className="px-6 sm:px-12 py-6 border-t border-gray-200 contract-section">
             <div className="flex justify-between items-center mb-1">
               {logo ? <img src={logo} alt="logo" className="h-10 object-contain" />
                 : <div className="text-base font-black tracking-widest" style={{fontFamily:'Arial,sans-serif'}}>{companyName.toUpperCase()}</div>}
@@ -425,7 +425,7 @@ export default function ContractViewFull() {
 
           {/* Electrical */}
           {includesElectrical && (
-            <div className="px-6 sm:px-12 py-6 border-t border-gray-200">
+            <div className="px-6 sm:px-12 py-6 border-t border-gray-200 contract-section">
               <div className="flex justify-between items-center mb-1">
                 {logo ? <img src={logo} alt="logo" className="h-10 object-contain" />
                   : <div className="text-base font-black tracking-widest" style={{fontFamily:'Arial,sans-serif'}}>{companyName.toUpperCase()}</div>}
