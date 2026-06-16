@@ -335,6 +335,70 @@ export const useStore = create(
       deleteProposal: (id) =>
         set((s) => ({ proposals: s.proposals.filter((p) => p.id !== id) })),
 
+      // ── Manual grouping controls ─────────────────────────────────────────
+      // Pull a single proposal out of its group so it stands alone as its own
+      // client. If the proposal is the group's root and still has alternatives,
+      // the earliest remaining alternative is promoted to anchor the rest so
+      // nothing gets orphaned.
+      detachProposal: (id) =>
+        set((s) => {
+          const target = s.proposals.find((p) => p.id === id)
+          if (!target) return {}
+          const rootId = target.parentId || target.id
+          if (target.id === rootId) {
+            const children = s.proposals.filter(
+              (p) => p.parentId === rootId && p.id !== id
+            )
+            if (children.length === 0) return {} // already standalone
+            const newRoot = children.reduce((a, b) =>
+              new Date(a.createdAt || 0) <= new Date(b.createdAt || 0) ? a : b
+            )
+            return {
+              proposals: s.proposals.map((p) => {
+                if (p.id === id) return { ...p, parentId: null, version: 1 }
+                if (p.id === newRoot.id) return { ...p, parentId: null, version: 1 }
+                if (p.parentId === rootId) return { ...p, parentId: newRoot.id }
+                return p
+              }),
+            }
+          }
+          // Target is an alternative — simply cut it loose.
+          return {
+            proposals: s.proposals.map((p) =>
+              p.id === id ? { ...p, parentId: null, version: 1 } : p
+            ),
+          }
+        }),
+
+      // Merge an entire client group into another. Every proposal in the source
+      // group becomes an alternative under the target group's root.
+      mergeProposalGroups: (sourceId, targetId) =>
+        set((s) => {
+          const byId = Object.fromEntries(s.proposals.map((p) => [p.id, p]))
+          const rootOf = (pid) => {
+            const p = byId[pid]
+            return p && p.parentId && byId[p.parentId] ? p.parentId : pid
+          }
+          const srcRoot = rootOf(sourceId)
+          const tgtRoot = rootOf(targetId)
+          if (!srcRoot || !tgtRoot || srcRoot === tgtRoot) return {}
+          const srcMemberIds = new Set(
+            s.proposals
+              .filter((p) => p.id === srcRoot || p.parentId === srcRoot)
+              .map((p) => p.id)
+          )
+          let version = s.proposals.filter(
+            (p) => p.id === tgtRoot || p.parentId === tgtRoot
+          ).length
+          return {
+            proposals: s.proposals.map((p) => {
+              if (!srcMemberIds.has(p.id)) return p
+              version += 1
+              return { ...p, parentId: tgtRoot, version }
+            }),
+          }
+        }),
+
       clearAllProposals: () => set({ proposals: [], nextProposalId: 1 }),
 
       saveContractDraft: (proposalId, draft) =>

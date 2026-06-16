@@ -8,6 +8,7 @@ import {
   DollarSign, FileText, Plus, ChevronDown, ChevronUp, MessageSquare,
   Phone, Mail, Send, Users, BarChart2, Columns, List, Award, ThumbsDown,
   Eye, Copy, GitBranch, FileSignature, ChevronLeft, ChevronRight, ShoppingCart,
+  GitMerge, Unlink, Search,
 } from 'lucide-react'
 import { getPeriodRange, shiftPeriod, isCurrentPeriod } from '../periodUtils'
 
@@ -342,6 +343,67 @@ function FollowUpModal({ proposal, onClose }) {
   )
 }
 
+// ── Merge Client Modal ──────────────────────────────────────────────────────
+function MergeModal({ sourceGroup, allGroups, onMerge, onClose }) {
+  const [search, setSearch] = useState('')
+  const srcRootId = sourceGroup.root.id
+  const targets = allGroups.filter(g => g.root.id !== srcRootId)
+  const q = search.trim().toLowerCase()
+  const filtered = q
+    ? targets.filter(g =>
+        (g.root.client || '').toLowerCase().includes(q) ||
+        (g.root.email || '').toLowerCase().includes(q) ||
+        (g.root.address || '').toLowerCase().includes(q))
+    : targets
+  const srcCount = sourceGroup.revisions.length + 1
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="px-5 pt-5 pb-4 border-b border-gray-100">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+              <GitMerge size={17} className="text-purple-600" /> Merge Client
+            </h3>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={16} /></button>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            All {srcCount} proposal{srcCount !== 1 ? 's' : ''} for{' '}
+            <strong className="text-gray-700">{sourceGroup.root.client || 'this client'}</strong>{' '}
+            will become alternatives under the client you pick below.
+          </p>
+        </div>
+        <div className="px-5 py-3 border-b border-gray-100">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
+            <input autoFocus value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search clients…"
+              className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
+          </div>
+        </div>
+        <div className="overflow-y-auto flex-1 px-3 py-2">
+          {filtered.length === 0 ? (
+            <p className="text-sm text-gray-400 italic px-2 py-6 text-center">No other clients found.</p>
+          ) : filtered.map(g => {
+            const count = g.revisions.length + 1
+            return (
+              <button key={g.root.id} onClick={() => onMerge(g.root.id)}
+                className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-purple-50 border border-transparent hover:border-purple-200 transition-colors mb-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-gray-800">{g.root.client || <span className="italic text-gray-400">No name</span>}</span>
+                  <span className="text-xs text-gray-400 shrink-0 ml-2">{count} proposal{count !== 1 ? 's' : ''}</span>
+                </div>
+                {g.root.email && <p className="text-xs text-gray-400 mt-0.5 truncate">{g.root.email}</p>}
+                {g.root.address && <p className="text-xs text-gray-400 truncate">{g.root.address}</p>}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── List View ──────────────────────────────────────────────────────────────
 // Rank to pick the "best" proposal to surface as the primary row
 const STATUS_RANK = { Won: 6, Negotiating: 5, 'Followed Up': 4, Sent: 3, Draft: 2, Lost: 1 }
@@ -350,10 +412,17 @@ function bestInGroup(all) {
 }
 
 function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onOpen, onRevise, onGenerateContract }) {
-  const { deleteProposal } = useStore()
+  const { deleteProposal, detachProposal, mergeProposalGroups } = useStore()
   const [expandedLog, setExpandedLog] = useState(null)   // proposal id with activity log open
   const [expandedAlts, setExpandedAlts] = useState(null) // root id with alts expanded
   const [followUpProposal, setFollowUpProposal] = useState(null)
+  const [mergeSource, setMergeSource] = useState(null)   // group {root, revisions} being merged
+
+  const handleDetach = (id) => {
+    if (window.confirm('Separate this proposal into its own client file? It will no longer be grouped as an alternative.')) {
+      detachProposal(id)
+    }
+  }
 
   const allGroups = buildGroups(proposals)
   const groups = filterStatus === 'All'
@@ -362,7 +431,7 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
         [root, ...revisions].some(p => p.status === filterStatus)
       )
 
-  const ProposalRow = ({ p, altCount, showAltToggle }) => {
+  const ProposalRow = ({ p, altCount, showAltToggle, onDetach, onMerge }) => {
     const isAltExpanded = expandedAlts === p.id
     return (
       <>
@@ -422,6 +491,14 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
               <button onClick={() => onRevise(p)} className="p-1.5 rounded text-gray-300 hover:text-purple-600 hover:bg-purple-50" title="Create revision">
                 <Copy size={13} />
               </button>
+              <button onClick={onMerge} className="p-1.5 rounded text-gray-300 hover:text-purple-600 hover:bg-purple-50" title="Merge into another client">
+                <GitMerge size={13} />
+              </button>
+              {altCount > 0 && (
+                <button onClick={() => onDetach(p.id)} className="p-1.5 rounded text-gray-300 hover:text-amber-600 hover:bg-amber-50" title="Separate this proposal as its own client">
+                  <Unlink size={13} />
+                </button>
+              )}
               {p.status === 'Won' && (
                 <button onClick={() => onGenerateContract(p)} className="p-1.5 rounded text-gray-300 hover:text-green-600 hover:bg-green-50" title="Generate Contract">
                   <FileSignature size={13} />
@@ -455,6 +532,14 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
       {followUpProposal && <FollowUpModal proposal={followUpProposal} onClose={() => setFollowUpProposal(null)} />}
+      {mergeSource && (
+        <MergeModal
+          sourceGroup={mergeSource}
+          allGroups={buildGroups(proposals)}
+          onMerge={(targetRootId) => { mergeProposalGroups(mergeSource.root.id, targetRootId); setMergeSource(null) }}
+          onClose={() => setMergeSource(null)}
+        />
+      )}
       {groups.length === 0 ? (
         <div className="py-16 text-center text-gray-400">
           <FileText size={32} className="mx-auto mb-3 opacity-30" />
@@ -481,7 +566,12 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
               const isAltExpanded = expandedAlts === primary.id
               return (
                 <React.Fragment key={root.id}>
-                  <ProposalRow p={primary} altCount={alts.length} />
+                  <ProposalRow
+                    p={primary}
+                    altCount={alts.length}
+                    onDetach={handleDetach}
+                    onMerge={() => setMergeSource({ root, revisions })}
+                  />
                   {isAltExpanded && alts.map(alt => (
                     <tr key={alt.id} className="border-t border-purple-50 bg-purple-50/40 align-top">
                       <td className="px-4 py-2.5 pl-8">
@@ -509,6 +599,7 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
                         <div className="flex items-center justify-end gap-1">
                           <button onClick={() => onOpen(alt)} className="p-1 rounded text-gray-300 hover:text-sky-600 hover:bg-sky-50" title="Open"><Eye size={12} /></button>
                           <button onClick={() => onRevise(alt)} className="p-1 rounded text-gray-300 hover:text-purple-600 hover:bg-purple-50" title="Revise"><Copy size={12} /></button>
+                          <button onClick={() => handleDetach(alt.id)} className="p-1 rounded text-gray-300 hover:text-amber-600 hover:bg-amber-50" title="Separate as new client"><Unlink size={12} /></button>
                           <button onClick={() => deleteProposal(alt.id)} className="p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50" title="Delete"><Trash2 size={12} /></button>
                         </div>
                       </td>
