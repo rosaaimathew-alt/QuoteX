@@ -6,19 +6,28 @@ const PROJECT_TYPES = ['Deck', 'Screened Porch', 'Sunroom', 'Pergola', 'Gazebo',
 
 const EMPTY_FORM = { client: '', address: '', saleDate: '', total: '', projectType: 'Deck' }
 
+const BULK_EMPTY = { count: '70', status: 'Lost', startDate: '2026-01-01', endDate: '2026-04-30' }
+
 function PastJobPanel() {
-  const { proposals, importHistoricalJob, deleteProposal } = useStore()
+  const { proposals, importHistoricalJob, bulkImportHistoricalProposals, deleteProposal } = useStore()
   const [open, setOpen] = useState(false)
+  const [tab, setTab]   = useState('won')   // 'won' | 'nonwon'
   const [form, setForm] = useState(EMPTY_FORM)
+  const [bulk, setBulk] = useState(BULK_EMPTY)
   const [error, setError] = useState('')
+  const [bulkDone, setBulkDone] = useState(false)
 
   const historical = proposals
     .filter(p => p.isHistorical)
-    .sort((a, b) => new Date(b.closedAt) - new Date(a.closedAt))
+    .sort((a, b) => new Date(b.closedAt || b.createdAt) - new Date(a.closedAt || a.createdAt))
 
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const wonHistorical  = historical.filter(p => p.status === 'Won')
+  const lostHistorical = historical.filter(p => p.status !== 'Won')
 
-  const submit = () => {
+  const setF = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const setB = (k, v) => { setBulk(f => ({ ...f, [k]: v })); setBulkDone(false) }
+
+  const submitWon = () => {
     if (!form.client.trim()) { setError('Client name is required.'); return }
     if (!form.saleDate)       { setError('Sale date is required.'); return }
     if (!form.total || isNaN(Number(form.total))) { setError('Enter a valid dollar amount.'); return }
@@ -30,8 +39,20 @@ function PastJobPanel() {
       total: Number(form.total),
       saleDate: form.saleDate,
     })
-    setForm(f => ({ ...EMPTY_FORM, projectType: f.projectType, saleDate: f.saleDate })) // keep type+date for fast repeat entry
+    setForm(f => ({ ...EMPTY_FORM, projectType: f.projectType, saleDate: f.saleDate }))
   }
+
+  const submitBulk = () => {
+    const n = parseInt(bulk.count)
+    if (!n || n < 1 || n > 500) { setError('Enter a count between 1 and 500.'); return }
+    if (!bulk.startDate || !bulk.endDate) { setError('Both dates are required.'); return }
+    if (new Date(bulk.startDate) > new Date(bulk.endDate)) { setError('Start date must be before end date.'); return }
+    setError('')
+    bulkImportHistoricalProposals({ count: n, status: bulk.status, startDate: bulk.startDate, endDate: bulk.endDate })
+    setBulkDone(true)
+  }
+
+  const totalLogged = historical.length
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 mb-6">
@@ -42,9 +63,9 @@ function PastJobPanel() {
         <div className="flex items-center gap-2">
           <Clock size={15} className="text-indigo-500" />
           <span className="text-sm font-semibold text-gray-800">Log Past Jobs</span>
-          {historical.length > 0 && (
+          {totalLogged > 0 && (
             <span className="text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full font-medium">
-              {historical.length} logged
+              {totalLogged} logged
             </span>
           )}
         </div>
@@ -53,98 +74,145 @@ function PastJobPanel() {
 
       {open && (
         <div className="border-t border-gray-100 px-5 py-4">
-          <p className="text-xs text-gray-400 mb-4">
-            Enter jobs sold before you started using QuoteX. They'll count toward all revenue totals and the trendline, bucketed by sale date.
-          </p>
-
-          {/* Entry form */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 mb-2">
-            <input
-              placeholder="Client name *"
-              value={form.client}
-              onChange={e => set('client', e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && submit()}
-              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 lg:col-span-1"
-            />
-            <input
-              placeholder="Address (optional)"
-              value={form.address}
-              onChange={e => set('address', e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && submit()}
-              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 lg:col-span-1"
-            />
-            <select
-              value={form.projectType}
-              onChange={e => set('projectType', e.target.value)}
-              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
-            >
-              {PROJECT_TYPES.map(t => <option key={t}>{t}</option>)}
-            </select>
-            <input
-              type="date"
-              value={form.saleDate}
-              onChange={e => set('saleDate', e.target.value)}
-              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
-            />
-            <div className="flex gap-2">
-              <input
-                type="number"
-                placeholder="Total $"
-                value={form.total}
-                onChange={e => set('total', e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && submit()}
-                className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
-              />
-              <button
-                onClick={submit}
-                className="flex items-center gap-1 px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
-              >
-                <Plus size={14} /> Add
-              </button>
-            </div>
+          {/* Tabs */}
+          <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-4 w-fit">
+            <button onClick={() => { setTab('won'); setError('') }}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${tab === 'won' ? 'bg-white text-green-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              Won Jobs
+            </button>
+            <button onClick={() => { setTab('nonwon'); setError('') }}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${tab === 'nonwon' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              Non-Wins (Bulk)
+            </button>
           </div>
-          {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
 
-          {/* Logged jobs list */}
-          {historical.length > 0 && (
-            <div className="mt-4 border-t border-gray-100 pt-4">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                {historical.length} historical job{historical.length !== 1 ? 's' : ''} logged
+          {tab === 'won' && (
+            <>
+              <p className="text-xs text-gray-400 mb-3">
+                Enter jobs sold before you started using QuoteX. They'll count toward revenue totals and the trendline.
               </p>
-              <div className="space-y-1.5 max-h-56 overflow-y-auto">
-                {historical.map(p => (
-                  <div key={p.id} className="flex items-center justify-between gap-3 px-3 py-2 bg-gray-50 rounded-lg group">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="text-sm font-medium text-gray-800 truncate">{p.client}</span>
-                      {p.projectTypes?.[0] && (
-                        <span className="text-xs px-1.5 py-0.5 bg-white border border-gray-200 rounded text-gray-500 shrink-0">
-                          {p.projectTypes[0]}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className="text-xs text-gray-400">
-                        {new Date(p.closedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </span>
-                      <span className="text-sm font-semibold text-gray-700">
-                        ${Number(p.total).toLocaleString()}
-                      </span>
-                      <button
-                        onClick={() => deleteProposal(p.id)}
-                        className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-opacity"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 mb-2">
+                <input placeholder="Client name *" value={form.client}
+                  onChange={e => setF('client', e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && submitWon()}
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                <input placeholder="Address (optional)" value={form.address}
+                  onChange={e => setF('address', e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && submitWon()}
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                <select value={form.projectType} onChange={e => setF('projectType', e.target.value)}
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                  {PROJECT_TYPES.map(t => <option key={t}>{t}</option>)}
+                </select>
+                <input type="date" value={form.saleDate} onChange={e => setF('saleDate', e.target.value)}
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                <div className="flex gap-2">
+                  <input type="number" placeholder="Total $" value={form.total}
+                    onChange={e => setF('total', e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && submitWon()}
+                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                  <button onClick={submitWon}
+                    className="flex items-center gap-1 px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">
+                    <Plus size={14} /> Add
+                  </button>
+                </div>
               </div>
-              <p className="text-xs text-gray-400 mt-2">
-                Total: <strong className="text-gray-700">
-                  ${historical.reduce((s, p) => s + Number(p.total || 0), 0).toLocaleString()}
-                </strong>
+              {error && tab === 'won' && <p className="text-xs text-red-600 mb-2">{error}</p>}
+
+              {wonHistorical.length > 0 && (
+                <div className="mt-4 border-t border-gray-100 pt-4">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                    {wonHistorical.length} won job{wonHistorical.length !== 1 ? 's' : ''} logged
+                  </p>
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                    {wonHistorical.map(p => (
+                      <div key={p.id} className="flex items-center justify-between gap-3 px-3 py-2 bg-gray-50 rounded-lg group">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="text-sm font-medium text-gray-800 truncate">{p.client || <span className="text-gray-400 italic">No name</span>}</span>
+                          {p.projectTypes?.[0] && (
+                            <span className="text-xs px-1.5 py-0.5 bg-white border border-gray-200 rounded text-gray-500 shrink-0">{p.projectTypes[0]}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span className="text-xs text-gray-400">
+                            {new Date(p.closedAt || p.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                          <span className="text-sm font-semibold text-gray-700">${Number(p.total).toLocaleString()}</span>
+                          <button onClick={() => deleteProposal(p.id)} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-opacity">
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Total: <strong className="text-gray-700">${wonHistorical.reduce((s, p) => s + Number(p.total || 0), 0).toLocaleString()}</strong>
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+
+          {tab === 'nonwon' && (
+            <>
+              <p className="text-xs text-gray-400 mb-4">
+                Add proposals you sent but didn't close on. These count in your <strong>win rate denominator</strong> to bring the percentage down to its real number. They show in the Proposal Tracker as Lost/MIA with no client name.
               </p>
-            </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+                <div>
+                  <label className="text-xs text-gray-500 font-medium block mb-1">How many?</label>
+                  <input type="number" min="1" max="500" value={bulk.count}
+                    onChange={e => setB('count', e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 font-medium block mb-1">Status</label>
+                  <select value={bulk.status} onChange={e => setB('status', e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                    <option value="Lost">Lost</option>
+                    <option value="MIA">MIA (no response)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 font-medium block mb-1">From date</label>
+                  <input type="date" value={bulk.startDate} onChange={e => setB('startDate', e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 font-medium block mb-1">To date</label>
+                  <input type="date" value={bulk.endDate} onChange={e => setB('endDate', e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                </div>
+              </div>
+              {error && tab === 'nonwon' && <p className="text-xs text-red-600 mb-2">{error}</p>}
+              {bulkDone && (
+                <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-2">
+                  {bulk.count} proposals added. Win rate updated. You can re-run if needed — each run adds on top.
+                </p>
+              )}
+              <button onClick={submitBulk}
+                className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">
+                <Plus size={14} /> Add {bulk.count || '?'} {bulk.status} Proposals
+              </button>
+
+              {lostHistorical.length > 0 && (
+                <div className="mt-4 border-t border-gray-100 pt-4 flex items-center justify-between">
+                  <p className="text-xs text-gray-500">
+                    <strong className="text-gray-700">{lostHistorical.length}</strong> non-win historical proposals logged
+                  </p>
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`Delete all ${lostHistorical.length} bulk-added non-win proposals? This can't be undone.`)) {
+                        lostHistorical.forEach(p => deleteProposal(p.id))
+                      }
+                    }}
+                    className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1"
+                  >
+                    <Trash2 size={11} /> Remove all
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

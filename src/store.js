@@ -332,6 +332,38 @@ export const useStore = create(
           ),
         })),
 
+      // Bulk-add historical non-won proposals (Lost / MIA) to calibrate win rate.
+      // Distributes count proposals evenly across the startDate–endDate range.
+      bulkImportHistoricalProposals: ({ count, status, startDate, endDate }) =>
+        set((s) => {
+          const start = new Date(startDate + 'T12:00:00').getTime()
+          const end   = new Date(endDate   + 'T12:00:00').getTime()
+          const step  = count > 1 ? (end - start) / (count - 1) : 0
+          let id = s.nextProposalId
+          const newProposals = Array.from({ length: count }, (_, i) => {
+            const ts = new Date(start + step * i).toISOString()
+            const closed = status === 'Lost' || status === 'MIA'
+            return {
+              id: id++,
+              parentId: null,
+              version: 1,
+              client: '', email: '', phone: '', address: '',
+              total: 0, projectTypes: [], projectSummary: '',
+              lines: [], isAlaCarte: false, showBreakdown: false,
+              margin: 0, expiration: '',
+              status,
+              createdAt: ts,
+              sentAt: ts,
+              closedAt: closed ? ts : null,
+              winLossReason: null,
+              activities: [],
+              reminders: [],
+              isHistorical: true,
+            }
+          })
+          return { proposals: [...s.proposals, ...newProposals], nextProposalId: id }
+        }),
+
       // Import a historical won job with a real sale date (bypasses saveProposal's
       // forced status=Draft and createdAt=now so analytics bucket it correctly).
       importHistoricalJob: ({ client, address, projectTypes, total, saleDate }) =>
