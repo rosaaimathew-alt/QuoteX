@@ -234,19 +234,32 @@ const CO_STATUS_STYLE = {
 
 // ── CO Builder Modal ──────────────────────────────────────────────────────────
 function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
-  const catalog = useStore(s => s.catalog)
+  const catalog  = useStore(s => s.catalog)
+  const branding = useStore(s => s.branding)
   const contractNum = proposal.contractDraft?.contractNum || `EOL${String(70000 + proposal.id).padStart(6,'0')}`
   const coIndex = existingCo
     ? (proposal.jobData?.changeOrders || []).findIndex(c => c.id === existingCo.id) + 1
     : (proposal.jobData?.changeOrders || []).length + 1
   const coNumber = `${contractNum}-CO-${String(coIndex).padStart(3,'0')}`
 
+  // Normalize scope lines from contractDraft (objects) to simple {id, text} for editing
+  const initScope = () => {
+    const src = existingCo?.scopeLines || proposal.contractDraft?.scopeLines || []
+    return src.map((l, i) => ({
+      id: l?.id || Date.now() + i,
+      text: typeof l === 'string' ? l : (l?.text || l?.name || ''),
+    }))
+  }
+  const initPayments = () =>
+    (existingCo?.payments || proposal.contractDraft?.payments || []).map(p => ({ ...p }))
+
   const [description, setDescription] = useState(existingCo?.description || '')
   const [lines, setLines]             = useState(existingCo?.lines || [])
   const [notes, setNotes]             = useState(existingCo?.notes || '')
   const [search, setSearch]           = useState('')
   const [sending, setSending]         = useState(false)
-  const [copied, setCopied]           = useState(false)
+  const [scopeLines, setScopeLines]   = useState(initScope)
+  const [coPayments, setCoPayments]   = useState(initPayments)
 
   const categories = [...new Set(catalog.map(i => i.category).filter(Boolean))]
   const [catFilter, setCatFilter] = useState('All')
@@ -259,6 +272,8 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
   })
 
   const total = lines.reduce((s, l) => s + (Number(l.qty) || 0) * (Number(l.unitPrice) || 0), 0)
+  const newTotal = Number(proposal.total) + total
+  const paymentSum = coPayments.reduce((s, p) => s + Number(p.amount || 0), 0)
 
   const addFromCatalog = (item) => {
     setLines(prev => [...prev, { id: Date.now(), desc: item.name, qty: 1, unit: item.unit || 'EA', unitPrice: item.unitPrice || 0 }])
@@ -274,10 +289,40 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
   const removeLine = (id) =>
     setLines(prev => prev.filter(l => l.id !== id))
 
+  // Scope bullets helpers
+  const addScopeLine  = () => setScopeLines(prev => [...prev, { id: Date.now(), text: '' }])
+  const removeScopeLine = (id) => setScopeLines(prev => prev.filter(l => l.id !== id))
+  const updateScopeLine = (id, text) => setScopeLines(prev => prev.map(l => l.id === id ? { ...l, text } : l))
+
+  // Payment schedule helpers
+  const updatePayment = (i, field, val) =>
+    setCoPayments(prev => prev.map((p, idx) => idx === i ? { ...p, [field]: val } : p))
+  const addPayment = () =>
+    setCoPayments(prev => [...prev, { label: '', pct: 0, amount: 0 }])
+  const removePayment = (i) =>
+    setCoPayments(prev => prev.filter((_, idx) => idx !== i))
+
   const handleSave = async (sendForSig) => {
     if (!description.trim()) return
     setSending(true)
-    await onSave({ description, lines, amount: total, notes, coNumber }, sendForSig)
+    // Recalculate pct for each payment based on total contract value
+    const paymentsWithPct = coPayments.map(p => ({
+      ...p,
+      pct: newTotal > 0 ? Number(p.amount || 0) / newTotal : 0,
+    }))
+    await onSave({
+      description,
+      lines,
+      amount: total,
+      notes,
+      coNumber,
+      scopeLines,
+      payments: paymentsWithPct,
+      branding: {
+        logo:        branding?.logo || null,
+        companyName: branding?.companyName || 'Ebony Outdoor Living',
+      },
+    }, sendForSig)
     setSending(false)
   }
 
@@ -394,6 +439,76 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
               </div>
             )}
 
+            {/* Updated Scope of Work */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Updated Scope of Work</label>
+                <button onClick={addScopeLine} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium">
+                  <Plus size={12} /> Add bullet
+                </button>
+              </div>
+              <p className="text-[10px] text-gray-400 mb-2">Pre-filled from contract. Edit, remove, or add bullets for this CO document.</p>
+              {scopeLines.length === 0 && (
+                <p className="text-xs text-gray-400 italic py-1">No scope lines — click "Add bullet" to start.</p>
+              )}
+              <div className="space-y-1.5">
+                {scopeLines.map(l => (
+                  <div key={l.id} className="flex gap-2 items-start">
+                    <span className="text-gray-400 mt-2.5 text-xs shrink-0">●</span>
+                    <textarea rows={1} value={l.text} onChange={e => updateScopeLine(l.id, e.target.value)}
+                      placeholder="Scope item…"
+                      className="flex-1 text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-300 resize-none" />
+                    <button onClick={() => removeScopeLine(l.id)} className="mt-1.5 text-gray-300 hover:text-red-500 shrink-0">
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Updated Payment Schedule */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Updated Payment Schedule</label>
+                <button onClick={addPayment} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium">
+                  <Plus size={12} /> Add milestone
+                </button>
+              </div>
+              <p className="text-[10px] text-gray-400 mb-2">Pre-filled from contract. Adjust amounts to match new contract total.</p>
+              {coPayments.length === 0 && (
+                <p className="text-xs text-gray-400 italic py-1">No milestones — click "Add milestone" to start.</p>
+              )}
+              {coPayments.length > 0 && (
+                <div className="border border-gray-200 rounded-xl overflow-hidden">
+                  <div className="grid grid-cols-[1fr_100px_32px] gap-2 px-3 py-2 bg-gray-50 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                    <span>Milestone</span><span className="text-right">Amount</span><span />
+                  </div>
+                  {coPayments.map((p, i) => (
+                    <div key={i} className="grid grid-cols-[1fr_100px_32px] gap-2 px-3 py-2 border-t border-gray-100 items-center">
+                      <input value={p.label} onChange={e => updatePayment(i, 'label', e.target.value)}
+                        placeholder="Milestone label"
+                        className="text-sm border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-300 w-full" />
+                      <input type="number" min="0" step="0.01" value={p.amount} onChange={e => updatePayment(i, 'amount', e.target.value)}
+                        className="text-sm border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-300 w-full text-right" />
+                      <button onClick={() => removePayment(i)} className="text-gray-300 hover:text-red-500 flex justify-center">
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  ))}
+                  <div className="grid grid-cols-[1fr_100px_32px] gap-2 px-3 py-2.5 bg-gray-50 border-t border-gray-200">
+                    <span className="text-xs font-semibold text-gray-500 text-right">Schedule Total</span>
+                    <span className={`text-sm font-bold text-right ${Math.abs(paymentSum - newTotal) > 1 ? 'text-red-600' : 'text-green-700'}`}>
+                      ${fmtDol(paymentSum)}
+                    </span>
+                    <span />
+                  </div>
+                </div>
+              )}
+              {coPayments.length > 0 && Math.abs(paymentSum - newTotal) > 1 && (
+                <p className="text-xs text-amber-600 mt-1">Schedule total (${fmtDol(paymentSum)}) doesn't match new contract total (${fmtDol(newTotal)})</p>
+              )}
+            </div>
+
             {/* Notes */}
             <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Internal Notes</label>
@@ -413,7 +528,7 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
             className="px-4 py-2 border border-gray-300 rounded-xl text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40">
             Save Draft
           </button>
-          <button onClick={() => handleSave(true)} disabled={!description.trim() || total === 0 || sending || !proposal.email}
+          <button onClick={() => handleSave(true)} disabled={!description.trim() || sending || !proposal.email}
             className="flex-1 flex items-center justify-center gap-2 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-40 transition-colors">
             <PenLine size={14} />
             {sending ? 'Sending…' : 'Save & Send for Signature'}
@@ -550,7 +665,7 @@ function ChangeOrdersTab({ proposal }) {
     const pending = cos.filter(c => c.signRecordId && c.status === 'Sent for Signature')
     pending.forEach(async co => {
       try {
-        const res = await fetch(`/api/sign/record-${co.signRecordId}`)
+        const res = await fetch(`/api/co/record-${co.signRecordId}`)
         if (!res.ok) return
         const rec = await res.json()
         if (rec.signatures?.client) {
@@ -576,30 +691,30 @@ function ChangeOrdersTab({ proposal }) {
 
     if (sendForSig) {
       try {
-        const contractData = {
-          type:               'change-order',
-          coNumber:           coData.coNumber,
-          description:        coData.description,
-          lines:              coData.lines,
-          amount:             coData.amount,
-          originalContractNum: contractNum,
-          originalTotal:      Number(proposal.total),
-          newTotal:           Number(proposal.total) + Number(coData.amount),
-          client:             proposal.client,
-          email:              proposal.email,
-          phone:              proposal.phone,
-          address:            proposal.address,
+        const coPayload = {
+          coNumber:      coData.coNumber,
+          contractNum,
+          description:   coData.description,
+          lines:         coData.lines,
+          scopeLines:    coData.scopeLines || [],
+          payments:      coData.payments   || [],
+          originalTotal: Number(proposal.total),
+          newTotal:      Number(proposal.total) + Number(coData.amount),
+          client:        proposal.client,
+          address:       proposal.address,
+          branding:      coData.branding || {},
         }
-        const res  = await fetch('/api/sign/create', {
+        const res = await fetch('/api/co/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contractData, contractNum: coData.coNumber }),
+          body: JSON.stringify({ coData: coPayload }),
         })
         const { recordId, links } = await res.json()
         updateChangeOrder(proposal.id, editingCo?.id || coId, {
-          signRecordId: recordId,
-          signLink:     links.client,
-          status:       'Sent for Signature',
+          signRecordId:   recordId,
+          signLink:       links.client,
+          builderSignLink: links.builder,
+          status:         'Sent for Signature',
         })
         await fetch('/api/email', {
           method: 'POST',
@@ -615,7 +730,7 @@ function ChangeOrdersTab({ proposal }) {
           }),
         })
       } catch (err) {
-        console.error('Sign/email error:', err)
+        console.error('CO sign/email error:', err)
       }
     }
     setBuilderOpen(false)
@@ -625,13 +740,16 @@ function ChangeOrdersTab({ proposal }) {
   const checkStatus = async (co) => {
     setChecking(co.id)
     try {
-      const res = await fetch(`/api/sign/record-${co.signRecordId}`)
+      const res = await fetch(`/api/co/record-${co.signRecordId}`)
       const rec = await res.json()
-      if (rec.signatures?.client) {
+      const clientSigned  = !!rec.signatures?.client
+      const builderSigned = !!rec.signatures?.builder
+      if (clientSigned) {
         updateChangeOrder(proposal.id, co.id, {
-          status: 'Approved',
+          status:   builderSigned ? 'Approved' : 'Sent for Signature',
           signedAt: rec.signatures.client.signedAt,
         })
+        if (!builderSigned) alert('Client has signed. Waiting for builder signature.')
       } else {
         alert('Not yet signed by client.')
       }
@@ -701,19 +819,35 @@ function ChangeOrdersTab({ proposal }) {
 
           {/* Signing actions */}
           {co.signLink && co.status === 'Sent for Signature' && (
-            <div className="flex gap-2 mt-2">
-              <button onClick={() => copyLink(co.signLink)}
-                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium">
-                <Link2 size={11} /> Copy link
-              </button>
-              <a href={co.signLink} target="_blank" rel="noreferrer"
-                className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700">
-                <ExternalLink size={11} /> Preview
-              </a>
+            <div className="mt-2 space-y-1.5">
+              <div className="flex gap-2 flex-wrap">
+                <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider self-center">Client:</span>
+                <button onClick={() => copyLink(co.signLink)}
+                  className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium">
+                  <Link2 size={11} /> Copy
+                </button>
+                <a href={co.signLink} target="_blank" rel="noreferrer"
+                  className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700">
+                  <ExternalLink size={11} /> Preview
+                </a>
+              </div>
+              {co.builderSignLink && (
+                <div className="flex gap-2 flex-wrap">
+                  <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider self-center">Builder:</span>
+                  <button onClick={() => copyLink(co.builderSignLink)}
+                    className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 font-medium">
+                    <Link2 size={11} /> Copy
+                  </button>
+                  <a href={co.builderSignLink} target="_blank" rel="noreferrer"
+                    className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700">
+                    <ExternalLink size={11} /> Preview
+                  </a>
+                </div>
+              )}
               <button onClick={() => checkStatus(co)} disabled={checking === co.id}
                 className="flex items-center gap-1 text-xs text-green-700 hover:text-green-900 font-medium disabled:opacity-50">
                 <RefreshCw size={11} className={checking === co.id ? 'animate-spin' : ''} />
-                {checking === co.id ? 'Checking…' : 'Check Signature'}
+                {checking === co.id ? 'Checking…' : 'Check Signatures'}
               </button>
             </div>
           )}

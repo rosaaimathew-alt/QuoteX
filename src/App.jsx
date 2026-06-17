@@ -16,6 +16,7 @@ import ContractView from './pages/ContractView'
 import ContractsList from './pages/ContractsList'
 import Login from './pages/Login'
 import SignPage from './pages/SignPage'
+import COSignPage from './pages/COSignPage'
 import ContractViewFull from './pages/ContractViewFull'
 import ProfitabilityTracker from './pages/ProfitabilityTracker'
 import Pipeline from './pages/Pipeline'
@@ -365,6 +366,7 @@ export default function App() {
       <Routes>
         <Route path="/login"       element={<Login />} />
         <Route path="/sign/:token" element={<SignBoundary><SignPage /></SignBoundary>} />
+        <Route path="/co/:token"   element={<SignBoundary><COSignPage /></SignBoundary>} />
         <Route path="/view/:recordId" element={<SignBoundary><ContractViewFull /></SignBoundary>} />
         <Route path="*"            element={<AuthGuard><AppShell /></AuthGuard>} />
       </Routes>
