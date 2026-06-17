@@ -242,13 +242,10 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
     : (proposal.jobData?.changeOrders || []).length + 1
   const coNumber = `${contractNum}-CO-${String(coIndex).padStart(3,'0')}`
 
-  // Normalize scope lines from contractDraft (objects) to simple {id, text} for editing
-  const initScope = () => {
+  // Flatten scope lines into a single newline-separated string for editing
+  const initScopeText = () => {
     const src = existingCo?.scopeLines || proposal.contractDraft?.scopeLines || []
-    return src.map((l, i) => ({
-      id: l?.id || Date.now() + i,
-      text: typeof l === 'string' ? l : (l?.text || l?.name || ''),
-    }))
+    return src.map(l => typeof l === 'string' ? l : (l?.text || l?.name || '')).filter(Boolean).join('\n')
   }
   const initPayments = () =>
     (existingCo?.payments || proposal.contractDraft?.payments || []).map(p => ({ ...p }))
@@ -258,7 +255,7 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
   const [notes, setNotes]             = useState(existingCo?.notes || '')
   const [search, setSearch]           = useState('')
   const [sending, setSending]         = useState(false)
-  const [scopeLines, setScopeLines]   = useState(initScope)
+  const [scopeText, setScopeText]     = useState(initScopeText)
   const [coPayments, setCoPayments]   = useState(initPayments)
 
   const categories = [...new Set(catalog.map(i => i.category).filter(Boolean))]
@@ -289,11 +286,6 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
   const removeLine = (id) =>
     setLines(prev => prev.filter(l => l.id !== id))
 
-  // Scope bullets helpers
-  const addScopeLine  = () => setScopeLines(prev => [...prev, { id: Date.now(), text: '' }])
-  const removeScopeLine = (id) => setScopeLines(prev => prev.filter(l => l.id !== id))
-  const updateScopeLine = (id, text) => setScopeLines(prev => prev.map(l => l.id === id ? { ...l, text } : l))
-
   // Payment schedule helpers
   const updatePayment = (i, field, val) =>
     setCoPayments(prev => prev.map((p, idx) => idx === i ? { ...p, [field]: val } : p))
@@ -305,6 +297,8 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
   const handleSave = async (sendForSig) => {
     if (!description.trim()) return
     setSending(true)
+    // Convert text block back to bullet array
+    const scopeLines = scopeText.split('\n').map(s => s.trim()).filter(Boolean).map(text => ({ text }))
     // Recalculate pct for each payment based on total contract value
     const paymentsWithPct = coPayments.map(p => ({
       ...p,
@@ -441,29 +435,15 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
 
             {/* Updated Scope of Work */}
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Updated Scope of Work</label>
-                <button onClick={addScopeLine} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium">
-                  <Plus size={12} /> Add bullet
-                </button>
-              </div>
-              <p className="text-[10px] text-gray-400 mb-2">Pre-filled from contract. Edit, remove, or add bullets for this CO document.</p>
-              {scopeLines.length === 0 && (
-                <p className="text-xs text-gray-400 italic py-1">No scope lines — click "Add bullet" to start.</p>
-              )}
-              <div className="space-y-1.5">
-                {scopeLines.map(l => (
-                  <div key={l.id} className="flex gap-2 items-start">
-                    <span className="text-gray-400 mt-2.5 text-xs shrink-0">●</span>
-                    <textarea rows={1} value={l.text} onChange={e => updateScopeLine(l.id, e.target.value)}
-                      placeholder="Scope item…"
-                      className="flex-1 text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-300 resize-none" />
-                    <button onClick={() => removeScopeLine(l.id)} className="mt-1.5 text-gray-300 hover:text-red-500 shrink-0">
-                      <X size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Updated Scope of Work</label>
+              <p className="text-[10px] text-gray-400 mb-2">Pre-filled from contract. Each line becomes one bullet on the CO document. Add, edit, or delete lines freely.</p>
+              <textarea
+                value={scopeText}
+                onChange={e => setScopeText(e.target.value)}
+                placeholder={"Line 1 of scope…\nLine 2 of scope…\nLine 3 of scope…"}
+                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                style={{ minHeight: '10rem', resize: 'vertical' }}
+              />
             </div>
 
             {/* Updated Payment Schedule */}
