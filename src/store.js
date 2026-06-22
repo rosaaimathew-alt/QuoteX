@@ -167,8 +167,8 @@ export const useStore = create(
 
       // ── Project / service types (analytics, user-editable) ───────────────
       projectTypes: [
-        'Deck','Screened Porch','Sunroom','Open Porch','Pergola','Gazebo',
-        'Hardscapes','Eze-breeze room','Other',
+        'Open Deck','Screen Porches','Eze-Breeze Porches','Open Porches',
+        'Porch Conversions','Sunrooms','Hardscapes',
       ],
 
       addProjectType: (name) =>
@@ -821,8 +821,8 @@ export const useStore = create(
             'Tile','Insulation','Siding','General',
           ],
           projectTypes: persisted?.projectTypes || [
-            'Deck','Screened Porch','Sunroom','Open Porch','Pergola','Gazebo',
-            'Hardscapes','Eze-breeze room','Other',
+            'Open Deck','Screen Porches','Eze-Breeze Porches','Open Porches',
+            'Porch Conversions','Sunrooms','Hardscapes',
           ],
         }
       },

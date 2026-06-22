@@ -28,7 +28,7 @@ export default function BuildQuote() {
   const [projectTypes, setProjectTypes] = useState([])
   const [projectSummary, setProjectSummary] = useState('')
 
-  const PROJECT_TYPE_OPTIONS = ['Deck', 'Screened Porch', 'Sunroom', 'Pergola', 'Gazebo', 'Open Porch']
+  const PROJECT_TYPE_OPTIONS = ['Open Deck','Screen Porches','Eze-Breeze Porches','Open Porches','Porch Conversions','Sunrooms','Hardscapes']
   const toggleProjectType = (t) => setProjectTypes(prev =>
     prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]
   )

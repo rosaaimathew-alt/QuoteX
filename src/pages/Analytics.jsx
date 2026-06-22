@@ -163,9 +163,9 @@ function ProposalMap({ proposals }) {
   )
 }
 
-const PROJECT_TYPES = ['Deck', 'Screened Porch', 'Sunroom', 'Pergola', 'Gazebo', 'Open Porch', 'Other']
+const PROJECT_TYPES = ['Open Deck','Screen Porches','Eze-Breeze Porches','Open Porches','Porch Conversions','Sunrooms','Hardscapes']
 
-const EMPTY_FORM = { client: '', address: '', saleDate: '', total: '', projectType: 'Deck' }
+const EMPTY_FORM = { client: '', address: '', saleDate: '', total: '', projectType: 'Open Deck' }
 
 const BULK_EMPTY = { count: '70', status: 'Lost', startDate: '2026-01-01', endDate: '2026-04-30' }
 
@@ -461,53 +461,49 @@ const COLOR_PALETTE = [
   '#ea580c','#0d9488','#84cc16','#ec4899','#6366f1','#9ca3af',
 ]
 const TYPE_STROKE_MAP = {
-  'Total':          '#6366f1',
-  'Deck':           '#3b82f6',
-  'Screened Porch': '#10b981',
-  'Sunroom':        '#f59e0b',
-  'Pergola':        '#a855f7',
-  'Gazebo':         '#f43f5e',
-  'Open Porch':     '#06b6d4',
-  'Hardscapes':     '#ea580c',
-  'Eze-breeze room':'#0d9488',
-  'Other':          '#9ca3af',
+  'Total':              '#6366f1',
+  'Open Deck':          '#3b82f6',
+  'Screen Porches':     '#10b981',
+  'Eze-Breeze Porches': '#0d9488',
+  'Open Porches':       '#06b6d4',
+  'Porch Conversions':  '#a855f7',
+  'Sunrooms':           '#f59e0b',
+  'Hardscapes':         '#ea580c',
+  'Other':              '#9ca3af',
 }
 function typeStroke(type, allTypes) {
   return TYPE_STROKE_MAP[type] || COLOR_PALETTE[allTypes.indexOf(type) % COLOR_PALETTE.length] || '#9ca3af'
 }
 const TYPE_BG = {
-  'Total':          'bg-indigo-100 text-indigo-700 border-indigo-300',
-  'Deck':           'bg-blue-100 text-blue-700 border-blue-300',
-  'Screened Porch': 'bg-emerald-100 text-emerald-700 border-emerald-300',
-  'Sunroom':        'bg-amber-100 text-amber-700 border-amber-300',
-  'Pergola':        'bg-purple-100 text-purple-700 border-purple-300',
-  'Gazebo':         'bg-rose-100 text-rose-700 border-rose-300',
-  'Open Porch':     'bg-cyan-100 text-cyan-700 border-cyan-300',
-  'Hardscapes':     'bg-orange-100 text-orange-700 border-orange-300',
-  'Eze-breeze room':'bg-teal-100 text-teal-700 border-teal-300',
-  'Other':          'bg-gray-100 text-gray-600 border-gray-300',
+  'Total':              'bg-indigo-100 text-indigo-700 border-indigo-300',
+  'Open Deck':          'bg-blue-100 text-blue-700 border-blue-300',
+  'Screen Porches':     'bg-emerald-100 text-emerald-700 border-emerald-300',
+  'Eze-Breeze Porches': 'bg-teal-100 text-teal-700 border-teal-300',
+  'Open Porches':       'bg-cyan-100 text-cyan-700 border-cyan-300',
+  'Porch Conversions':  'bg-purple-100 text-purple-700 border-purple-300',
+  'Sunrooms':           'bg-amber-100 text-amber-700 border-amber-300',
+  'Hardscapes':         'bg-orange-100 text-orange-700 border-orange-300',
+  'Other':              'bg-gray-100 text-gray-600 border-gray-300',
 }
 const TYPE_COLORS_BAR = {
-  'Deck':           'bg-blue-500',
-  'Screened Porch': 'bg-emerald-500',
-  'Sunroom':        'bg-amber-500',
-  'Pergola':        'bg-purple-500',
-  'Gazebo':         'bg-rose-500',
-  'Open Porch':     'bg-cyan-500',
-  'Hardscapes':     'bg-orange-500',
-  'Eze-breeze room':'bg-teal-500',
-  'Other':          'bg-gray-400',
+  'Open Deck':          'bg-blue-500',
+  'Screen Porches':     'bg-emerald-500',
+  'Eze-Breeze Porches': 'bg-teal-500',
+  'Open Porches':       'bg-cyan-500',
+  'Porch Conversions':  'bg-purple-500',
+  'Sunrooms':           'bg-amber-500',
+  'Hardscapes':         'bg-orange-500',
+  'Other':              'bg-gray-400',
 }
 const TYPE_LIGHT = {
-  'Deck':           'bg-blue-50 text-blue-700',
-  'Screened Porch': 'bg-emerald-50 text-emerald-700',
-  'Sunroom':        'bg-amber-50 text-amber-700',
-  'Pergola':        'bg-purple-50 text-purple-700',
-  'Gazebo':         'bg-rose-50 text-rose-700',
-  'Open Porch':     'bg-cyan-50 text-cyan-700',
-  'Hardscapes':     'bg-orange-50 text-orange-700',
-  'Eze-breeze room':'bg-teal-50 text-teal-700',
-  'Other':          'bg-gray-100 text-gray-600',
+  'Open Deck':          'bg-blue-50 text-blue-700',
+  'Screen Porches':     'bg-emerald-50 text-emerald-700',
+  'Eze-Breeze Porches': 'bg-teal-50 text-teal-700',
+  'Open Porches':       'bg-cyan-50 text-cyan-700',
+  'Porch Conversions':  'bg-purple-50 text-purple-700',
+  'Sunrooms':           'bg-amber-50 text-amber-700',
+  'Hardscapes':         'bg-orange-50 text-orange-700',
+  'Other':              'bg-gray-100 text-gray-600',
 }
 
 function StatCard({ icon: Icon, label, value, sub, color = 'blue' }) {
