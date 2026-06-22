@@ -10,9 +10,13 @@ function extractZip(addr) { return addr?.match(/\b(\d{5})(?:-\d{4})?\b/)?.[1] ??
 function extractCity(addr) {
   if (!addr?.trim()) return null
   const parts = addr.split(',').map(s => s.trim()).filter(Boolean)
-  if (parts.length >= 3) return parts[parts.length - 2]
-  if (parts.length === 2) return parts[1]
-  return null
+  let candidate = parts.length >= 3 ? parts[parts.length - 2] : parts.length === 2 ? parts[1] : null
+  if (!candidate) return null
+  // Strip trailing ZIP and state abbreviation
+  candidate = candidate.replace(/\b\d{5}(?:-\d{4})?\b/, '').replace(/\b[A-Z]{2}\b/, '').trim()
+  // Reject if it's empty or still just a 2-letter state code
+  if (!candidate || /^[A-Z]{2}$/.test(candidate)) return null
+  return candidate
 }
 
 const REGION_BOUNDS = [[32.0, -85.0], [36.6, -75.4]]
