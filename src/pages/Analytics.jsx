@@ -1,6 +1,167 @@
-import { useMemo, useState, useRef } from 'react'
+import { useMemo, useState, useRef, useEffect, useCallback } from 'react'
 import { useStore } from '../store'
-import { TrendingUp, DollarSign, Award, XCircle, Target, Plus, ChevronDown, ChevronUp, Trash2, Clock } from 'lucide-react'
+import { TrendingUp, DollarSign, Award, XCircle, Target, Plus, ChevronDown, ChevronUp, Trash2, Clock, MapPin, Loader2 } from 'lucide-react'
+
+// ── Proposal Map ─────────────────────────────────────────────────────────────
+const GEO_CACHE_KEY = 'quotex-geo-cache'
+
+function loadGeoCache() {
+  try { return JSON.parse(localStorage.getItem(GEO_CACHE_KEY) || '{}') } catch { return {} }
+}
+function saveGeoCache(cache) {
+  try { localStorage.setItem(GEO_CACHE_KEY, JSON.stringify(cache)) } catch {}
+}
+
+function pinColor(status) {
+  if (status === 'Won')  return '#16a34a'
+  if (status === 'Lost') return '#dc2626'
+  if (status === 'MIA')  return '#94a3b8'
+  return '#2563eb'
+}
+
+function ProposalMap({ proposals }) {
+  const mapRef          = useRef(null)
+  const instanceRef     = useRef(null)
+  const [leafletReady, setLeafletReady] = useState(!!window.L)
+  const [geocoded, setGeocoded]         = useState([])
+  const [pending, setPending]           = useState(0)
+
+  // Load Leaflet from CDN once
+  useEffect(() => {
+    if (window.L) { setLeafletReady(true); return }
+    if (!document.getElementById('leaflet-css')) {
+      const link = document.createElement('link')
+      link.id = 'leaflet-css'; link.rel = 'stylesheet'
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+      document.head.appendChild(link)
+    }
+    const script = document.createElement('script')
+    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+    script.onload = () => setLeafletReady(true)
+    document.head.appendChild(script)
+  }, [])
+
+  // Geocode addresses, using localStorage cache
+  const runGeocoding = useCallback(async () => {
+    const withAddr = proposals.filter(p => p.address?.trim())
+    if (withAddr.length === 0) return
+    const cache = loadGeoCache()
+
+    // Show cached results immediately
+    const fromCache = withAddr
+      .filter(p => cache[p.address])
+      .map(p => ({ id: p.id, client: p.client, address: p.address, status: p.status, total: p.total, ...cache[p.address] }))
+    setGeocoded(fromCache)
+
+    // Geocode anything not yet cached (1 req/sec per Nominatim ToS)
+    const uncached = withAddr.filter(p => !cache[p.address])
+    if (uncached.length === 0) return
+    setPending(uncached.length)
+
+    for (const p of uncached) {
+      try {
+        const res  = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=${encodeURIComponent(p.address)}`)
+        const data = await res.json()
+        if (data[0]) {
+          cache[p.address] = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
+          saveGeoCache(cache)
+          setGeocoded(prev => {
+            if (prev.find(x => x.id === p.id)) return prev
+            return [...prev, { id: p.id, client: p.client, address: p.address, status: p.status, total: p.total, ...cache[p.address] }]
+          })
+        }
+      } catch {}
+      setPending(n => n - 1)
+      await new Promise(r => setTimeout(r, 1100))
+    }
+  }, [proposals])
+
+  useEffect(() => { if (leafletReady) runGeocoding() }, [leafletReady, runGeocoding])
+
+  // Initialize / update map when geocoded points change
+  useEffect(() => {
+    if (!leafletReady || !mapRef.current || geocoded.length === 0) return
+    const L = window.L
+
+    if (!instanceRef.current) {
+      instanceRef.current = L.map(mapRef.current, { zoomControl: true })
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 18,
+      }).addTo(instanceRef.current)
+    }
+
+    const map = instanceRef.current
+    map.eachLayer(layer => { if (layer.options?.icon) map.removeLayer(layer) })
+
+    geocoded.forEach(p => {
+      const color = pinColor(p.status)
+      const icon  = L.divIcon({
+        className: '',
+        html: `<div style="width:12px;height:12px;border-radius:50%;background:${color};border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45)"></div>`,
+        iconSize: [12, 12], iconAnchor: [6, 6],
+      })
+      L.marker([p.lat, p.lng], { icon })
+        .addTo(map)
+        .bindPopup(`<strong style="font-size:13px">${p.client || '—'}</strong><br><span style="color:#6b7280;font-size:11px">${p.address}</span><br><span style="color:${color};font-size:12px;font-weight:600">${p.status}</span> · $${Number(p.total||0).toLocaleString()}`)
+    })
+
+    if (geocoded.length === 1) {
+      map.setView([geocoded[0].lat, geocoded[0].lng], 12)
+    } else {
+      map.fitBounds(L.latLngBounds(geocoded.map(p => [p.lat, p.lng])), { padding: [40, 40] })
+    }
+  }, [leafletReady, geocoded])
+
+  // Destroy map on unmount
+  useEffect(() => () => { instanceRef.current?.remove(); instanceRef.current = null }, [])
+
+  const withAddr = proposals.filter(p => p.address?.trim()).length
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-5 mb-5">
+      <div className="flex items-start justify-between flex-wrap gap-3 mb-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <MapPin size={15} className="text-indigo-500" />
+            <h2 className="font-semibold text-gray-900 text-sm">Proposal Map</h2>
+          </div>
+          <p className="text-xs text-gray-400 mt-0.5">Every address you've visited — click a pin for details</p>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          {pending > 0 && (
+            <div className="flex items-center gap-1.5 text-xs text-indigo-600">
+              <Loader2 size={12} className="animate-spin" />
+              Locating {pending} address{pending !== 1 ? 'es' : ''}…
+            </div>
+          )}
+          <div className="flex items-center gap-3 text-xs text-gray-500">
+            <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full bg-green-600" /> Won</span>
+            <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-600" /> Active</span>
+            <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full bg-red-600" /> Lost</span>
+            <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full bg-slate-400" /> MIA</span>
+          </div>
+        </div>
+      </div>
+
+      {withAddr === 0 ? (
+        <div className="h-64 flex items-center justify-center text-sm text-gray-400 bg-gray-50 rounded-xl">
+          No addresses on file yet — they'll appear here automatically.
+        </div>
+      ) : !leafletReady ? (
+        <div className="h-64 flex items-center justify-center text-sm text-gray-400">
+          <Loader2 size={18} className="animate-spin mr-2" /> Loading map…
+        </div>
+      ) : (
+        <div ref={mapRef} className="rounded-xl overflow-hidden" style={{ height: '420px' }} />
+      )}
+
+      <p className="text-[10px] text-gray-400 mt-2 text-right">
+        {geocoded.length} of {withAddr} address{withAddr !== 1 ? 'es' : ''} plotted · Map data © OpenStreetMap
+      </p>
+    </div>
+  )
+}
 
 const PROJECT_TYPES = ['Deck', 'Screened Porch', 'Sunroom', 'Pergola', 'Gazebo', 'Open Porch', 'Other']
 
@@ -556,6 +717,8 @@ export default function Analytics() {
 
         <TrendChart months={trendData} activeTypes={activeTypes} allTypes={allTypes} />
       </div>
+
+      <ProposalMap proposals={proposals} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
         {/* Job type breakdown */}
