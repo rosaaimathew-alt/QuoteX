@@ -452,6 +452,95 @@ function ProjectTypeModal({ onClose }) {
   )
 }
 
+// ── Remap Projects Modal ──────────────────────────────────────────────────────
+function RemapProjectsModal({ onClose }) {
+  const { proposals, projectTypes, saveProposal } = useStore()
+
+  const getTypes = (p) => {
+    if (p.contractDraft?.projectTypes?.length) return p.contractDraft.projectTypes
+    if (p.projectTypes?.length) return p.projectTypes
+    return []
+  }
+
+  const reassign = (p, newType) => {
+    saveProposal({
+      id: p.id,
+      projectTypes: newType ? [newType] : [],
+      contractDraft: { ...(p.contractDraft || {}), projectTypes: newType ? [newType] : [] },
+    })
+  }
+
+  const relevant = proposals
+    .filter(p => p.client || p.address || p.contractDraft?.client || p.contractDraft?.address || getTypes(p).length > 0)
+    .sort((a, b) => {
+      const ta = getTypes(a)[0] || 'zzz'
+      const tb = getTypes(b)[0] || 'zzz'
+      return ta.localeCompare(tb) || (a.client || '').localeCompare(b.client || '')
+    })
+
+  const groups = {}
+  relevant.forEach(p => {
+    const key = getTypes(p)[0] || 'Unassigned'
+    ;(groups[key] = groups[key] || []).push(p)
+  })
+  const groupKeys = Object.keys(groups).sort((a, b) =>
+    a === 'Unassigned' ? 1 : b === 'Unassigned' ? -1 : a.localeCompare(b)
+  )
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+          <div>
+            <p className="font-semibold text-gray-900 text-sm">Reassign Project Types</p>
+            <p className="text-xs text-gray-400 mt-0.5">Change which category each project is counted under</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={17} /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-5 py-3 space-y-5">
+          {groupKeys.map(group => (
+            <div key={group}>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: typeStroke(group, projectTypes) }} />
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{group}</p>
+                <span className="text-xs text-gray-400">({groups[group].length})</span>
+              </div>
+              <div className="space-y-1">
+                {groups[group].map(p => {
+                  const name = p.client || p.contractDraft?.client || '(no name)'
+                  const addr = p.address || p.contractDraft?.address || '—'
+                  return (
+                    <div key={p.id} className="flex items-center gap-3 px-3 py-2.5 bg-gray-50 rounded-xl">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate">{name}</p>
+                        <p className="text-xs text-gray-400 truncate">{addr}</p>
+                      </div>
+                      <select
+                        value={getTypes(p)[0] || ''}
+                        onChange={e => reassign(p, e.target.value)}
+                        className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-300 shrink-0 max-w-[150px]"
+                      >
+                        <option value="">— Unassigned —</option>
+                        {projectTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+          {relevant.length === 0 && (
+            <p className="text-sm text-gray-400 text-center py-10">No proposals found</p>
+          )}
+        </div>
+        <div className="px-5 py-3 border-t border-gray-100 shrink-0">
+          <button onClick={onClose} className="w-full py-2.5 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-800 transition-colors">Done</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const fmt  = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 const fmtK = n => n >= 1000 ? `$${(n / 1000).toFixed(0)}k` : `$${fmt(n)}`
 
@@ -666,6 +755,7 @@ export default function Analytics() {
   const [rangeMonths, setRangeMonths]   = useState(12)
   const [activeTypes, setActiveTypes]   = useState(new Set(['Total']))
   const [managingTypes, setManagingTypes] = useState(false)
+  const [remapping, setRemapping] = useState(false)
 
   const { stats, trendMonths, allTypes } = useMemo(() => {
     const won  = proposals.filter(p => p.status === 'Won')
@@ -775,6 +865,10 @@ export default function Analytics() {
             <p className="text-xs text-gray-400 mt-0.5">Click a job type to isolate its revenue line and spot seasonal patterns</p>
           </div>
           <div className="flex items-center gap-2">
+            <button onClick={() => setRemapping(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-500 hover:bg-gray-50 transition-colors">
+              <Pencil size={12} /> Reassign
+            </button>
             <button onClick={() => setManagingTypes(true)}
               className="flex items-center gap-1.5 px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-500 hover:bg-gray-50 transition-colors">
               <Settings2 size={12} /> Service Types
@@ -810,6 +904,7 @@ export default function Analytics() {
       </div>
 
       {managingTypes && <ProjectTypeModal onClose={() => setManagingTypes(false)} />}
+      {remapping && <RemapProjectsModal onClose={() => setRemapping(false)} />}
 
       <ProposalMap proposals={proposals} />
 
