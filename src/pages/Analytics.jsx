@@ -3,6 +3,10 @@ import { useStore } from '../store'
 import { TrendingUp, DollarSign, Award, XCircle, Target, Plus, ChevronDown, ChevronUp, Trash2, Clock, MapPin, Settings2, Pencil, Check, X } from 'lucide-react'
 
 // ── Sales Heat Map ────────────────────────────────────────────────────────────
+const GEO_CACHE_KEY = 'quotex-geo-cache'
+function geoCache() { try { return JSON.parse(localStorage.getItem(GEO_CACHE_KEY) || '{}') } catch { return {} } }
+function saveGeo(c) { try { localStorage.setItem(GEO_CACHE_KEY, JSON.stringify(c)) } catch {} }
+
 function extractCity(address) {
   if (!address?.trim()) return null
   const parts = address.split(',').map(s => s.trim()).filter(Boolean)
@@ -12,79 +16,200 @@ function extractCity(address) {
 }
 
 function SalesHeatMap({ proposals }) {
+  const mapRef      = useRef(null)
+  const instanceRef = useRef(null)
+  const heatRef     = useRef(null)
+  const [ready,    setReady]    = useState(false)
+  const [allPoints, setAllPoints] = useState([])   // {lat,lng,w,status}
+  const [mapping,  setMapping]  = useState(false)
+  const [view,     setView]     = useState('map')  // 'map' | 'list'
+  const [filter,   setFilter]   = useState('all')  // 'all' | 'won'
+
+  // Load Leaflet + leaflet.heat from CDN
+  useEffect(() => {
+    if (window.L?.heatLayer) { setReady(true); return }
+    if (!document.getElementById('leaflet-css')) {
+      const l = document.createElement('link')
+      l.id = 'leaflet-css'; l.rel = 'stylesheet'
+      l.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+      document.head.appendChild(l)
+    }
+    const loadHeat = () => {
+      if (document.getElementById('leaflet-heat')) { setReady(true); return }
+      const s = document.createElement('script'); s.id = 'leaflet-heat'
+      s.src = 'https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js'
+      s.onload = () => setReady(true)
+      document.head.appendChild(s)
+    }
+    if (!window.L) {
+      if (!document.getElementById('leaflet-js')) {
+        const s = document.createElement('script'); s.id = 'leaflet-js'
+        s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+        s.onload = loadHeat; document.head.appendChild(s)
+      }
+    } else { loadHeat() }
+  }, [])
+
+  // Geocode all proposal addresses (cache in localStorage)
+  useEffect(() => {
+    const withAddr = proposals.filter(p => (p.address || p.contractDraft?.address)?.trim())
+    if (!withAddr.length) return
+    const cache = geoCache()
+    const toPoint = p => {
+      const addr = p.address || p.contractDraft?.address
+      const c = cache[addr]
+      return c ? { lat: c.lat, lng: c.lng, w: Math.max(1, Number(p.total || 0) / 10000), status: p.status, isHistorical: p.isHistorical } : null
+    }
+    setAllPoints(withAddr.map(toPoint).filter(Boolean))
+    const uncached = withAddr.filter(p => !cache[p.address || p.contractDraft?.address])
+    if (!uncached.length) return
+    setMapping(true)
+    ;(async () => {
+      for (const p of uncached) {
+        const addr = (p.address || p.contractDraft?.address).trim()
+        try {
+          const res  = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=${encodeURIComponent(addr)}`)
+          const data = await res.json()
+          if (data[0]) {
+            cache[addr] = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
+            saveGeo(cache)
+            setAllPoints(prev => [...prev, { lat: cache[addr].lat, lng: cache[addr].lng, w: Math.max(1, Number(p.total || 0) / 10000), status: p.status, isHistorical: p.isHistorical }])
+          }
+        } catch {}
+        await new Promise(r => setTimeout(r, 1100))
+      }
+      setMapping(false)
+    })()
+  }, [proposals])
+
+  // Init map once
+  useEffect(() => {
+    if (!ready || !mapRef.current || instanceRef.current) return
+    const L = window.L
+    instanceRef.current = L.map(mapRef.current, { zoomControl: true, scrollWheelZoom: true })
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>', maxZoom: 19,
+    }).addTo(instanceRef.current)
+  }, [ready])
+
+  // Rebuild heat layer on points or filter change
+  const activePoints = filter === 'won'
+    ? allPoints.filter(p => p.status === 'Won' || p.isHistorical)
+    : allPoints
+
+  useEffect(() => {
+    if (!ready || !instanceRef.current || !activePoints.length) return
+    const L = window.L; const map = instanceRef.current
+    if (heatRef.current) map.removeLayer(heatRef.current)
+    heatRef.current = L.heatLayer(
+      activePoints.map(p => [p.lat, p.lng, p.w]),
+      { radius: 40, blur: 30, maxZoom: 14,
+        gradient: { 0.0: 'transparent', 0.25: '#c7d2fe', 0.5: '#818cf8', 0.75: '#4338ca', 1.0: '#1e1b4b' } }
+    ).addTo(map)
+    if (activePoints.length === 1) {
+      map.setView([activePoints[0].lat, activePoints[0].lng], 12)
+    } else {
+      map.fitBounds(L.latLngBounds(activePoints.map(p => [p.lat, p.lng])), { padding: [50, 50] })
+    }
+  }, [ready, activePoints])
+
+  useEffect(() => () => { instanceRef.current?.remove(); instanceRef.current = null }, [])
+
+  // List view — city breakdown
+  const listProposals = filter === 'won'
+    ? proposals.filter(p => p.status === 'Won' || p.isHistorical)
+    : proposals
   const cityMap = {}
-  proposals.forEach(p => {
+  listProposals.forEach(p => {
     const addr = p.address || p.contractDraft?.address
     const city = extractCity(addr)
     if (!city) return
     if (!cityMap[city]) cityMap[city] = { city, count: 0, won: 0, revenue: 0, active: 0 }
     cityMap[city].count++
-    if (p.status === 'Won' || p.isHistorical) {
-      cityMap[city].won++
-      cityMap[city].revenue += Number(p.total || 0)
-    } else if (!p.closedAt) {
-      cityMap[city].active++
-    }
+    if (p.status === 'Won' || p.isHistorical) { cityMap[city].won++; cityMap[city].revenue += Number(p.total || 0) }
+    else if (!p.closedAt) cityMap[city].active++
   })
-
   const cities = Object.values(cityMap).sort((a, b) => b.count - a.count)
   const maxCount = cities[0]?.count || 1
 
-  if (cities.length === 0) return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 mb-5">
-      <div className="flex items-center gap-2 mb-3">
-        <MapPin size={15} className="text-indigo-500" />
-        <h2 className="font-semibold text-gray-900 text-sm">Sales by Location</h2>
-      </div>
-      <div className="h-28 flex items-center justify-center text-sm text-gray-400 bg-gray-50 rounded-xl">
-        No addresses on file yet
-      </div>
-    </div>
+  const withAddr = proposals.filter(p => (p.address || p.contractDraft?.address)?.trim()).length
+  if (withAddr === 0) return null
+
+  const tabBtn = (val, label) => (
+    <button onClick={() => setView(val)}
+      className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${view === val ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+      {label}
+    </button>
+  )
+  const filterBtn = (val, label) => (
+    <button onClick={() => setFilter(val)}
+      className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${filter === val ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+      {label}
+    </button>
   )
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 mb-5">
-      <div className="flex items-center justify-between mb-5">
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-5">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-wrap gap-3">
         <div className="flex items-center gap-2">
           <MapPin size={15} className="text-indigo-500" />
           <div>
-            <h2 className="font-semibold text-gray-900 text-sm">Sales by Location</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Where you close the most business</p>
+            <h2 className="font-semibold text-gray-900 text-sm">Sales Heat Map</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Darker = more revenue concentrated in that area</p>
           </div>
         </div>
-        <span className="text-xs text-gray-400">{cities.length} location{cities.length !== 1 ? 's' : ''}</span>
+        <div className="flex items-center gap-2">
+          {mapping && <span className="text-xs text-indigo-400 animate-pulse mr-1">Mapping…</span>}
+          <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+            {filterBtn('all', 'All Jobs')}
+            {filterBtn('won', 'Won Only')}
+          </div>
+          <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+            {tabBtn('map', 'Map')}
+            {tabBtn('list', 'List')}
+          </div>
+        </div>
       </div>
 
-      <div className="space-y-3">
-        {cities.map((c, i) => {
-          const ratio = c.count / maxCount
-          const heatAlpha = 0.18 + ratio * 0.72
-          return (
-            <div key={c.city} className="flex items-center gap-3">
-              <span className="text-xs text-gray-300 w-4 text-right shrink-0 font-medium">{i + 1}</span>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium text-gray-800 truncate">{c.city}</span>
-                  <div className="flex items-center gap-2.5 shrink-0 ml-3">
-                    {c.revenue > 0 && (
-                      <span className="text-xs font-semibold text-gray-600">${(c.revenue / 1000).toFixed(0)}k</span>
-                    )}
-                    {c.won > 0 && (
-                      <span className="text-xs px-1.5 py-0.5 bg-green-50 text-green-700 rounded-full">{c.won} won</span>
-                    )}
-                    {c.active > 0 && (
-                      <span className="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded-full">{c.active} active</span>
-                    )}
+      {view === 'map' ? (
+        !ready
+          ? <div className="h-80 bg-gray-50 flex items-center justify-center text-sm text-gray-400">Loading map…</div>
+          : <div ref={mapRef} style={{ height: '420px' }} />
+      ) : (
+        <div className="px-5 py-4 space-y-3 max-h-[420px] overflow-y-auto">
+          {cities.length === 0
+            ? <p className="text-sm text-gray-400 text-center py-10">No addresses on file</p>
+            : cities.map((c, i) => {
+                const ratio = c.count / maxCount
+                const alpha = 0.18 + ratio * 0.72
+                return (
+                  <div key={c.city} className="flex items-center gap-3">
+                    <span className="text-xs text-gray-300 w-4 text-right shrink-0">{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium text-gray-800 truncate">{c.city}</span>
+                        <div className="flex items-center gap-2 shrink-0 ml-3">
+                          {c.revenue > 0 && <span className="text-xs font-semibold text-gray-600">${(c.revenue/1000).toFixed(0)}k</span>}
+                          {c.won > 0 && <span className="text-xs px-1.5 py-0.5 bg-green-50 text-green-700 rounded-full">{c.won} won</span>}
+                          {c.active > 0 && <span className="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded-full">{c.active} active</span>}
+                        </div>
+                      </div>
+                      <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: `${ratio * 100}%`, background: `rgba(67,56,202,${alpha})` }} />
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full"
-                    style={{ width: `${ratio * 100}%`, background: `rgba(234,88,12,${heatAlpha})` }} />
-                </div>
-              </div>
-            </div>
-          )
-        })}
+                )
+              })
+          }
+        </div>
+      )}
+
+      <div className="px-5 py-2 flex items-center justify-between border-t border-gray-100">
+        <span className="text-[10px] text-gray-400">
+          {view === 'map' ? `${activePoints.length} of ${withAddr} addresses plotted` : `${cities.length} location${cities.length !== 1 ? 's' : ''}`}
+        </span>
+        {view === 'map' && <span className="text-[10px] text-gray-400">Map © OpenStreetMap</span>}
       </div>
     </div>
   )
