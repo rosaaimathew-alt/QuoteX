@@ -5,8 +5,9 @@ export default async function handler(req, res) {
 
   if (action === 'start') {
     try {
-      const origin = req.query.origin || 'http://localhost:5173'
-      return res.status(200).json({ url: getAuthUrl(origin) })
+      const origin   = req.query.origin   || 'http://localhost:5173'
+      const returnTo = req.query.returnTo || '/contract'
+      return res.status(200).json({ url: getAuthUrl(origin, returnTo) })
     } catch (err) {
       return res.status(500).json({ error: err.message })
     }
@@ -16,10 +17,10 @@ export default async function handler(req, res) {
     const { code, state } = req.query
     if (!code) return res.status(400).send('Missing code')
     try {
-      const origin = await handleCallback(code, state)
-      return res.redirect(`${origin}/contract?google=connected`)
+      const redirectUrl = await handleCallback(code, state)
+      return res.redirect(`${redirectUrl}?google=connected`)
     } catch (err) {
-      return res.redirect(`/contract?google=error&msg=${encodeURIComponent(err.message)}`)
+      return res.redirect(`/settings?google=error&msg=${encodeURIComponent(err.message)}`)
     }
   }
 

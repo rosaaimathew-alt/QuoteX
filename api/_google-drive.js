@@ -27,10 +27,10 @@ async function saveTokens(tokens) {
   }
 }
 
-export function getAuthUrl(origin) {
+export function getAuthUrl(origin, returnTo = '/contract') {
   if (!process.env.GOOGLE_CLIENT_ID) throw new Error('GOOGLE_CLIENT_ID not set in environment')
   const redirectUri = `${origin}/api/google-auth/callback`
-  const state       = Buffer.from(JSON.stringify({ origin, redirectUri })).toString('base64')
+  const state       = Buffer.from(JSON.stringify({ origin, redirectUri, returnTo })).toString('base64')
   const params      = new URLSearchParams({
     client_id:     process.env.GOOGLE_CLIENT_ID,
     redirect_uri:  redirectUri,
@@ -44,7 +44,7 @@ export function getAuthUrl(origin) {
 }
 
 export async function handleCallback(code, stateB64) {
-  const { origin, redirectUri } = JSON.parse(Buffer.from(stateB64, 'base64').toString())
+  const { origin, redirectUri, returnTo = '/contract' } = JSON.parse(Buffer.from(stateB64, 'base64').toString())
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method:  'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -60,7 +60,45 @@ export async function handleCallback(code, stateB64) {
   const tokens = await res.json()
   tokens.expiry_date = Date.now() + (tokens.expires_in * 1000)
   await saveTokens(tokens)
-  return origin
+  return `${origin}${returnTo}`
+}
+
+export async function backupJsonToDrive({ jsonString, existingFileId }) {
+  const accessToken = await getValidAccessToken()
+  const buf = Buffer.from(jsonString, 'utf-8')
+
+  if (existingFileId) {
+    const res = await fetch(
+      `https://www.googleapis.com/upload/drive/v3/files/${existingFileId}?uploadType=media`,
+      {
+        method:  'PATCH',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body:    buf,
+      }
+    )
+    if (res.status === 404) return null  // file was deleted — caller will recreate
+    if (!res.ok) throw new Error(`Drive update failed: ${await res.text()}`)
+    return existingFileId
+  }
+
+  const boundary = 'QuoteXBackup' + Date.now()
+  const metadata = JSON.stringify({ name: 'quotex-backup.json', mimeType: 'application/json' })
+  const body = Buffer.concat([
+    Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n`),
+    buf,
+    Buffer.from(`\r\n--${boundary}--`),
+  ])
+  const res = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
+    {
+      method:  'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': `multipart/related; boundary=${boundary}` },
+      body,
+    }
+  )
+  if (!res.ok) throw new Error(`Drive create failed: ${await res.text()}`)
+  const file = await res.json()
+  return file.id
 }
 
 export async function isAuthenticated() {

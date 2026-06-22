@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from 'react'
-import { Upload, Trash2, CheckCircle, RefreshCw, Palette, Building2, Eye, Download, FolderOpen, AlertTriangle } from 'lucide-react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { Upload, Trash2, CheckCircle, RefreshCw, Palette, Building2, Eye, Download, FolderOpen, AlertTriangle, CloudUpload, HardDrive, Wifi, WifiOff } from 'lucide-react'
 import { useStore } from '../store'
 import { extractDominantColor, generatePalette, applyBrandStyles, DEFAULT_BRAND_COLOR } from '../brand'
 
@@ -51,6 +51,133 @@ function SidebarPreview({ companyName, tagline, logo, color }) {
 }
 
 // ── Data management ───────────────────────────────────────────────────────────
+function DriveBackupCard() {
+  const store = useStore()
+  const [status, setStatus]   = useState(null)  // null | { authenticated, meta }
+  const [backing, setBacking] = useState(false)
+  const [result, setResult]   = useState(null)  // null | 'ok' | 'error'
+  const [msg, setMsg]         = useState('')
+
+  const loadStatus = useCallback(async () => {
+    try {
+      const res  = await fetch('/api/drive/backup')
+      const data = await res.json()
+      setStatus(data)
+      return data
+    } catch { setStatus({ authenticated: false, meta: null }) }
+  }, [])
+
+  useEffect(() => {
+    loadStatus().then(data => {
+      if (!data?.authenticated) return
+      const lastBackup = data.meta?.backedUpAt || 0
+      const sixHours   = 6 * 60 * 60 * 1000
+      if (Date.now() - lastBackup > sixHours) triggerBackup(true)
+    })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const triggerBackup = useCallback(async (silent = false) => {
+    if (backing) return
+    if (!silent) setBacking(true)
+    try {
+      const s = store
+      const storeData = {
+        catalog:        s.catalog,
+        proposals:      s.proposals,
+        templates:      s.templates,
+        branding:       s.branding,
+        theme:          s.theme,
+        readMessageIds: s.readMessageIds,
+        nextCatalogId:  s.nextCatalogId,
+        nextProposalId: s.nextProposalId,
+        nextTemplateId: s.nextTemplateId,
+        exportedAt:     new Date().toISOString(),
+      }
+      const res  = await fetch('/api/drive/backup', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ storeData }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Backup failed')
+      setStatus(prev => ({ ...prev, meta: { fileId: data.fileId, backedUpAt: data.backedUpAt } }))
+      if (!silent) { setResult('ok'); setMsg('Backup saved to Google Drive.') }
+    } catch (err) {
+      if (!silent) { setResult('error'); setMsg(err.message) }
+    } finally {
+      if (!silent) {
+        setBacking(false)
+        setTimeout(() => setResult(null), 5000)
+      }
+    }
+  }, [store, backing])
+
+  const connectDrive = async () => {
+    const origin   = window.location.origin
+    const returnTo = '/settings'
+    const res = await fetch(`/api/google-auth/start?origin=${encodeURIComponent(origin)}&returnTo=${encodeURIComponent(returnTo)}`)
+    const { url } = await res.json()
+    window.location.href = url
+  }
+
+  const fmtTime = ts => {
+    if (!ts) return 'Never'
+    const d = new Date(ts)
+    const now = new Date()
+    const diffMin = Math.round((now - d) / 60000)
+    if (diffMin < 2)  return 'Just now'
+    if (diffMin < 60) return `${diffMin} min ago`
+    const diffH = Math.round(diffMin / 60)
+    if (diffH < 24)   return `${diffH}h ago`
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  }
+
+  return (
+    <div className="mt-5 pt-5 border-t border-gray-100">
+      <div className="flex items-center gap-2 mb-1">
+        <HardDrive size={15} className="text-indigo-500" />
+        <h4 className="font-semibold text-gray-800 text-sm">Google Drive Backup</h4>
+        {status === null && <RefreshCw size={12} className="animate-spin text-gray-400" />}
+        {status !== null && (
+          status.authenticated
+            ? <span className="flex items-center gap-1 text-xs text-green-600 font-medium"><Wifi size={11} /> Connected</span>
+            : <span className="flex items-center gap-1 text-xs text-gray-400"><WifiOff size={11} /> Not connected</span>
+        )}
+      </div>
+      <p className="text-xs text-gray-400 mb-3">
+        Saves a full backup of all your proposals, catalog, and settings to your Google Drive automatically every 6 hours while the app is open.
+      </p>
+
+      {status !== null && !status.authenticated && (
+        <button onClick={connectDrive}
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors">
+          <CloudUpload size={14} /> Connect Google Drive
+        </button>
+      )}
+
+      {status?.authenticated && (
+        <div className="flex items-center gap-3 flex-wrap">
+          <button onClick={() => triggerBackup(false)} disabled={backing}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors">
+            {backing ? <RefreshCw size={13} className="animate-spin" /> : <CloudUpload size={13} />}
+            {backing ? 'Backing up…' : 'Back Up Now'}
+          </button>
+          <p className="text-xs text-gray-400">
+            Last backup: <strong className="text-gray-600">{fmtTime(status.meta?.backedUpAt)}</strong>
+          </p>
+        </div>
+      )}
+
+      {result && (
+        <div className={`mt-2 flex items-center gap-2 rounded-lg px-3 py-2 text-xs ${result === 'ok' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+          {result === 'ok' ? <CheckCircle size={13} /> : <AlertTriangle size={13} />}
+          {msg}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function DataManagement() {
   const store = useStore()
   const importRef = useRef()
@@ -147,12 +274,27 @@ function DataManagement() {
           {importMsg}
         </div>
       )}
+
+      <DriveBackupCard />
     </div>
   )
 }
 
 export default function Settings() {
   const { branding, updateBranding } = useStore()
+
+  // Banner when returning from Google OAuth
+  const [oauthBanner, setOauthBanner] = useState(() => {
+    const p = new URLSearchParams(window.location.search)
+    return p.get('google') === 'connected' ? 'connected' : p.get('google') === 'error' ? 'error' : null
+  })
+  useEffect(() => {
+    if (oauthBanner) {
+      window.history.replaceState({}, '', window.location.pathname)
+      const t = setTimeout(() => setOauthBanner(null), 6000)
+      return () => clearTimeout(t)
+    }
+  }, [oauthBanner])
 
   const [companyName, setCompanyName]   = useState(branding.companyName || '')
   const [tagline, setTagline]           = useState(branding.tagline || '')
@@ -202,6 +344,16 @@ export default function Settings() {
 
   return (
     <div className="p-6 max-w-5xl">
+      {oauthBanner === 'connected' && (
+        <div className="mb-4 flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-3 text-sm">
+          <CheckCircle size={15} /> Google Drive connected — your first backup will run automatically.
+        </div>
+      )}
+      {oauthBanner === 'error' && (
+        <div className="mb-4 flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+          <AlertTriangle size={15} /> Google Drive connection failed. Try again or check your credentials.
+        </div>
+      )}
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Settings</h2>
         <p className="text-sm text-gray-500 mt-0.5">Customize your branding — changes apply across the whole platform.</p>
