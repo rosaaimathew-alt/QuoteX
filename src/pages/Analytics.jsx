@@ -103,7 +103,7 @@ function SalesHeatMap({ proposals }) {
   }, [proposals])
 
   // Step 4: draw circle markers grouped by ZIP whenever points or filter changes
-  const activePoints = filter === 'won' ? points.filter(p => p.status === 'Won' || p.isHistorical) : points
+  const activePoints = filter === 'won' ? points.filter(p => p.status === 'Won') : points
 
   useEffect(() => {
     if (!instanceRef.current) return
@@ -148,15 +148,15 @@ function SalesHeatMap({ proposals }) {
   useEffect(() => () => { instanceRef.current?.remove(); instanceRef.current = null }, [])
 
   // List view
-  const listProposals = filter === 'won' ? proposals.filter(p => p.status === 'Won' || p.isHistorical) : proposals
+  const listProposals = filter === 'won' ? proposals.filter(p => p.status === 'Won') : proposals
   const cityMap = {}
   listProposals.forEach(p => {
     const raw  = extractCity(p.address || p.contractDraft?.address)
     const city = (raw && raw.length > 2 && !/^[A-Z]{2}$/.test(raw)) ? raw : '— Address needs city —'
     if (!cityMap[city]) cityMap[city] = { city, count: 0, won: 0, revenue: 0, active: 0 }
     cityMap[city].count++
-    if (p.status === 'Won' || p.isHistorical) { cityMap[city].won++; cityMap[city].revenue += Number(p.total||0) }
-    else if (!p.closedAt) cityMap[city].active++
+    if (p.status === 'Won') { cityMap[city].won++; cityMap[city].revenue += Number(p.total||0) }
+    else if (p.status !== 'Lost' && p.status !== 'MIA' && !p.closedAt) cityMap[city].active++
   })
   const cities   = Object.values(cityMap).sort((a, b) => b.count - a.count)
   const maxCount = cities[0]?.count || 1
