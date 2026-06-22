@@ -3,30 +3,24 @@ import { useStore } from '../store'
 import { TrendingUp, DollarSign, Award, XCircle, Target, Plus, ChevronDown, ChevronUp, Trash2, Clock, MapPin, Settings2, Pencil, Check, X } from 'lucide-react'
 
 // ── Sales Heat Map ────────────────────────────────────────────────────────────
-const GEO_CACHE_KEY  = 'quotex-geo-cache'
-const POLY_CACHE_KEY = 'quotex-zip-polys'
-function geoCache()  { try { return JSON.parse(localStorage.getItem(GEO_CACHE_KEY)  || '{}') } catch { return {} } }
-function saveGeo(c)  { try { localStorage.setItem(GEO_CACHE_KEY,  JSON.stringify(c)) } catch {} }
-function polyCache() { try { return JSON.parse(localStorage.getItem(POLY_CACHE_KEY) || '{}') } catch { return {} } }
-function savePoly(c) { try { localStorage.setItem(POLY_CACHE_KEY, JSON.stringify(c)) } catch {} }
-function extractZip(addr)  { return addr?.match(/\b(\d{5})(?:-\d{4})?\b/)?.[1] ?? null }
-
-function extractCity(address) {
-  if (!address?.trim()) return null
-  const parts = address.split(',').map(s => s.trim()).filter(Boolean)
+const GEO_CACHE_KEY = 'quotex-geo-cache'
+function geoCache() { try { return JSON.parse(localStorage.getItem(GEO_CACHE_KEY) || '{}') } catch { return {} } }
+function saveGeo(c) { try { localStorage.setItem(GEO_CACHE_KEY, JSON.stringify(c)) } catch {} }
+function extractZip(addr) { return addr?.match(/\b(\d{5})(?:-\d{4})?\b/)?.[1] ?? null }
+function extractCity(addr) {
+  if (!addr?.trim()) return null
+  const parts = addr.split(',').map(s => s.trim()).filter(Boolean)
   if (parts.length >= 3) return parts[parts.length - 2]
   if (parts.length === 2) return parts[1]
   return null
 }
 
-// NC + SC bounding box
 const REGION_BOUNDS = [[32.0, -85.0], [36.6, -75.4]]
 
-function choroplethColor(ratio) {
-  if (ratio <= 0.15) return '#e0e7ff'
-  if (ratio <= 0.35) return '#c7d2fe'
-  if (ratio <= 0.55) return '#818cf8'
-  if (ratio <= 0.75) return '#4f46e5'
+function areaColor(ratio) {
+  if (ratio <= 0.2)  return '#c7d2fe'
+  if (ratio <= 0.45) return '#818cf8'
+  if (ratio <= 0.7)  return '#4f46e5'
   return '#1e1b4b'
 }
 
@@ -34,16 +28,16 @@ function SalesHeatMap({ proposals }) {
   const mapRef      = useRef(null)
   const instanceRef = useRef(null)
   const layersRef   = useRef([])
-  const [ready,    setReady]    = useState(false)
-  const [points,   setPoints]   = useState([])  // {lat,lng,zip,revenue,status,isHistorical}
-  const [polygons, setPolygons] = useState({})  // zip -> GeoJSON | null
+  const [leafletLoaded, setLeafletLoaded] = useState(false)
+  const [mapMounted,    setMapMounted]    = useState(false)
+  const [points,   setPoints]   = useState([])
   const [mapping,  setMapping]  = useState(false)
   const [view,     setView]     = useState('map')
   const [filter,   setFilter]   = useState('all')
 
-  // Load Leaflet (no heat plugin needed)
+  // Step 1: load Leaflet scripts/css into the page
   useEffect(() => {
-    if (window.L) { setReady(true); return }
+    if (window.L) { setLeafletLoaded(true); return }
     if (!document.getElementById('leaflet-css')) {
       const l = document.createElement('link')
       l.id = 'leaflet-css'; l.rel = 'stylesheet'
@@ -53,11 +47,24 @@ function SalesHeatMap({ proposals }) {
     if (!document.getElementById('leaflet-js')) {
       const s = document.createElement('script'); s.id = 'leaflet-js'
       s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
-      s.onload = () => setReady(true); document.head.appendChild(s)
+      s.onload = () => setLeafletLoaded(true)
+      document.head.appendChild(s)
     }
   }, [])
 
-  // Geocode addresses; pull ZIP from Nominatim addressdetails
+  // Step 2: init map only after BOTH Leaflet is loaded AND the div is in the DOM
+  useEffect(() => {
+    if (!leafletLoaded || !mapMounted || !mapRef.current || instanceRef.current) return
+    const L = window.L
+    instanceRef.current = L.map(mapRef.current, { zoomControl: true, scrollWheelZoom: true })
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 19,
+    }).addTo(instanceRef.current)
+    instanceRef.current.fitBounds(REGION_BOUNDS)
+  }, [leafletLoaded, mapMounted])
+
+  // Step 3: geocode addresses (lat/lng + ZIP extracted from response)
   useEffect(() => {
     const withAddr = proposals.filter(p => (p.address || p.contractDraft?.address)?.trim())
     if (!withAddr.length) return
@@ -66,7 +73,7 @@ function SalesHeatMap({ proposals }) {
       const addr = p.address || p.contractDraft?.address
       const c = cache[addr]
       if (!c) return null
-      return { lat: c.lat, lng: c.lng, zip: c.zip || extractZip(addr), revenue: Number(p.total||0), status: p.status, isHistorical: !!p.isHistorical }
+      return { lat: c.lat, lng: c.lng, zip: c.zip || extractZip(addr), city: extractCity(addr), revenue: Number(p.total||0), status: p.status, isHistorical: !!p.isHistorical }
     }
     setPoints(withAddr.map(toPoint).filter(Boolean))
     const uncached = withAddr.filter(p => !cache[p.address || p.contractDraft?.address])
@@ -82,7 +89,7 @@ function SalesHeatMap({ proposals }) {
             const zip = data[0].address?.postcode?.slice(0,5) || extractZip(addr)
             cache[addr] = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), zip }
             saveGeo(cache)
-            setPoints(prev => [...prev, { lat: cache[addr].lat, lng: cache[addr].lng, zip, revenue: Number(p.total||0), status: p.status, isHistorical: !!p.isHistorical }])
+            setPoints(prev => [...prev, { lat: cache[addr].lat, lng: cache[addr].lng, zip, city: extractCity(addr), revenue: Number(p.total||0), status: p.status, isHistorical: !!p.isHistorical }])
           }
         } catch {}
         await new Promise(r => setTimeout(r, 1100))
@@ -91,92 +98,43 @@ function SalesHeatMap({ proposals }) {
     })()
   }, [proposals])
 
-  // Fetch ZIP code boundary polygons from Nominatim (cached)
-  useEffect(() => {
-    const zips = [...new Set(points.map(p => p.zip).filter(Boolean))]
-    if (!zips.length) return
-    const cache = polyCache()
-    setPolygons({ ...cache })
-    const missing = zips.filter(z => !(z in cache))
-    if (!missing.length) return
-    ;(async () => {
-      const updated = { ...cache }
-      for (const zip of missing) {
-        try {
-          const res  = await fetch(`https://nominatim.openstreetmap.org/search?format=json&postalcode=${zip}&countrycodes=us&polygon_geojson=1&limit=1`)
-          const data = await res.json()
-          updated[zip] = data[0]?.geojson || null
-          savePoly(updated)
-          setPolygons(prev => ({ ...prev, [zip]: updated[zip] }))
-        } catch {}
-        await new Promise(r => setTimeout(r, 1100))
-      }
-    })()
-  }, [points])
-
-  // Init map pre-centered on NC/SC
-  useEffect(() => {
-    if (!ready || !mapRef.current || instanceRef.current) return
-    const L = window.L
-    instanceRef.current = L.map(mapRef.current, { zoomControl: true, scrollWheelZoom: true })
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com">CARTO</a>',
-      maxZoom: 19,
-    }).addTo(instanceRef.current)
-    instanceRef.current.fitBounds(REGION_BOUNDS)
-  }, [ready])
-
-  // Rebuild choropleth on filter / polygon / point changes
-  const activePoints = filter === 'won'
-    ? points.filter(p => p.status === 'Won' || p.isHistorical)
-    : points
+  // Step 4: draw circle markers grouped by ZIP whenever points or filter changes
+  const activePoints = filter === 'won' ? points.filter(p => p.status === 'Won' || p.isHistorical) : points
 
   useEffect(() => {
-    if (!ready || !instanceRef.current) return
+    if (!instanceRef.current) return
     const L = window.L; const map = instanceRef.current
     layersRef.current.forEach(l => { try { map.removeLayer(l) } catch {} })
     layersRef.current = []
     if (!activePoints.length) return
 
-    const zipStats = {}
+    const groups = {}
     activePoints.forEach(p => {
-      const key = p.zip || `${p.lat.toFixed(3)},${p.lng.toFixed(3)}`
-      if (!zipStats[key]) zipStats[key] = { lat: 0, lng: 0, n: 0, count: 0, revenue: 0, zip: p.zip || null }
-      zipStats[key].lat += p.lat; zipStats[key].lng += p.lng
-      zipStats[key].count++; zipStats[key].n++; zipStats[key].revenue += p.revenue
+      const key = p.zip || p.city || `${p.lat.toFixed(2)},${p.lng.toFixed(2)}`
+      if (!groups[key]) groups[key] = { lat: 0, lng: 0, n: 0, count: 0, revenue: 0, label: p.zip ? `ZIP ${p.zip}` : (p.city || 'Area') }
+      groups[key].lat += p.lat; groups[key].lng += p.lng
+      groups[key].count++; groups[key].n++; groups[key].revenue += p.revenue
     })
-    const maxCount = Math.max(...Object.values(zipStats).map(s => s.count), 1)
+    const max = Math.max(...Object.values(groups).map(g => g.count), 1)
 
-    const popup = s =>
-      `<div style="font-family:sans-serif;font-size:13px;line-height:1.7">` +
-      `<b>${s.zip ? `ZIP ${s.zip}` : 'Area'}</b><br>` +
-      `${s.count} proposal${s.count !== 1 ? 's' : ''}<br>` +
-      `$${(s.revenue/1000).toFixed(0)}k revenue</div>`
-
-    Object.values(zipStats).forEach(s => {
-      const ratio = s.count / maxCount
-      const color = choroplethColor(ratio)
-      const lat   = s.lat / s.n; const lng = s.lng / s.n
-      const geo   = s.zip ? polygons[s.zip] : null
-
-      let layer
-      if (geo) {
-        layer = L.geoJSON(geo, {
-          style: { fillColor: color, fillOpacity: 0.65, color: '#ffffff', weight: 1.5 },
-        }).bindPopup(popup(s))
-      } else {
-        layer = L.circleMarker([lat, lng], {
-          radius: 9 + ratio * 22, fillColor: color, fillOpacity: 0.8, color: '#ffffff', weight: 2,
-        }).bindPopup(popup(s))
-      }
-      layer.addTo(map)
+    Object.values(groups).forEach(g => {
+      const ratio  = g.count / max
+      const color  = areaColor(ratio)
+      const lat    = g.lat / g.n; const lng = g.lng / g.n
+      const radius = 10 + ratio * 26
+      const layer  = L.circleMarker([lat, lng], {
+        radius, fillColor: color, fillOpacity: 0.78, color: '#fff', weight: 2,
+      }).bindPopup(
+        `<div style="font-family:sans-serif;font-size:13px;line-height:1.7">` +
+        `<b>${g.label}</b><br>${g.count} proposal${g.count !== 1 ? 's' : ''}<br>$${(g.revenue/1000).toFixed(0)}k revenue</div>`
+      ).addTo(map)
       layersRef.current.push(layer)
     })
-  }, [ready, activePoints, polygons])
+  }, [activePoints, mapMounted])
 
   useEffect(() => () => { instanceRef.current?.remove(); instanceRef.current = null }, [])
 
-  // List view data
+  // List view
   const listProposals = filter === 'won' ? proposals.filter(p => p.status === 'Won' || p.isHistorical) : proposals
   const cityMap = {}
   listProposals.forEach(p => {
@@ -192,9 +150,9 @@ function SalesHeatMap({ proposals }) {
   const withAddr = proposals.filter(p => (p.address || p.contractDraft?.address)?.trim()).length
   if (withAddr === 0) return null
 
-  const seg = (state, val, label) => (
-    <button onClick={() => state(val)}
-      className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${(view === val || filter === val) ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+  const tabBtn = (setter, val, cur, label) => (
+    <button onClick={() => setter(val)}
+      className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${cur === val ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
       {label}
     </button>
   )
@@ -206,27 +164,36 @@ function SalesHeatMap({ proposals }) {
           <MapPin size={15} className="text-indigo-500" />
           <div>
             <h2 className="font-semibold text-gray-900 text-sm">Sales by Area — NC &amp; SC</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Darker = more business in that ZIP code</p>
+            <p className="text-xs text-gray-400 mt-0.5">Circle size &amp; color show where you do the most business</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {mapping && <span className="text-xs text-indigo-400 animate-pulse mr-1">Mapping…</span>}
           <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
-            {seg(setFilter, 'all', 'All Jobs')}
-            {seg(setFilter, 'won', 'Won Only')}
+            {tabBtn(setFilter, 'all', filter, 'All Jobs')}
+            {tabBtn(setFilter, 'won', filter, 'Won Only')}
           </div>
           <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
-            {seg(setView, 'map', 'Map')}
-            {seg(setView, 'list', 'List')}
+            {tabBtn(setView, 'map', view, 'Map')}
+            {tabBtn(setView, 'list', view, 'List')}
           </div>
         </div>
       </div>
 
-      {view === 'map' ? (
-        !ready
-          ? <div className="h-80 bg-gray-50 flex items-center justify-center text-sm text-gray-400">Loading map…</div>
-          : <div ref={mapRef} style={{ height: '440px' }} />
-      ) : (
+      {/* Map div is ALWAYS mounted so mapRef is never null; hidden in list mode */}
+      <div style={{ display: view === 'map' ? 'block' : 'none' }}>
+        {!leafletLoaded && (
+          <div className="h-[440px] bg-gray-50 flex items-center justify-center text-sm text-gray-400">
+            Loading map…
+          </div>
+        )}
+        <div
+          ref={el => { mapRef.current = el; if (el && !mapMounted) setMapMounted(true) }}
+          style={{ height: leafletLoaded ? '440px' : '0px', visibility: leafletLoaded ? 'visible' : 'hidden' }}
+        />
+      </div>
+
+      {view === 'list' && (
         <div className="px-5 py-4 space-y-3 max-h-[440px] overflow-y-auto">
           {cities.length === 0
             ? <p className="text-sm text-gray-400 text-center py-10">No addresses on file</p>
@@ -245,7 +212,7 @@ function SalesHeatMap({ proposals }) {
                         </div>
                       </div>
                       <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full" style={{ width: `${ratio * 100}%`, background: choroplethColor(ratio) }} />
+                        <div className="h-full rounded-full" style={{ width: `${ratio*100}%`, background: areaColor(ratio) }} />
                       </div>
                     </div>
                   </div>
@@ -256,18 +223,15 @@ function SalesHeatMap({ proposals }) {
       )}
 
       <div className="px-5 py-2.5 flex items-center justify-between border-t border-gray-100">
-        <div className="flex items-center gap-3">
-          {['#e0e7ff','#c7d2fe','#818cf8','#4f46e5','#1e1b4b'].map((c, i) => (
-            <span key={i} className="flex items-center gap-1">
-              <span className="inline-block w-3 h-3 rounded-sm" style={{ background: c }} />
-            </span>
+        <div className="flex items-center gap-1.5">
+          {['#c7d2fe','#818cf8','#4f46e5','#1e1b4b'].map(c => (
+            <span key={c} className="inline-block w-3 h-3 rounded-sm" style={{ background: c }} />
           ))}
-          <span className="text-[10px] text-gray-400">Low → High</span>
+          <span className="text-[10px] text-gray-400 ml-1">Low → High</span>
         </div>
-        {view === 'map'
-          ? <span className="text-[10px] text-gray-400">{activePoints.length} of {withAddr} addresses plotted · Map © CARTO / OSM</span>
-          : <span className="text-[10px] text-gray-400">{cities.length} location{cities.length !== 1 ? 's' : ''}</span>
-        }
+        <span className="text-[10px] text-gray-400">
+          {view === 'map' ? `${activePoints.length} of ${withAddr} mapped · © OpenStreetMap` : `${cities.length} locations`}
+        </span>
       </div>
     </div>
   )
