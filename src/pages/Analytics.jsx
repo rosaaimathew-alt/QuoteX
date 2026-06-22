@@ -110,8 +110,12 @@ function SalesHeatMap({ proposals }) {
 
     const groups = {}
     activePoints.forEach(p => {
-      const key = p.zip || p.city || `${p.lat.toFixed(2)},${p.lng.toFixed(2)}`
-      if (!groups[key]) groups[key] = { lat: 0, lng: 0, n: 0, count: 0, revenue: 0, label: p.zip ? `ZIP ${p.zip}` : (p.city || 'Area') }
+      // Group by ~1km grid square so each neighborhood gets its own circle,
+      // regardless of how the address string was parsed
+      const key = `${p.lat.toFixed(2)},${p.lng.toFixed(2)}`
+      const safeCity = (p.city && p.city.length > 3 && !/^[A-Z]{2}$/.test(p.city.trim())) ? p.city : null
+      const label = p.zip ? `ZIP ${p.zip}` : (safeCity || 'Area')
+      if (!groups[key]) groups[key] = { lat: 0, lng: 0, n: 0, count: 0, revenue: 0, label }
       groups[key].lat += p.lat; groups[key].lng += p.lng
       groups[key].count++; groups[key].n++; groups[key].revenue += p.revenue
     })
