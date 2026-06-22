@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import {
   Search, Edit2, Trash2, Plus, Check, X, GripVertical,
   ChevronDown, ChevronRight, LayoutList, Rows3,
-  Sparkles, Loader, MoveRight,
+  Sparkles, Loader, MoveRight, Settings2, Pencil,
 } from 'lucide-react'
 import { useStore } from '../store'
 import { getModel } from '../gemini'
@@ -15,17 +15,102 @@ RESPONSE FORMAT — always follow this exactly:
 2. If making changes, output a JSON array wrapped in <changes></changes> tags.
 Change object format — only include fields being changed:
 { "id": <number>, "name"?: "...", "description"?: "...", "unit"?: "EA|LF|SF|LS", "unitPrice"?: <number>, "category"?: "..." }
-Valid categories: Fencing, Gates, Demo, Materials, Labor, Framing, Concrete, Electrical, Plumbing, Roofing, Flooring, Drywall, Painting, HVAC, Windows, Doors, Tile, Insulation, Siding, General
 RULES:
 - Only modify fields explicitly asked about.
 - Never create new items. Never delete items. Only modify existing ones.`
 
-const CATEGORIES = [
-  'Fencing','Gates','Demo','Materials','Labor','Framing','Concrete','Electrical',
-  'Plumbing','Roofing','Flooring','Drywall','Painting','HVAC','Windows','Doors',
-  'Tile','Insulation','Siding','General',
-]
 const UNITS = ['LF', 'SF', 'EA', 'LS']
+
+// ── Category Manager Modal ─────────────────────────────────────────────────
+function CategoryManagerModal({ onClose }) {
+  const { catalogCategories, catalog, addCatalogCategory, renameCatalogCategory, deleteCatalogCategory } = useStore()
+  const [newName, setNewName]     = useState('')
+  const [editing, setEditing]     = useState(null)  // category name being edited
+  const [editVal, setEditVal]     = useState('')
+
+  const usageCount = name => catalog.filter(i => i.category === name).length
+
+  const startEdit = (name) => { setEditing(name); setEditVal(name) }
+  const saveEdit  = () => {
+    if (editVal.trim() && editVal.trim() !== editing) renameCatalogCategory(editing, editVal.trim())
+    setEditing(null)
+  }
+
+  const handleAdd = () => {
+    if (!newName.trim()) return
+    addCatalogCategory(newName.trim())
+    setNewName('')
+  }
+
+  const handleDelete = (name) => {
+    const count = usageCount(name)
+    const msg = count > 0
+      ? `"${name}" is used by ${count} catalog item${count !== 1 ? 's' : ''}. Deleting it removes the category label but keeps the items. Continue?`
+      : `Delete the "${name}" category?`
+    if (window.confirm(msg)) deleteCatalogCategory(name)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[85vh]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+          <div>
+            <p className="font-semibold text-gray-900 text-sm">Manage Categories</p>
+            <p className="text-xs text-gray-400 mt-0.5">{catalogCategories.length} categories · rename, delete, or add new</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={17} /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-1.5">
+          {catalogCategories.map(cat => (
+            <div key={cat} className="flex items-center gap-2 group px-3 py-2 rounded-xl hover:bg-gray-50">
+              {editing === cat ? (
+                <>
+                  <input
+                    autoFocus
+                    value={editVal}
+                    onChange={e => setEditVal(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditing(null) }}
+                    className="flex-1 text-sm border border-blue-300 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  />
+                  <button onClick={saveEdit} className="p-1 text-green-600 hover:text-green-800"><Check size={15} /></button>
+                  <button onClick={() => setEditing(null)} className="p-1 text-gray-400 hover:text-gray-600"><X size={15} /></button>
+                </>
+              ) : (
+                <>
+                  <span className="flex-1 text-sm text-gray-800 font-medium">{cat}</span>
+                  <span className="text-xs text-gray-400 mr-1">{usageCount(cat)} item{usageCount(cat) !== 1 ? 's' : ''}</span>
+                  <button onClick={() => startEdit(cat)} className="p-1 text-gray-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Pencil size={13} />
+                  </button>
+                  <button onClick={() => handleDelete(cat)} className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Trash2 size={13} />
+                  </button>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="px-5 py-4 border-t border-gray-100 shrink-0">
+          <div className="flex gap-2">
+            <input
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAdd()}
+              placeholder="New category name…"
+              className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
+            />
+            <button onClick={handleAdd} disabled={!newName.trim()}
+              className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-40 transition-colors">
+              <Plus size={14} /> Add
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function fmt(n) { return Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
 
@@ -395,19 +480,21 @@ function AiSuggestBanner({ suggestions, catalog, onApply, onDismiss }) {
 
 // ── Main ───────────────────────────────────────────────────────────────────
 export default function ItemCatalog() {
-  const catalog = useStore(s => s.catalog)
-  const updateCatalogItem = useStore(s => s.updateCatalogItem)
-  const deleteCatalogItem = useStore(s => s.deleteCatalogItem)
-  const addCatalogItems   = useStore(s => s.addCatalogItems)
+  const catalog             = useStore(s => s.catalog)
+  const CATEGORIES          = useStore(s => s.catalogCategories)
+  const updateCatalogItem   = useStore(s => s.updateCatalogItem)
+  const deleteCatalogItem   = useStore(s => s.deleteCatalogItem)
+  const addCatalogItems     = useStore(s => s.addCatalogItems)
 
-  const [view, setView]       = useState('table')   // 'table' | 'sections'
-  const [search, setSearch]   = useState('')
+  const [view, setView]           = useState('table')   // 'table' | 'sections'
+  const [search, setSearch]       = useState('')
   const [catFilter, setCatFilter] = useState('All')
-  const [sortKey, setSortKey] = useState('name')
-  const [sortAsc, setSortAsc] = useState(true)
-  const [editId, setEditId]   = useState(null)
+  const [sortKey, setSortKey]     = useState('name')
+  const [sortAsc, setSortAsc]     = useState(true)
+  const [editId, setEditId]       = useState(null)
   const [addingNew, setAddingNew] = useState(false)
-  const [newForm, setNewForm] = useState({ name: '', description: '', category: 'General', unit: 'EA', unitPrice: 0, minPrice: 0, maxPrice: 0, count: 1, confidence: 70 })
+  const [managingCats, setManagingCats] = useState(false)
+  const [newForm, setNewForm] = useState({ name: '', description: '', category: CATEGORIES[0] || 'General', unit: 'EA', unitPrice: 0, minPrice: 0, maxPrice: 0, count: 1, confidence: 70 })
 
   // AI suggest state
   const [suggesting, setSuggesting] = useState(false)
@@ -510,6 +597,14 @@ export default function ItemCatalog() {
           </button>
 
           <button
+            onClick={() => setManagingCats(true)}
+            className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 bg-white text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+            title="Manage categories"
+          >
+            <Settings2 size={14} /> Categories
+          </button>
+
+          <button
             onClick={() => setAddingNew(true)}
             className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
           >
@@ -517,6 +612,8 @@ export default function ItemCatalog() {
           </button>
         </div>
       </div>
+
+      {managingCats && <CategoryManagerModal onClose={() => setManagingCats(false)} />}
 
       {/* AI suggestions banner */}
       {suggestError && (

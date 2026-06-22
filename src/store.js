@@ -138,6 +138,33 @@ export const useStore = create(
       deleteCatalogItem: (id) =>
         set((s) => ({ catalog: s.catalog.filter((c) => c.id !== id) })),
 
+      // ── Catalog categories (user-editable) ───────────────────────────────
+      catalogCategories: [
+        'Fencing','Gates','Demo','Materials','Labor','Framing','Concrete','Electrical',
+        'Plumbing','Roofing','Flooring','Drywall','Painting','HVAC','Windows','Doors',
+        'Tile','Insulation','Siding','General',
+      ],
+
+      addCatalogCategory: (name) =>
+        set((s) => {
+          const trimmed = name.trim()
+          if (!trimmed || s.catalogCategories.includes(trimmed)) return s
+          return { catalogCategories: [...s.catalogCategories, trimmed] }
+        }),
+
+      renameCatalogCategory: (oldName, newName) =>
+        set((s) => {
+          const trimmed = newName.trim()
+          if (!trimmed || trimmed === oldName) return s
+          return {
+            catalogCategories: s.catalogCategories.map(c => c === oldName ? trimmed : c),
+            catalog: s.catalog.map(item => item.category === oldName ? { ...item, category: trimmed } : item),
+          }
+        }),
+
+      deleteCatalogCategory: (name) =>
+        set((s) => ({ catalogCategories: s.catalogCategories.filter(c => c !== name) })),
+
       // ── Templates (quote line items) ─────────────────────────────────────
       templates: [],
       nextTemplateId: 1,
@@ -755,6 +782,11 @@ export const useStore = create(
           branding:           persisted?.branding           || { companyName: 'QUOTEX', tagline: 'Smart Contractor Pricing', logo: null, primaryColor: null },
           scopeExamples:      persisted?.scopeExamples      || [],
           jobCosts:           persisted?.jobCosts           || {},
+          catalogCategories:  persisted?.catalogCategories  || [
+            'Fencing','Gates','Demo','Materials','Labor','Framing','Concrete','Electrical',
+            'Plumbing','Roofing','Flooring','Drywall','Painting','HVAC','Windows','Doors',
+            'Tile','Insulation','Siding','General',
+          ],
         }
       },
       merge: (persistedState, currentState) => ({
