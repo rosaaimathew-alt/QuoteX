@@ -88,6 +88,8 @@ const PROJECT_TYPES = [
   'Porch Over Deck',
   'Pergola',
   'Gazebo',
+  'Hardscapes',
+  'Eze-breeze room',
   // Legacy types — kept for existing contracts
   'Deck',
   'Screened Porch',

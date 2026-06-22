@@ -12,7 +12,7 @@ function renderBold(text) {
     return <span key={i}>{p}</span>
   })
 }
-const PROJECT_TYPES = ['Deck','Screened Porch','Sunroom','Pergola','Gazebo','Open Porch']
+const PROJECT_TYPES = ['Deck','Screened Porch','Sunroom','Pergola','Gazebo','Open Porch','Hardscapes','Eze-breeze room']
 const METHODS = ['Electronic Wire Transfer / ACH','Cash','Check','Zelle']
 const GENERAL_NOTES = [
   {t:'Ebony To Provide all labor, material sufficient to complete the accepted scope',b:false},

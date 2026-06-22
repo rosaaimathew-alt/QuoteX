@@ -165,6 +165,39 @@ export const useStore = create(
       deleteCatalogCategory: (name) =>
         set((s) => ({ catalogCategories: s.catalogCategories.filter(c => c !== name) })),
 
+      // ── Project / service types (analytics, user-editable) ───────────────
+      projectTypes: [
+        'Deck','Screened Porch','Sunroom','Open Porch','Pergola','Gazebo',
+        'Hardscapes','Eze-breeze room','Other',
+      ],
+
+      addProjectType: (name) =>
+        set((s) => {
+          const t = name.trim()
+          if (!t || s.projectTypes.includes(t)) return s
+          return { projectTypes: [...s.projectTypes, t] }
+        }),
+
+      renameProjectType: (oldName, newName) =>
+        set((s) => {
+          const t = newName.trim()
+          if (!t || t === oldName) return s
+          return {
+            projectTypes: s.projectTypes.map(p => p === oldName ? t : p),
+            proposals: s.proposals.map(p => ({
+              ...p,
+              projectTypes: (p.projectTypes || []).map(pt => pt === oldName ? t : pt),
+              contractDraft: p.contractDraft ? {
+                ...p.contractDraft,
+                projectTypes: (p.contractDraft.projectTypes || []).map(pt => pt === oldName ? t : pt),
+              } : p.contractDraft,
+            })),
+          }
+        }),
+
+      deleteProjectType: (name) =>
+        set((s) => ({ projectTypes: s.projectTypes.filter(p => p !== name) })),
+
       // ── Templates (quote line items) ─────────────────────────────────────
       templates: [],
       nextTemplateId: 1,
@@ -786,6 +819,10 @@ export const useStore = create(
             'Fencing','Gates','Demo','Materials','Labor','Framing','Concrete','Electrical',
             'Plumbing','Roofing','Flooring','Drywall','Painting','HVAC','Windows','Doors',
             'Tile','Insulation','Siding','General',
+          ],
+          projectTypes: persisted?.projectTypes || [
+            'Deck','Screened Porch','Sunroom','Open Porch','Pergola','Gazebo',
+            'Hardscapes','Eze-breeze room','Other',
           ],
         }
       },

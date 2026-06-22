@@ -1,6 +1,6 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react'
 import { useStore } from '../store'
-import { TrendingUp, DollarSign, Award, XCircle, Target, Plus, ChevronDown, ChevronUp, Trash2, Clock, MapPin, Loader2 } from 'lucide-react'
+import { TrendingUp, DollarSign, Award, XCircle, Target, Plus, ChevronDown, ChevronUp, Trash2, Clock, MapPin, Loader2, Settings2, Pencil, Check, X } from 'lucide-react'
 
 // ── Proposal Map ─────────────────────────────────────────────────────────────
 const GEO_CACHE_KEY = 'quotex-geo-cache'
@@ -170,7 +170,7 @@ const EMPTY_FORM = { client: '', address: '', saleDate: '', total: '', projectTy
 const BULK_EMPTY = { count: '70', status: 'Lost', startDate: '2026-01-01', endDate: '2026-04-30' }
 
 function PastJobPanel() {
-  const { proposals, importHistoricalJob, bulkImportHistoricalProposals, deleteProposal } = useStore()
+  const { proposals, projectTypes: PROJECT_TYPES, importHistoricalJob, bulkImportHistoricalProposals, deleteProposal } = useStore()
   const [open, setOpen] = useState(false)
   const [tab, setTab]   = useState('won')   // 'won' | 'nonwon'
   const [form, setForm] = useState(EMPTY_FORM)
@@ -381,10 +381,86 @@ function PastJobPanel() {
   )
 }
 
+// ── Project Type Manager Modal ────────────────────────────────────────────────
+function ProjectTypeModal({ onClose }) {
+  const { projectTypes, addProjectType, renameProjectType, deleteProjectType, proposals } = useStore()
+  const [newName, setNewName] = useState('')
+  const [editing, setEditing] = useState(null)
+  const [editVal, setEditVal] = useState('')
+
+  const usageCount = name =>
+    proposals.filter(p => (p.projectTypes || []).concat(p.contractDraft?.projectTypes || []).includes(name)).length
+
+  const startEdit = (name) => { setEditing(name); setEditVal(name) }
+  const saveEdit  = () => {
+    if (editVal.trim() && editVal.trim() !== editing) renameProjectType(editing, editVal.trim())
+    setEditing(null)
+  }
+  const handleAdd = () => { if (!newName.trim()) return; addProjectType(newName.trim()); setNewName('') }
+  const handleDelete = (name) => {
+    const n = usageCount(name)
+    if (window.confirm(n > 0 ? `"${name}" appears on ${n} proposal${n !== 1 ? 's' : ''}. Delete it from the list? (existing proposals are unaffected)` : `Delete "${name}"?`))
+      deleteProjectType(name)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm flex flex-col max-h-[80vh]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+          <div>
+            <p className="font-semibold text-gray-900 text-sm">Manage Service Types</p>
+            <p className="text-xs text-gray-400 mt-0.5">Used in analytics breakdowns &amp; the Log Past Jobs dropdown</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={17} /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-5 py-3 space-y-1">
+          {projectTypes.map(type => (
+            <div key={type} className="flex items-center gap-2 group px-3 py-2 rounded-xl hover:bg-gray-50">
+              {editing === type ? (
+                <>
+                  <input autoFocus value={editVal}
+                    onChange={e => setEditVal(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditing(null) }}
+                    className="flex-1 text-sm border border-blue-300 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                  <button onClick={saveEdit} className="p-1 text-green-600 hover:text-green-800"><Check size={14} /></button>
+                  <button onClick={() => setEditing(null)} className="p-1 text-gray-400 hover:text-gray-600"><X size={14} /></button>
+                </>
+              ) : (
+                <>
+                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: typeStroke(type, projectTypes) }} />
+                  <span className="flex-1 text-sm text-gray-800 font-medium">{type}</span>
+                  <span className="text-xs text-gray-400 mr-1">{usageCount(type)}</span>
+                  <button onClick={() => startEdit(type)} className="p-1 text-gray-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"><Pencil size={12} /></button>
+                  <button onClick={() => handleDelete(type)} className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={12} /></button>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="px-5 py-4 border-t border-gray-100 shrink-0 flex gap-2">
+          <input value={newName} onChange={e => setNewName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleAdd()}
+            placeholder="New service type…"
+            className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+          <button onClick={handleAdd} disabled={!newName.trim()}
+            className="flex items-center gap-1 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-40 transition-colors">
+            <Plus size={13} /> Add
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const fmt  = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 const fmtK = n => n >= 1000 ? `$${(n / 1000).toFixed(0)}k` : `$${fmt(n)}`
 
-const TYPE_STROKE = {
+// Color palette cycles through for types not explicitly mapped
+const COLOR_PALETTE = [
+  '#3b82f6','#10b981','#f59e0b','#a855f7','#f43f5e','#06b6d4',
+  '#ea580c','#0d9488','#84cc16','#ec4899','#6366f1','#9ca3af',
+]
+const TYPE_STROKE_MAP = {
   'Total':          '#6366f1',
   'Deck':           '#3b82f6',
   'Screened Porch': '#10b981',
@@ -392,7 +468,12 @@ const TYPE_STROKE = {
   'Pergola':        '#a855f7',
   'Gazebo':         '#f43f5e',
   'Open Porch':     '#06b6d4',
+  'Hardscapes':     '#ea580c',
+  'Eze-breeze room':'#0d9488',
   'Other':          '#9ca3af',
+}
+function typeStroke(type, allTypes) {
+  return TYPE_STROKE_MAP[type] || COLOR_PALETTE[allTypes.indexOf(type) % COLOR_PALETTE.length] || '#9ca3af'
 }
 const TYPE_BG = {
   'Total':          'bg-indigo-100 text-indigo-700 border-indigo-300',
@@ -402,6 +483,8 @@ const TYPE_BG = {
   'Pergola':        'bg-purple-100 text-purple-700 border-purple-300',
   'Gazebo':         'bg-rose-100 text-rose-700 border-rose-300',
   'Open Porch':     'bg-cyan-100 text-cyan-700 border-cyan-300',
+  'Hardscapes':     'bg-orange-100 text-orange-700 border-orange-300',
+  'Eze-breeze room':'bg-teal-100 text-teal-700 border-teal-300',
   'Other':          'bg-gray-100 text-gray-600 border-gray-300',
 }
 const TYPE_COLORS_BAR = {
@@ -411,6 +494,8 @@ const TYPE_COLORS_BAR = {
   'Pergola':        'bg-purple-500',
   'Gazebo':         'bg-rose-500',
   'Open Porch':     'bg-cyan-500',
+  'Hardscapes':     'bg-orange-500',
+  'Eze-breeze room':'bg-teal-500',
   'Other':          'bg-gray-400',
 }
 const TYPE_LIGHT = {
@@ -420,6 +505,8 @@ const TYPE_LIGHT = {
   'Pergola':        'bg-purple-50 text-purple-700',
   'Gazebo':         'bg-rose-50 text-rose-700',
   'Open Porch':     'bg-cyan-50 text-cyan-700',
+  'Hardscapes':     'bg-orange-50 text-orange-700',
+  'Eze-breeze room':'bg-teal-50 text-teal-700',
   'Other':          'bg-gray-100 text-gray-600',
 }
 
@@ -529,7 +616,7 @@ function TrendChart({ months, activeTypes, allTypes }) {
         {/* Lines */}
         {['Total', ...allTypes].map(type => {
           if (!activeTypes.has(type)) return null
-          const color = TYPE_STROKE[type] || '#9ca3af'
+          const color = typeStroke(type, allTypes)
           const isTotal = type === 'Total'
           return (
             <g key={type}>
@@ -568,7 +655,7 @@ function TrendChart({ months, activeTypes, allTypes }) {
           <p className="font-semibold text-gray-800 mb-1.5">{tip.labelFull}</p>
           {activeTypes.has('Total') && <p className="text-indigo-600 font-medium">Total: {fmtK(tip.total)}</p>}
           {allTypes.filter(t => activeTypes.has(t) && tip.byType[t] > 0).map(t => (
-            <p key={t} style={{ color: TYPE_STROKE[t] }}>{t}: {fmtK(tip.byType[t])}</p>
+            <p key={t} style={{ color: typeStroke(t, allTypes) }}>{t}: {fmtK(tip.byType[t])}</p>
           ))}
           {tip.jobCount > 0 && <p className="text-gray-400 mt-1">{tip.jobCount} job{tip.jobCount !== 1 ? 's' : ''}</p>}
         </div>
@@ -578,9 +665,11 @@ function TrendChart({ months, activeTypes, allTypes }) {
 }
 
 export default function Analytics() {
-  const proposals = useStore(s => s.proposals)
-  const [rangeMonths, setRangeMonths] = useState(12)
-  const [activeTypes, setActiveTypes] = useState(new Set(['Total']))
+  const proposals    = useStore(s => s.proposals)
+  const PROJECT_TYPES = useStore(s => s.projectTypes)
+  const [rangeMonths, setRangeMonths]   = useState(12)
+  const [activeTypes, setActiveTypes]   = useState(new Set(['Total']))
+  const [managingTypes, setManagingTypes] = useState(false)
 
   const { stats, trendMonths, allTypes } = useMemo(() => {
     const won  = proposals.filter(p => p.status === 'Won')
@@ -689,13 +778,19 @@ export default function Analytics() {
             <h2 className="font-semibold text-gray-900 text-sm">Revenue Trend &amp; Seasonality</h2>
             <p className="text-xs text-gray-400 mt-0.5">Click a job type to isolate its revenue line and spot seasonal patterns</p>
           </div>
-          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
-            {[12, 18, 24].map(n => (
-              <button key={n} onClick={() => setRangeMonths(n)}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${rangeMonths === n ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
-                {n}mo
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <button onClick={() => setManagingTypes(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-500 hover:bg-gray-50 transition-colors">
+              <Settings2 size={12} /> Service Types
+            </button>
+            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+              {[12, 18, 24].map(n => (
+                <button key={n} onClick={() => setRangeMonths(n)}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${rangeMonths === n ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+                  {n}mo
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -708,7 +803,7 @@ export default function Analytics() {
               <button key={type} onClick={() => toggleType(type)}
                 className={`px-2.5 py-0.5 rounded-full text-xs font-medium border transition-all ${on ? base : 'bg-white text-gray-400 border-gray-200'}`}>
                 <span className="inline-block w-1.5 h-1.5 rounded-full mr-1 align-middle"
-                  style={{ background: on ? TYPE_STROKE[type] || '#9ca3af' : '#d1d5db' }} />
+                  style={{ background: on ? typeStroke(type, allTypes) : '#d1d5db' }} />
                 {type}
               </button>
             )
@@ -717,6 +812,8 @@ export default function Analytics() {
 
         <TrendChart months={trendData} activeTypes={activeTypes} allTypes={allTypes} />
       </div>
+
+      {managingTypes && <ProjectTypeModal onClose={() => setManagingTypes(false)} />}
 
       <ProposalMap proposals={proposals} />
 
