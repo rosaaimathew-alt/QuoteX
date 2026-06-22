@@ -77,7 +77,7 @@ function SalesHeatMap({ proposals }) {
       const addr = p.address || p.contractDraft?.address
       const c = cache[addr]
       if (!c) return null
-      return { lat: c.lat, lng: c.lng, zip: c.zip || extractZip(addr), city: extractCity(addr), revenue: Number(p.total||0), status: p.status, isHistorical: !!p.isHistorical }
+      return { lat: c.lat, lng: c.lng, zip: c.zip || extractZip(addr), city: extractCity(addr), revenue: Number(p.total||0), status: p.status, isHistorical: !!p.isHistorical, client: p.client || p.contractDraft?.client || '' }
     }
     setPoints(withAddr.map(toPoint).filter(Boolean))
     const uncached = withAddr.filter(p => !cache[p.address || p.contractDraft?.address])
@@ -93,7 +93,7 @@ function SalesHeatMap({ proposals }) {
             const zip = data[0].address?.postcode?.slice(0,5) || extractZip(addr)
             cache[addr] = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), zip }
             saveGeo(cache)
-            setPoints(prev => [...prev, { lat: cache[addr].lat, lng: cache[addr].lng, zip, city: extractCity(addr), revenue: Number(p.total||0), status: p.status, isHistorical: !!p.isHistorical }])
+            setPoints(prev => [...prev, { lat: cache[addr].lat, lng: cache[addr].lng, zip, city: extractCity(addr), revenue: Number(p.total||0), status: p.status, isHistorical: !!p.isHistorical, client: p.client || p.contractDraft?.client || '' }])
           }
         } catch {}
         await new Promise(r => setTimeout(r, 1100))
@@ -114,14 +114,14 @@ function SalesHeatMap({ proposals }) {
 
     const groups = {}
     activePoints.forEach(p => {
-      // Group by ~1km grid square so each neighborhood gets its own circle,
-      // regardless of how the address string was parsed
+      // Group by ~1km grid square — works regardless of address format
       const key = `${p.lat.toFixed(2)},${p.lng.toFixed(2)}`
-      const safeCity = (p.city && p.city.length > 3 && !/^[A-Z]{2}$/.test(p.city.trim())) ? p.city : null
-      const label = p.zip ? `ZIP ${p.zip}` : (safeCity || 'Area')
-      if (!groups[key]) groups[key] = { lat: 0, lng: 0, n: 0, count: 0, revenue: 0, label }
+      const safeCity = (p.city && p.city.length > 2 && !/^[A-Z]{2}$/.test(p.city.trim())) ? p.city : null
+      const label = p.zip ? `ZIP ${p.zip}` : (safeCity || 'Unknown area')
+      if (!groups[key]) groups[key] = { lat: 0, lng: 0, n: 0, count: 0, revenue: 0, label, clients: [] }
       groups[key].lat += p.lat; groups[key].lng += p.lng
       groups[key].count++; groups[key].n++; groups[key].revenue += p.revenue
+      if (p.client) groups[key].clients.push(p.client)
     })
     const max = Math.max(...Object.values(groups).map(g => g.count), 1)
 
@@ -130,11 +130,16 @@ function SalesHeatMap({ proposals }) {
       const color  = areaColor(ratio)
       const lat    = g.lat / g.n; const lng = g.lng / g.n
       const radius = 10 + ratio * 26
+      const clientLines = g.clients.length
+        ? `<div style="margin-top:4px;border-top:1px solid #e5e7eb;padding-top:4px">${g.clients.map(c => `· ${c}`).join('<br>')}</div>`
+        : ''
       const layer  = L.circleMarker([lat, lng], {
         radius, fillColor: color, fillOpacity: 0.78, color: '#fff', weight: 2,
       }).bindPopup(
-        `<div style="font-family:sans-serif;font-size:13px;line-height:1.7">` +
-        `<b>${g.label}</b><br>${g.count} proposal${g.count !== 1 ? 's' : ''}<br>$${(g.revenue/1000).toFixed(0)}k revenue</div>`
+        `<div style="font-family:sans-serif;font-size:13px;line-height:1.7;min-width:160px">` +
+        `<b>${g.label}</b><br>${g.count} proposal${g.count !== 1 ? 's' : ''} · $${(g.revenue/1000).toFixed(0)}k` +
+        clientLines + `</div>`,
+        { maxWidth: 240 }
       ).addTo(map)
       layersRef.current.push(layer)
     })
@@ -146,8 +151,8 @@ function SalesHeatMap({ proposals }) {
   const listProposals = filter === 'won' ? proposals.filter(p => p.status === 'Won' || p.isHistorical) : proposals
   const cityMap = {}
   listProposals.forEach(p => {
-    const city = extractCity(p.address || p.contractDraft?.address)
-    if (!city) return
+    const raw  = extractCity(p.address || p.contractDraft?.address)
+    const city = (raw && raw.length > 2 && !/^[A-Z]{2}$/.test(raw)) ? raw : '— Address needs city —'
     if (!cityMap[city]) cityMap[city] = { city, count: 0, won: 0, revenue: 0, active: 0 }
     cityMap[city].count++
     if (p.status === 'Won' || p.isHistorical) { cityMap[city].won++; cityMap[city].revenue += Number(p.total||0) }
