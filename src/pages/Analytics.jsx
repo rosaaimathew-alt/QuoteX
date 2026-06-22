@@ -87,7 +87,7 @@ function SalesHeatMap({ proposals }) {
       for (const p of uncached) {
         const addr = (p.address || p.contractDraft?.address).trim()
         try {
-          const res  = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&addressdetails=1&q=${encodeURIComponent(addr)}`)
+          const res  = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&addressdetails=1&viewbox=-85.0,32.0,-75.4,36.6&bounded=1&q=${encodeURIComponent(addr)}`)
           const data = await res.json()
           if (data[0]) {
             const zip = data[0].address?.postcode?.slice(0,5) || extractZip(addr)
@@ -242,9 +242,19 @@ function SalesHeatMap({ proposals }) {
           ))}
           <span className="text-[10px] text-gray-400 ml-1">Low → High</span>
         </div>
-        <span className="text-[10px] text-gray-400">
-          {view === 'map' ? `${activePoints.length} of ${withAddr} mapped · © OpenStreetMap` : `${cities.length} locations`}
-        </span>
+        <div className="flex items-center gap-3">
+          {view === 'map' && (
+            <button
+              onClick={() => { localStorage.removeItem(GEO_CACHE_KEY); setPoints([]); setMapping(false) }}
+              className="text-[10px] text-red-400 hover:text-red-600 underline"
+            >
+              Reset cache
+            </button>
+          )}
+          <span className="text-[10px] text-gray-400">
+            {view === 'map' ? `${activePoints.length} of ${withAddr} mapped · © OpenStreetMap` : `${cities.length} locations`}
+          </span>
+        </div>
       </div>
     </div>
   )
