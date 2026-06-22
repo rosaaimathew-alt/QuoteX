@@ -121,7 +121,7 @@ function SalesHeatMap({ proposals }) {
       if (!groups[key]) groups[key] = { lat: 0, lng: 0, n: 0, count: 0, revenue: 0, label, clients: [] }
       groups[key].lat += p.lat; groups[key].lng += p.lng
       groups[key].count++; groups[key].n++; groups[key].revenue += p.revenue
-      if (p.client) groups[key].clients.push(p.client)
+      groups[key].clients.push(p.client || p.address || '(no name on file)')
     })
     const max = Math.max(...Object.values(groups).map(g => g.count), 1)
 
