@@ -1609,7 +1609,7 @@ export default function ContractView() {
             {/* Scope bullets */}
             <div className="no-print mb-2 flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-1.5 text-xs text-blue-600">
-                <span>✏️</span><span>Click any bullet to edit.</span>
+                <span>✏️</span><span>One bullet per line — each line prints as a separate bullet point.</span>
                 {scopeExamples.length > 0 && (
                   <span className="text-purple-500 font-medium ml-1">
                     · {scopeExamples.length} example{scopeExamples.length !== 1 ? 's' : ''} learned
@@ -1642,9 +1642,29 @@ export default function ContractView() {
                 {aiError}
               </div>
             )}
-            <ul className="text-sm space-y-2">
+            {/* Single big textarea for editing — each line = one bullet */}
+            <textarea
+              className="no-print w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 leading-relaxed"
+              style={{ minHeight: '14rem', resize: 'vertical' }}
+              placeholder="Enter each bullet on its own line…&#10;&#10;Example:&#10;Ebony to supply and install 16×16 composite deck with TimberTech Prime Plus decking&#10;Ebony to install vinyl privacy railing system on all open sides"
+              value={scopeLines.map(l => l.text).join('\n')}
+              onChange={e => {
+                const lines = e.target.value.split('\n')
+                setScopeLines(lines.map((text, i) => ({
+                  id: scopeLines[i]?.id ?? Date.now() + i,
+                  name: scopeLines[i]?.name ?? '',
+                  price: scopeLines[i]?.price ?? 0,
+                  text,
+                })))
+              }}
+            />
+            {/* Print-only bullet list */}
+            <ul className="print-only text-sm space-y-2">
               {scopeLines.map(line => (
-                <ScopeBullet key={line.id} line={line} updateLine={updateLine} removeLine={removeLine} />
+                <li key={line.id} className="flex gap-2 items-start">
+                  <span className="shrink-0">●</span>
+                  <span className="whitespace-pre-wrap">{renderBold(line.text)}</span>
+                </li>
               ))}
             </ul>
             <div className="no-print mt-3 flex items-center gap-2 flex-wrap">
