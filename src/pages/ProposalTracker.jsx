@@ -689,12 +689,12 @@ function AnalyticsView({ proposals: allProposals }) {
     return d >= pStart && d <= pEnd
   })
 
-  const won = proposals.filter(p => p.status === 'Won')
-  const lost = proposals.filter(p => p.status === 'Lost')
+  const won    = proposals.filter(p => p.status === 'Won')
+  const lost   = proposals.filter(p => p.status === 'Lost')
   const active = allProposals.filter(p => ['Sent', 'Followed Up', 'Negotiating'].includes(p.status))
 
-  // Client-level win rate: all client groups count (sent/draft = not won yet = counts against rate)
-  const outcomes      = clientOutcomes(proposals)
+  // Win rate always all-time so client grouping is never broken by period filter
+  const outcomes      = clientOutcomes(allProposals)
   const wonClients    = outcomes.filter(o => o.isWon)
   const notWonClients = outcomes.filter(o => !o.isWon)
   const winRate = outcomes.length > 0

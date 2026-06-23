@@ -135,8 +135,8 @@ export default function Dashboard() {
   // Period-filtered proposals
   const periodProps = proposals.filter(inPeriod)
 
-  // KPI calculations — client-level outcomes scoped to period; pipeline always current
-  const outcomes     = clientOutcomes(periodProps)
+  // Win rate always all-time; revenue/pipeline use period or current-active
+  const outcomes     = clientOutcomes(proposals)
   const wonClients   = outcomes.filter(o => o.isWon)
   const lostClients  = outcomes.filter(o => !o.isWon)
   const won          = periodProps.filter(p => p.status === 'Won')
@@ -236,7 +236,7 @@ export default function Dashboard() {
         <KpiCard
           icon={Award} label="Win Rate" color="bg-[var(--brand-500)]"
           value={winRate !== null ? `${winRate}%` : '—'}
-          sub={`${wonClients.length}W · ${lostClients.length} not won · ${outcomes.length} clients · ${pLabel}`}
+          sub={`${wonClients.length}W · ${lostClients.length} not won · ${outcomes.length} clients · all time`}
           onClick={() => navigate('/tracker')}
         />
         <KpiCard
