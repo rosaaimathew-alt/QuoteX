@@ -857,11 +857,18 @@ export default function Analytics() {
   const { stats, trendMonths, allTypes } = useMemo(() => {
     const won  = proposals.filter(p => p.status === 'Won')
     const lost = proposals.filter(p => p.status !== 'Won')
-    const closed = proposals.length
+
+    // Client-group win rate — same formula as Dashboard and ProposalTracker
+    const ids    = new Set(proposals.map(p => p.id))
+    const roots  = proposals.filter(p => !p.parentId || !ids.has(p.parentId))
+    const groups = roots.map(root => {
+      const all = [root, ...proposals.filter(p => p.parentId === root.id)]
+      return all.some(p => p.status === 'Won')
+    })
+    const winRate = groups.length > 0 ? (groups.filter(Boolean).length / groups.length) * 100 : 0
 
     const totalRevenue = won.reduce((s, p) => s + Number(p.total || 0), 0)
     const avgDeal = won.length ? totalRevenue / won.length : 0
-    const winRate = closed ? (won.length / closed) * 100 : 0
 
     // Project type breakdown (all time)
     const typeMap = {}
@@ -891,7 +898,7 @@ export default function Analytics() {
       .reduce((s, p) => s + Number(p.total || 0), 0)
 
     return {
-      stats: { won, lost, closed, totalRevenue, avgDeal, winRate, typeRows, winReasons, lossReasons, pipelineValue },
+      stats: { won, lost, totalClients: groups.length, totalRevenue, avgDeal, winRate, typeRows, winReasons, lossReasons, pipelineValue },
       trendMonths: [],
       allTypes,
     }
@@ -949,7 +956,7 @@ export default function Analytics() {
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <StatCard icon={DollarSign} label="Total Revenue"  value={`$${fmt(stats.totalRevenue)}`} sub={`${stats.won.length} jobs won`} color="green" />
-        <StatCard icon={Target}     label="Win Rate"       value={`${stats.winRate.toFixed(0)}%`} sub={`${stats.won.length}W · ${stats.lost.length} not won · ${proposals.length} total · all time`} color="blue" />
+        <StatCard icon={Target}     label="Win Rate"       value={`${stats.winRate.toFixed(0)}%`} sub={`${stats.won.length}W · ${stats.lost.length} not won · ${stats.totalClients} clients · all time`} color="blue" />
         <StatCard icon={Award}      label="Avg Deal Size"  value={`$${fmt(stats.avgDeal)}`}       sub="per won job" color="amber" />
         <StatCard icon={TrendingUp} label="Pipeline"       value={`$${fmt(stats.pipelineValue)}`} sub="active proposals" color="blue" />
       </div>
