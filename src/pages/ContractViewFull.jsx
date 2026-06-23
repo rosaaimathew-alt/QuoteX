@@ -421,7 +421,7 @@ export default function ContractViewFull() {
               <table className="w-full text-[10pt] border-collapse mb-5">
                 <thead><tr className="bg-gray-100"><th className="border border-gray-300 px-2 py-2 text-left font-bold"></th><th className="border border-gray-300 px-2 py-2 text-left font-bold"></th><th className="border border-gray-300 px-2 py-2 text-center font-bold text-[9px] uppercase tracking-wide">OWNER INITIALS</th></tr></thead>
                 <tbody>
-                  {scopeLines.map((line,i) => {
+                  {scopeLines.filter(l => (l.name || '').trim() || l.price > 0).map((line,i) => {
                     const initSig = getSig(signatures,'client',`c-init-${i}`) || signatures?.client?.signatureDataUrl
                     return <tr key={i}><td className="border border-gray-300 px-2 py-2 font-bold">{(line.name||'').toUpperCase()}</td><td className="border border-gray-300 px-2 py-2 font-semibold whitespace-nowrap">${fmt(line.price)}</td><td className="border border-gray-300 px-2 py-1.5 w-24 text-center">{initSig ? <img src={initSig} alt="initials" className="h-6 mx-auto object-contain" /> : null}</td></tr>
                   })}

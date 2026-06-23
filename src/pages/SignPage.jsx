@@ -832,7 +832,7 @@ export default function SignPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {scopeLines.map((line,i) => (
+                  {scopeLines.filter(l => (l.name || '').trim() || l.price > 0).map((line,i) => (
                     <tr key={i}>
                       <td className="border border-gray-300 px-2 py-2 font-bold">{(line.name||'').toUpperCase()}</td>
                       <td className="border border-gray-300 px-2 py-2 font-semibold whitespace-nowrap">${fmt(line.price)}</td>
