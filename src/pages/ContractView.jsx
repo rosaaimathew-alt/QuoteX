@@ -1820,7 +1820,7 @@ export default function ContractView() {
                 </tr>
               </thead>
               <tbody>
-                {scopeLines.map(line => (
+                {scopeLines.filter(l => (l.name || '').trim() || l.price > 0).map(line => (
                   <tr key={line.id}>
                     <td className="border border-gray-300 px-3 py-2 font-bold">
                       <input
