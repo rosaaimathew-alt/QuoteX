@@ -436,11 +436,11 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
             {/* Updated Scope of Work */}
             <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Updated Scope of Work</label>
-              <p className="text-[10px] text-gray-400 mb-2">Pre-filled from contract. Each line becomes one bullet on the CO document. Add, edit, or delete lines freely.</p>
+              <p className="text-[10px] text-gray-400 mb-2">Start a line with <strong>--</strong> to make it a bullet. Plain lines print as text. Enter = new line.</p>
               <textarea
                 value={scopeText}
                 onChange={e => setScopeText(e.target.value)}
-                placeholder={"Line 1 of scope…\nLine 2 of scope…\nLine 3 of scope…"}
+                placeholder={"-- Line 1 becomes a bullet\n-- Line 2 becomes a bullet\nPlain text line (no bullet)"}
                 className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-300"
                 style={{ minHeight: '10rem', resize: 'vertical' }}
               />

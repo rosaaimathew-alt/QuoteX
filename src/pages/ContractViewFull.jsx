@@ -402,7 +402,18 @@ export default function ContractViewFull() {
               <p><strong>EMAIL:</strong> {email}</p><p><strong>PHONE:</strong> {phone}</p>
             </div>
             {projectSummary && <div className="mb-4"><p className="font-bold text-[10pt] mb-1">PROJECT SUMMARY:</p><p className="font-semibold text-[10pt] whitespace-pre-wrap">{projectSummary}</p></div>}
-            {scopeBullets.length > 0 && <ul className="text-[10pt] space-y-2 mb-5">{scopeBullets.map((b,i) => { const txt=typeof b==='string'?b:(b?.text||b?.name||''); return txt?<li key={i} className="flex gap-2"><span>●</span><span className="whitespace-pre-wrap">{renderBold(txt)}</span></li>:null })}</ul>}
+            {scopeBullets.length > 0 && (() => {
+              const hasBulletPrefix = scopeBullets.some(b => { const t=typeof b==='string'?b:(b?.text||b?.name||''); return t.trimStart().startsWith('--') })
+              return <ul className="text-[10pt] space-y-1.5 mb-5">{scopeBullets.map((b,i) => {
+                const txt=typeof b==='string'?b:(b?.text||b?.name||'')
+                if (!txt.trim()) return <li key={i} className="list-none h-2" />
+                const isBullet = txt.trimStart().startsWith('--') || !hasBulletPrefix
+                const display = isBullet && txt.trimStart().startsWith('--') ? txt.trimStart().slice(2).trimStart() : txt
+                return isBullet
+                  ? <li key={i} className="flex gap-2"><span>●</span><span className="whitespace-pre-wrap">{renderBold(display)}</span></li>
+                  : <li key={i} className="list-none whitespace-pre-wrap leading-snug">{renderBold(display)}</li>
+              })}</ul>
+            })()}
             <p className="font-bold text-[10pt] mb-3">GENERAL NOTES AND WARRANTIES TO THE ACCEPTED SCOPE OF WORK</p>
             <ul className="text-[10pt] space-y-2 mb-5">{GENERAL_NOTES.map((n,i) => <li key={i} className={`flex gap-2 ${n.h?'bg-yellow-50 -mx-1 px-1 rounded':''}`}><span>●</span><span className={n.b?'font-bold':''}>{n.t}</span></li>)}<li className="flex gap-2"><span>●</span><span>{ceilingFanNote}</span></li></ul>
 

@@ -185,17 +185,22 @@ export default function COSignPage() {
             {scopeLines.length > 0 && (
               <div className="mb-5">
                 <p className="font-bold text-[10pt] mb-2 uppercase tracking-wide">Updated Scope of Work</p>
-                <ul className="text-[10pt] space-y-1.5">
-                  {scopeLines.map((l, i) => {
-                    const txt = typeof l === 'string' ? l : (l?.text || l?.name || '')
-                    return txt ? (
-                      <li key={i} className="flex gap-2">
-                        <span>●</span>
-                        <span className="whitespace-pre-wrap">{renderBold(txt)}</span>
-                      </li>
-                    ) : null
-                  })}
-                </ul>
+                {(() => {
+                  const hasBulletPrefix = scopeLines.some(l => { const t=typeof l==='string'?l:(l?.text||l?.name||''); return t.trimStart().startsWith('--') })
+                  return (
+                    <ul className="text-[10pt] space-y-1.5">
+                      {scopeLines.map((l, i) => {
+                        const txt = typeof l === 'string' ? l : (l?.text || l?.name || '')
+                        if (!txt.trim()) return <li key={i} className="list-none h-2" />
+                        const isBullet = txt.trimStart().startsWith('--') || !hasBulletPrefix
+                        const display = isBullet && txt.trimStart().startsWith('--') ? txt.trimStart().slice(2).trimStart() : txt
+                        return isBullet
+                          ? <li key={i} className="flex gap-2"><span>●</span><span className="whitespace-pre-wrap">{renderBold(display)}</span></li>
+                          : <li key={i} className="list-none whitespace-pre-wrap leading-snug">{renderBold(display)}</li>
+                      })}
+                    </ul>
+                  )
+                })()}
               </div>
             )}
 

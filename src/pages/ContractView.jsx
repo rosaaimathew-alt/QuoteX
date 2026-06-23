@@ -1610,7 +1610,7 @@ export default function ContractView() {
             {/* Scope bullets */}
             <div className="no-print mb-2 flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-1.5 text-xs text-blue-600">
-                <span>✏️</span><span>One bullet per line — each line prints as a separate bullet point.</span>
+                <span>✏️</span><span>Start a line with <strong>--</strong> to make it a bullet point. Plain lines print as text. Enter = new line.</span>
                 {scopeExamples.length > 0 && (
                   <span className="text-purple-500 font-medium ml-1">
                     · {scopeExamples.length} example{scopeExamples.length !== 1 ? 's' : ''} learned
@@ -1647,7 +1647,7 @@ export default function ContractView() {
             <textarea
               className="no-print w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 leading-relaxed"
               style={{ minHeight: '14rem', resize: 'vertical' }}
-              placeholder="Enter each bullet on its own line…&#10;&#10;Example:&#10;Ebony to supply and install 16×16 composite deck with TimberTech Prime Plus decking&#10;Ebony to install vinyl privacy railing system on all open sides"
+              placeholder="Use -- to create a bullet point:&#10;&#10;-- Ebony to supply and install 16×16 composite deck with TimberTech Prime Plus decking&#10;-- Ebony to install vinyl privacy railing system on all open sides&#10;&#10;Lines without -- print as plain text (headings, notes, etc.)"
               value={scopeLines.map(l => l.text).join('\n')}
               onChange={e => {
                 const lines = e.target.value.split('\n')
@@ -1659,15 +1659,21 @@ export default function ContractView() {
                 })))
               }}
             />
-            {/* Print-only bullet list */}
-            <ul className="print-only text-sm space-y-2">
-              {scopeLines.map(line => (
-                <li key={line.id} className="flex gap-2 items-start">
-                  <span className="shrink-0">●</span>
-                  <span className="whitespace-pre-wrap">{renderBold(line.text)}</span>
-                </li>
-              ))}
-            </ul>
+            {/* Print-only scope rendering: lines starting with -- become bullets, others are plain text */}
+            <div className="print-only text-sm space-y-1.5">
+              {(() => {
+                const hasBulletPrefix = scopeLines.some(l => l.text.trimStart().startsWith('--'))
+                return scopeLines.map(line => {
+                  const txt = line.text
+                  if (!txt.trim()) return <div key={line.id} className="h-2" />
+                  const isBullet = txt.trimStart().startsWith('--') || !hasBulletPrefix
+                  const display = isBullet && txt.trimStart().startsWith('--') ? txt.trimStart().slice(2).trimStart() : txt
+                  return isBullet
+                    ? <div key={line.id} className="flex gap-2 items-start"><span className="shrink-0">●</span><span className="whitespace-pre-wrap">{renderBold(display)}</span></div>
+                    : <p key={line.id} className="whitespace-pre-wrap leading-snug">{renderBold(display)}</p>
+                })
+              })()}
+            </div>
             <div className="no-print mt-3 flex items-center gap-2 flex-wrap">
               <button onClick={addLine}
                 className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded px-2 py-1.5 transition-colors">
