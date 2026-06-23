@@ -263,6 +263,7 @@ export default function ContractView() {
   const [showScopeTemplates,   setShowScopeTemplates]   = useState(false)
   const [showSaveScopeTemplate,setShowSaveScopeTemplate]= useState(false)
   const [scopeTemplateName,    setScopeTemplateName]    = useState('')
+  const [mergeModal,           setMergeModal]           = useState(null) // { template, missing: [{txt, checked}] }
 
   const contractDocRef = useRef(null)
   const [showSignModal, setShowSignModal] = useState(false)
@@ -1712,7 +1713,7 @@ export default function ContractView() {
                           {t.bullets.slice(0, 6).map((b, i) => <li key={i} className="flex gap-1.5"><span>●</span><span className="truncate">{b}</span></li>)}
                           {t.bullets.length > 6 && <li className="text-gray-400 italic">+{t.bullets.length - 6} more…</li>}
                         </ul>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                           <button
                             onClick={() => {
                               setScopeLines(prev => t.bullets.map((txt, i) => ({
@@ -1735,10 +1736,132 @@ export default function ContractView() {
                             className="flex-1 py-1.5 border border-gray-200 text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors">
                             Append to scope
                           </button>
+                          <button
+                            onClick={() => {
+                              const normalize = s => s.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim()
+                              const currentNorm = scopeLines.map(l => normalize(l.text))
+                              const missing = t.bullets
+                                .filter(b => b.trim())
+                                .filter(b => {
+                                  const bn = normalize(b)
+                                  return !currentNorm.some(cn => cn.includes(bn) || bn.includes(cn))
+                                })
+                                .map(txt => ({ txt, checked: true }))
+                              setMergeModal({ template: t, missing })
+                              setShowScopeTemplates(false)
+                            }}
+                            className="w-full py-1.5 border border-green-300 text-green-700 text-xs font-medium rounded-lg hover:bg-green-50 transition-colors">
+                            Merge missing bullets
+                          </button>
                         </div>
                       </div>
                     ))}
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Merge missing bullets modal */}
+            {mergeModal && (
+              <div className="fixed inset-0 bg-black/40 z-[9999] flex items-center justify-center p-4" onClick={() => setMergeModal(null)}>
+                <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                    <div>
+                      <p className="font-semibold text-gray-900">Merge from "{mergeModal.template.name}"</p>
+                      <p className="text-xs text-gray-400 mt-0.5">Uncheck any bullets you don't want to add</p>
+                    </div>
+                    <button onClick={() => setMergeModal(null)} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
+                  </div>
+                  <div className="overflow-y-auto flex-1 p-4">
+                    {mergeModal.missing.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-sm text-gray-500 font-medium">All bullets already in scope</p>
+                        <p className="text-xs text-gray-400 mt-1">Your current scope already contains everything from this template.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-xs text-gray-500">{mergeModal.missing.filter(m => m.checked).length} of {mergeModal.missing.length} selected</p>
+                          <div className="flex gap-3">
+                            <button onClick={() => setMergeModal(prev => ({ ...prev, missing: prev.missing.map(m => ({ ...m, checked: true })) }))}
+                              className="text-xs text-purple-600 hover:underline">All</button>
+                            <button onClick={() => setMergeModal(prev => ({ ...prev, missing: prev.missing.map(m => ({ ...m, checked: false })) }))}
+                              className="text-xs text-gray-400 hover:underline">None</button>
+                          </div>
+                        </div>
+                        {mergeModal.missing.map((item, idx) => (
+                          <label key={idx} className="flex gap-3 items-start cursor-pointer group">
+                            <input
+                              type="checkbox"
+                              checked={item.checked}
+                              onChange={() => setMergeModal(prev => ({
+                                ...prev,
+                                missing: prev.missing.map((m, i) => i === idx ? { ...m, checked: !m.checked } : m)
+                              }))}
+                              className="mt-0.5 shrink-0 accent-purple-600"
+                            />
+                            <span className="text-sm text-gray-700 group-hover:text-gray-900 leading-snug">{item.txt}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {mergeModal.missing.length > 0 && (
+                    <div className="px-5 py-4 border-t border-gray-100 flex gap-2">
+                      <button onClick={() => setMergeModal(null)}
+                        className="flex-1 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                        Cancel
+                      </button>
+                      <button
+                        disabled={!mergeModal.missing.some(m => m.checked)}
+                        onClick={() => {
+                          const norm = s => s.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim()
+                          const selectedNorms = new Set(mergeModal.missing.filter(m => m.checked).map(m => norm(m.txt)))
+                          const templateBullets = mergeModal.template.bullets
+
+                          // Work on a mutable copy; insert each selected bullet at its correct position
+                          const result = [...scopeLines]
+
+                          for (let ti = 0; ti < templateBullets.length; ti++) {
+                            const tb = templateBullets[ti]
+                            if (!selectedNorms.has(norm(tb))) continue
+
+                            const getResultNorms = () => result.map(l => norm(l.text))
+
+                            // Find nearest preceding template bullet already present in result
+                            let insertAfter = -1
+                            for (let prev = ti - 1; prev >= 0; prev--) {
+                              const pn = norm(templateBullets[prev])
+                              const idx = getResultNorms().findIndex(cn => cn.includes(pn) || pn.includes(cn))
+                              if (idx !== -1) { insertAfter = idx; break }
+                            }
+
+                            if (insertAfter !== -1) {
+                              result.splice(insertAfter + 1, 0, { id: Date.now() + ti + 2000, name: '', price: 0, text: tb })
+                            } else {
+                              // Try to insert before the nearest following template bullet in result
+                              let insertBefore = -1
+                              for (let next = ti + 1; next < templateBullets.length; next++) {
+                                const nn = norm(templateBullets[next])
+                                const idx = getResultNorms().findIndex(cn => cn.includes(nn) || nn.includes(cn))
+                                if (idx !== -1) { insertBefore = idx; break }
+                              }
+                              if (insertBefore !== -1) {
+                                result.splice(insertBefore, 0, { id: Date.now() + ti + 2000, name: '', price: 0, text: tb })
+                              } else {
+                                result.push({ id: Date.now() + ti + 2000, name: '', price: 0, text: tb })
+                              }
+                            }
+                          }
+
+                          setScopeLines(result)
+                          setMergeModal(null)
+                        }}
+                        className="flex-1 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-40 transition-colors">
+                        Add {mergeModal.missing.filter(m => m.checked).length} bullet{mergeModal.missing.filter(m => m.checked).length !== 1 ? 's' : ''}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
