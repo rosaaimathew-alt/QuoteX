@@ -136,14 +136,15 @@ export default function Dashboard() {
   const periodProps = proposals.filter(inPeriod)
 
   // KPI calculations — client-level outcomes scoped to period; pipeline always current
-  const outcomes    = clientOutcomes(periodProps)
-  const wonClients  = outcomes.filter(o => o.isWon)
-  const lostClients = outcomes.filter(o => !o.isWon)
-  const won         = periodProps.filter(p => p.status === 'Won')
-  const active      = proposals.filter(p => ['Sent', 'Followed Up', 'Negotiating'].includes(p.status))
-  const wonRevenue  = won.reduce((s, p) => s + (p.total || 0), 0)
-  const pipeline    = active.reduce((s, p) => s + (p.total || 0), 0)
-  const winRate     = outcomes.length > 0 ? Math.round(wonClients.length / outcomes.length * 100) : null
+  const outcomes      = clientOutcomes(periodProps)
+  const wonClients    = outcomes.filter(o => o.isWon)
+  const decidedGroups = outcomes.filter(o => o.all.some(p => ['Won', 'Lost', 'MIA'].includes(p.status)))
+  const closedNotWon  = decidedGroups.filter(o => !o.isWon)
+  const won           = periodProps.filter(p => p.status === 'Won')
+  const active        = proposals.filter(p => ['Sent', 'Followed Up', 'Negotiating'].includes(p.status))
+  const wonRevenue    = won.reduce((s, p) => s + (p.total || 0), 0)
+  const pipeline      = active.reduce((s, p) => s + (p.total || 0), 0)
+  const winRate       = decidedGroups.length > 0 ? Math.round(wonClients.length / decidedGroups.length * 100) : null
   const periodTotal = periodProps.reduce((s, p) => s + (p.total || 0), 0)
 
   // Bar chart segments
@@ -236,7 +237,7 @@ export default function Dashboard() {
         <KpiCard
           icon={Award} label="Win Rate" color="bg-[var(--brand-500)]"
           value={winRate !== null ? `${winRate}%` : '—'}
-          sub={`${wonClients.length}W · ${lostClients.length} not won · ${outcomes.length} clients · ${pLabel}`}
+          sub={`${wonClients.length}W · ${closedNotWon.length} not won · ${decidedGroups.length} decided · ${pLabel}`}
           onClick={() => navigate('/tracker')}
         />
         <KpiCard

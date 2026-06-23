@@ -856,7 +856,7 @@ export default function Analytics() {
 
   const { stats, trendMonths, allTypes } = useMemo(() => {
     const won  = proposals.filter(p => p.status === 'Won')
-    const lost = proposals.filter(p => p.status === 'Lost')
+    const lost = proposals.filter(p => ['Lost', 'MIA'].includes(p.status))
     const closed = won.length + lost.length
 
     const totalRevenue = won.reduce((s, p) => s + Number(p.total || 0), 0)
@@ -887,7 +887,7 @@ export default function Analytics() {
     lost.forEach(p => { const r = p.winLossReason?.category; if (r) lossReasons[r] = (lossReasons[r] || 0) + 1 })
 
     const pipelineValue = proposals
-      .filter(p => !['Won', 'Lost', 'Draft'].includes(p.status))
+      .filter(p => ['Sent', 'Followed Up', 'Negotiating'].includes(p.status))
       .reduce((s, p) => s + Number(p.total || 0), 0)
 
     return {
@@ -949,7 +949,7 @@ export default function Analytics() {
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <StatCard icon={DollarSign} label="Total Revenue"  value={`$${fmt(stats.totalRevenue)}`} sub={`${stats.won.length} jobs won`} color="green" />
-        <StatCard icon={Target}     label="Win Rate"       value={`${stats.winRate.toFixed(0)}%`} sub={`${stats.won.length}W / ${stats.lost.length}L`} color="blue" />
+        <StatCard icon={Target}     label="Win Rate"       value={`${stats.winRate.toFixed(0)}%`} sub={`${stats.won.length}W · ${stats.lost.length} Lost/MIA · all time`} color="blue" />
         <StatCard icon={Award}      label="Avg Deal Size"  value={`$${fmt(stats.avgDeal)}`}       sub="per won job" color="amber" />
         <StatCard icon={TrendingUp} label="Pipeline"       value={`$${fmt(stats.pipelineValue)}`} sub="active proposals" color="blue" />
       </div>
