@@ -788,7 +788,7 @@ export const useStore = create(
     {
       name: 'quotex-store',
       storage: createJSONStorage(() => smartStorage),
-      version: 4,
+      version: 5,
       migrate: (persisted) => {
         const persistedCatalog = persisted?.catalog
         // Preserve user catalog if it exists; fall back to seed only on fresh install
@@ -796,6 +796,36 @@ export const useStore = create(
           ? persistedCatalog
           : SEED_CATALOG
         const maxId = catalog.reduce((m, i) => Math.max(m, i.id || 0), 0)
+
+        // Restore Gina Reid proposal if it went missing
+        const existingProposals = persisted?.proposals || []
+        const ginaExists = existingProposals.some(p =>
+          p.client === 'Gina Reid' && (p.address || '').includes('8409 Newton')
+        )
+        const proposals = ginaExists ? existingProposals : [
+          ...existingProposals,
+          {
+            id: 'p-restored-gina-reid',
+            client: 'Gina Reid',
+            email: 'ginawarr@gmail.com',
+            phone: '614-270-5143',
+            address: '8409 Newton Ln, Ballantyne, NC 28277, USA',
+            total: 20244,
+            lines: [
+              { id: 'gl1', name: 'Debris Haul-off', qty: 1, unitPrice: 1000, description: 'Load and haul off all job site debris and excess materials.', section: 'General' },
+              { id: 'gl2', name: 'TechoBloc Blu-60 Grande and Valet Paver Patio', qty: 1, unitPrice: 15444, description: 'Design and build new paver patio with TechoBloc Blu-60 Grande smooth slab pavers 24x32 inches and 6x6 inch valet pieces in basket woven pattern, including 4 inches ABC base, 1 inch screening, polymeric sand grout, 6mm weed prevention tarp, and all materials and labor.', section: 'General' },
+              { id: 'gl3', name: 'Pressure Treated Decking Privacy Fence', qty: 1, unitPrice: 3800, description: "Supply and install pressure-treated wood decking privacy fence 16' wide all materials and labor included.", section: 'General' },
+            ],
+            status: 'Sent',
+            createdAt: '2026-06-05T12:00:00.000Z',
+            sentAt: '2026-06-05T12:00:00.000Z',
+            expiration: '2026-07-04',
+            projectTypes: ['Hardscapes'],
+            projectSummary: 'Open Patio and Privacy Fence',
+            isAlaCarte: false,
+          },
+        ]
+
         return {
           catalog,
           nextCatalogId: Math.max(SEED_CATALOG.length + 1, maxId + 1, persisted?.nextCatalogId || 0),
@@ -808,7 +838,7 @@ export const useStore = create(
           paymentScheduleLearning: persisted?.paymentScheduleLearning || {},
           subcontractors:      persisted?.subcontractors      || [],
           nextSubId:           persisted?.nextSubId           || 1,
-          proposals:          persisted?.proposals          || [],
+          proposals,
           nextProposalId:     persisted?.nextProposalId     || 1,
           readMessageIds:     persisted?.readMessageIds     || [],
           theme:              persisted?.theme              || 'light',
