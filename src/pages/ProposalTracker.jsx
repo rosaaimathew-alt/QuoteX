@@ -693,13 +693,12 @@ function AnalyticsView({ proposals: allProposals }) {
   const lost = proposals.filter(p => p.status === 'Lost')
   const active = allProposals.filter(p => ['Sent', 'Followed Up', 'Negotiating'].includes(p.status))
 
-  // Client-level win rate: denominator = only decided groups (Won/Lost/MIA), not active pipeline
+  // Client-level win rate: all client groups count (sent/draft = not won yet = counts against rate)
   const outcomes      = clientOutcomes(proposals)
   const wonClients    = outcomes.filter(o => o.isWon)
-  const decidedGroups = outcomes.filter(o => o.all.some(p => ['Won', 'Lost', 'MIA'].includes(p.status)))
-  const closedNotWon  = decidedGroups.filter(o => !o.isWon)
-  const winRate = decidedGroups.length > 0
-    ? Math.round((wonClients.length / decidedGroups.length) * 100)
+  const notWonClients = outcomes.filter(o => !o.isWon)
+  const winRate = outcomes.length > 0
+    ? Math.round((wonClients.length / outcomes.length) * 100)
     : null
   const uniqueClients = outcomes.length
 
@@ -775,7 +774,7 @@ function AnalyticsView({ proposals: allProposals }) {
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-1">Win Rate</p>
           <p className="text-3xl font-bold text-gray-900">{winRate !== null ? `${winRate}%` : '—'}</p>
-          <p className="text-xs text-gray-400 mt-0.5">{wonClients.length}W · {closedNotWon.length} not won · {decidedGroups.length} decided · {uniqueClients} total clients</p>
+          <p className="text-xs text-gray-400 mt-0.5">{wonClients.length}W / {notWonClients.length} not won · {uniqueClients} clients</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-1">Avg Deal (Won)</p>
