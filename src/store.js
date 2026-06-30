@@ -788,7 +788,7 @@ export const useStore = create(
     {
       name: 'quotex-store',
       storage: createJSONStorage(() => smartStorage),
-      version: 5,
+      version: 6,
       migrate: (persisted) => {
         const persistedCatalog = persisted?.catalog
         // Preserve user catalog if it exists; fall back to seed only on fresh install
@@ -797,34 +797,71 @@ export const useStore = create(
           : SEED_CATALOG
         const maxId = catalog.reduce((m, i) => Math.max(m, i.id || 0), 0)
 
-        // Restore Gina Reid proposal if it went missing
+        // Restore missing proposals
         const existingProposals = persisted?.proposals || []
+
         const ginaExists = existingProposals.some(p =>
           p.client === 'Gina Reid' && (p.address || '').includes('8409 Newton')
         )
-        const proposals = ginaExists ? existingProposals : [
-          ...existingProposals,
-          {
-            id: 'p-restored-gina-reid',
-            client: 'Gina Reid',
-            email: 'ginawarr@gmail.com',
-            phone: '614-270-5143',
-            address: '8409 Newton Ln, Ballantyne, NC 28277, USA',
-            total: 20244,
-            lines: [
-              { id: 'gl1', name: 'Debris Haul-off', qty: 1, unitPrice: 1000, description: 'Load and haul off all job site debris and excess materials.', section: 'General' },
-              { id: 'gl2', name: 'TechoBloc Blu-60 Grande and Valet Paver Patio', qty: 1, unitPrice: 15444, description: 'Design and build new paver patio with TechoBloc Blu-60 Grande smooth slab pavers 24x32 inches and 6x6 inch valet pieces in basket woven pattern, including 4 inches ABC base, 1 inch screening, polymeric sand grout, 6mm weed prevention tarp, and all materials and labor.', section: 'General' },
-              { id: 'gl3', name: 'Pressure Treated Decking Privacy Fence', qty: 1, unitPrice: 3800, description: "Supply and install pressure-treated wood decking privacy fence 16' wide all materials and labor included.", section: 'General' },
-            ],
-            status: 'Sent',
-            createdAt: '2026-06-05T12:00:00.000Z',
-            sentAt: '2026-06-05T12:00:00.000Z',
-            expiration: '2026-07-04',
-            projectTypes: ['Hardscapes'],
-            projectSummary: 'Open Patio and Privacy Fence',
-            isAlaCarte: false,
-          },
-        ]
+        const amberExists = existingProposals.some(p =>
+          p.client === 'Amber Rivera' && (p.address || '').includes('4110 Woolcott')
+        )
+
+        const restoredProposals = [...existingProposals]
+        if (!ginaExists) restoredProposals.push({
+          id: 'p-restored-gina-reid',
+          client: 'Gina Reid',
+          email: 'ginawarr@gmail.com',
+          phone: '614-270-5143',
+          address: '8409 Newton Ln, Ballantyne, NC 28277, USA',
+          total: 20244,
+          lines: [
+            { id: 'gl1', name: 'Debris Haul-off', qty: 1, unitPrice: 1000, description: 'Load and haul off all job site debris and excess materials.', section: 'General' },
+            { id: 'gl2', name: 'TechoBloc Blu-60 Grande and Valet Paver Patio', qty: 1, unitPrice: 15444, description: 'Design and build new paver patio with TechoBloc Blu-60 Grande smooth slab pavers 24x32 inches and 6x6 inch valet pieces in basket woven pattern, including 4 inches ABC base, 1 inch screening, polymeric sand grout, 6mm weed prevention tarp, and all materials and labor.', section: 'General' },
+            { id: 'gl3', name: 'Pressure Treated Decking Privacy Fence', qty: 1, unitPrice: 3800, description: "Supply and install pressure-treated wood decking privacy fence 16' wide all materials and labor included.", section: 'General' },
+          ],
+          status: 'Sent',
+          createdAt: '2026-06-05T12:00:00.000Z',
+          sentAt: '2026-06-05T12:00:00.000Z',
+          expiration: '2026-07-04',
+          projectTypes: ['Hardscapes'],
+          projectSummary: 'Open Patio and Privacy Fence',
+          isAlaCarte: false,
+        })
+        if (!amberExists) restoredProposals.push({
+          id: 'p-restored-amber-rivera',
+          client: 'Amber Rivera',
+          email: 'anhyde85@yahoo.com',
+          phone: '317-966-6372',
+          address: '4110 Woolcott Avenue Charlotte NC',
+          total: 0,
+          lines: [
+            { id: 'ar1',  name: 'Gable Roof Engineering Letter',                          qty: 1, unitPrice: 900,   description: 'Gable Roof Engineers Report for headers and LVL Ridge Beam. Note: Additional Engineering Costs May Inquire Additional Fees.', section: 'General' },
+            { id: 'ar2',  name: "12'x24' Gable Roof Open Porch",                          qty: 1, unitPrice: 32000, description: "Erect Base structure per plan: Concrete block footings. Purchase and install 6'X6' PT-Wood columns, 2\"x6\" plates, LVL engineered beam for long spans, Wrap Columns and Headers. Purchase and install 2\"x10\" rafters, 1/2\" OSB sheathing and 15# felt. Install ply bead ceiling with 1\"x4\" Trim covering seams. Design Open Gable With Wagon Wheel Trim on Gable. Install shingles, regular gutters and soffit all matching the existing house.", section: 'General' },
+            { id: 'ar3',  name: "12'x24' Cathedral Roof Open Porch",                      qty: 1, unitPrice: 31000, description: "Erect Base structure per plan: Concrete block footings. Purchase and install 6'X6' PT-Wood columns, 2\"x6\" plates, Ridge beam with collar ties. Wrap Columns and Headers. Purchase and install 2\"x10\" rafters, 1/2\" OSB sheathing and 15# felt. Install ply bead ceiling with 1\"x4\" Trim covering seams. Design Open Gable With Wagon Wheel Trim on Gable. Install shingles, regular gutters and soffit all matching the existing house.", section: 'General' },
+            { id: 'ar4',  name: "12'x24' Shed Roof Open Porch",                           qty: 1, unitPrice: 30000, description: "Erect Base structure per plan: Concrete block footings. Purchase and install 6'X6' PT-Wood columns, 2\"x6\" plates, LVL engineered beam for long spans. Wrap Columns and Headers. Purchase and install 2\"x10\" rafters, 1/2\" OSB sheathing and 15# felt. Install ply bead ceiling with 1\"x4\" Trim covering seams. Design Open Gable With Wagon Wheel Trim on Gable. Install shingles, regular gutters and soffit all matching the existing house.", section: 'General' },
+            { id: 'ar5',  name: 'Shiplap and Vinyl Siding TV-Wall (TV Install Included)', qty: 1, unitPrice: 3150,  description: 'Interior Finish: Shiplap. Exterior Finish: Matching Vinyl Siding. Install 1 (one) 120v Outlet. Install Homeowner provided TV mount and TV.', section: 'General' },
+            { id: 'ar6',  name: 'Standard Electrical Package',                             qty: 1, unitPrice: 3810,  description: 'Supply and install electrical wiring package including two ceiling fans and six 6" recessed can lights, one flood light, and one 120v outlet with all associated materials and labor.', section: 'General' },
+            { id: 'ar7',  name: '6000W Innova Heater Electrical Heater Material and Labor',qty: 1, unitPrice: 3500,  description: 'Supply and Install 220V, 6000w Innova electrical heater.', section: 'General' },
+            { id: 'ar8',  name: 'Eze Breeze Windows',                                     qty: 1, unitPrice: 7650,  description: 'Purchase and install 6"x6" Cox laminated columns, 2"x6" vertical 4-track Eze-Breeze single unit windows with frame and vinyl colors, Larson storm doors as needed, and 1/4" tempered glass on gables — all materials and labor included. 54" Max Opening, 105" Max Height.', section: 'General' },
+            { id: 'ar9',  name: '6/12 Electrical Compliance- Eze Breeze Outlets',         qty: 1, unitPrice: 2640,  description: 'Install 120v outlet with box, cover plate, and all labor to adhere to Eze-Breeze electrical code compliance.', section: 'General' },
+            { id: 'ar10', name: 'LVP Floor as Porch Floor',                               qty: 1, unitPrice: 3744,  description: 'Provide and install 3/4" plywood subfloor and underlayment, then install LVP flooring as porch floor with color selection — all materials and labor included.', section: 'General' },
+            { id: 'ar11', name: 'Shiplap Finished Back-wall',                             qty: 1, unitPrice: 4000,  description: 'Demo and Haul Exterior Siding left inside enclosure. Provide and Install Shiplap Finished Porch Back Wall. Provide and Paint Shiplap.', section: 'General' },
+            { id: 'ar12', name: 'TechoBloc Blu-60 Paver Patio',                          qty: 1, unitPrice: 6150,  description: 'Design and Build New Paver Patio. Provide and install 4" ABC, 1" screening, polymeric sand grout, 6mm tarp for weed prevention. Material: Techo-Bloc Blu 60 smooth or slate slab. Standard 3 piece pattern.', section: 'General' },
+            { id: 'ar13', name: 'Keystone Plaza Stone Paver Patio',                       qty: 1, unitPrice: 5740,  description: 'Design and Build New Paver Patio. Provide and install 4" ABC, 1" screening, polymeric sand grout, 6mm tarp for weed prevention. Material: Keystone Plaza Stone Paver. Standard 3 piece pattern.', section: 'General' },
+            { id: 'ar14', name: 'Concrete Paver Patio',                                   qty: 1, unitPrice: 3075,  description: 'Excavate, prepare subgrade, and install brushed concrete extension with all materials and labor included.', section: 'General' },
+            { id: 'ar15', name: 'Fullview 36" Exterior Door Installation',                qty: 1, unitPrice: 6000,  description: '6\' Reliabilt French Full-view Exterior Door and Installation. Purchase and Install 6\' Sliding Glass Door. Remove existing window/door and house siding. Relocate inside outlets or switches if necessary. Build new door frame. Repair siding on House Exterior if necessary. Install french door with associated hardware. Fix House Interior Drywall — Paint NOT included. Install Door trims.', section: 'General' },
+          ],
+          status: 'Sent',
+          createdAt: '2026-06-23T12:00:00.000Z',
+          sentAt: '2026-06-23T12:00:00.000Z',
+          expiration: '2026-07-22',
+          projectTypes: ['Open Porches'],
+          projectSummary: 'Open Porch Options',
+          isAlaCarte: true,
+        })
+
+        const proposals = restoredProposals
 
         return {
           catalog,
