@@ -801,10 +801,11 @@ export const useStore = create(
         const existingProposals = persisted?.proposals || []
 
         const ginaExists = existingProposals.some(p =>
-          p.client === 'Gina Reid' && (p.address || '').includes('8409 Newton')
+          p.id === 'p-restored-gina-reid' ||
+          (p.client === 'Gina Reid' && (p.address || '').includes('8409 Newton'))
         )
         const amberExists = existingProposals.some(p =>
-          p.client === 'Amber Rivera' && (p.address || '').includes('4110 Woolcott')
+          p.id === 'p-restored-amber-rivera'
         )
 
         const restoredProposals = [...existingProposals]
@@ -897,10 +898,11 @@ export const useStore = create(
         // Always ensure restored proposals are present — runs on every load
         const stored = persistedState?.proposals || []
         const ginaExists = stored.some(p =>
-          p.client === 'Gina Reid' && (p.address || '').includes('8409 Newton')
+          p.id === 'p-restored-gina-reid' ||
+          (p.client === 'Gina Reid' && (p.address || '').includes('8409 Newton'))
         )
         const amberExists = stored.some(p =>
-          p.client === 'Amber Rivera' && (p.address || '').includes('4110 Woolcott')
+          p.id === 'p-restored-amber-rivera'
         )
         const proposals = [...stored]
         if (!ginaExists) proposals.push({
