@@ -52,38 +52,50 @@ async function callOllama(model, messages, system, maxTokens = 4096) {
   return data.choices[0].message.content
 }
 
-// ── getModel — Ollama (Chat + Catalog) ────────────────────────────────────────
+// ── getModel — Claude (Chat + Catalog + Scope) ───────────────────────────────
 export function getModel(systemInstruction) {
   return {
     startChat({ history = [] }) {
+      const toAnthropic = msgs => msgs.map(m => ({
+        role: m.role === 'user' ? 'user' : 'assistant',
+        content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+      }))
       return {
         async sendMessage(text) {
           const messages = [...history, { role: 'user', content: text }]
-          const content  = await callOllama(TEXT_MODEL, messages, systemInstruction)
-          return { response: { text: () => content } }
+          const res = await anthropic.messages.create({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 4096,
+            system: systemInstruction,
+            messages: toAnthropic(messages),
+          })
+          return { response: { text: () => res.content[0].text } }
         },
       }
     },
     async generateContent(prompt) {
+      let content
       if (Array.isArray(prompt)) {
         const imgPart = prompt.find(p => p?.inlineData)
         const txtPart = prompt.find(p => typeof p === 'string') || 'Extract all line items.'
         if (imgPart) {
-          const content = await callOllama(
-            VISION_MODEL,
-            [{ role: 'user', content: [
-              { type: 'image_url', image_url: { url: `data:${imgPart.inlineData.mimeType};base64,${imgPart.inlineData.data}` } },
-              { type: 'text', text: txtPart },
-            ]}],
-            systemInstruction, 8192,
-          )
-          return { response: { text: () => content } }
+          content = [
+            { type: 'image', source: { type: 'base64', media_type: imgPart.inlineData.mimeType, data: imgPart.inlineData.data } },
+            { type: 'text', text: txtPart },
+          ]
+        } else {
+          content = txtPart
         }
-        const content = await callOllama(TEXT_MODEL, [{ role: 'user', content: txtPart }], systemInstruction, 8192)
-        return { response: { text: () => content } }
+      } else {
+        content = prompt
       }
-      const content = await callOllama(TEXT_MODEL, [{ role: 'user', content: prompt }], systemInstruction, 8192)
-      return { response: { text: () => content } }
+      const res = await anthropic.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 8192,
+        system: systemInstruction,
+        messages: [{ role: 'user', content }],
+      })
+      return { response: { text: () => res.content[0].text } }
     },
   }
 }
