@@ -253,14 +253,14 @@ export default function AiChat() {
       )
 
       // Build chat history (all but the last user message)
-      const geminiHistory = history.slice(0, -1).map(m => ({
-        role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.content }],
+      const chatHistory = history.slice(0, -1).map(m => ({
+        role: m.role,
+        content: m.content,
       }))
 
       const lastText = `CURRENT CATALOG (${catalogSummary.length} items):\n${JSON.stringify(catalogSummary, null, 2)}\n\nUSER REQUEST: ${history[history.length - 1].content}`
 
-      const chat = model.startChat({ history: geminiHistory })
+      const chat = model.startChat({ history: chatHistory })
       const result = await chat.sendMessage(lastText)
       const text = result.response.text()
 
