@@ -382,7 +382,8 @@ export default function SignPage() {
   const companyName  = branding?.companyName || 'Ebony Outdoor Living'
   const isSmallContract = d?.isSmallContract ?? (total < 40000)
 
-  const requiredFields = getRequiredFields(role, isSmallContract, includesElectrical, scopeLines)
+  const visibleScopeLines = scopeLines.filter(l => (l.name || '').trim() || l.price > 0)
+  const requiredFields = getRequiredFields(role, isSmallContract, includesElectrical, visibleScopeLines)
   const signedCount = requiredFields.filter(f => appliedFields.has(f)).length
   const isComplete  = requiredFields.length === 0 || signedCount === requiredFields.length
   const progress    = requiredFields.length > 0 ? Math.round((signedCount / requiredFields.length) * 100) : 100
