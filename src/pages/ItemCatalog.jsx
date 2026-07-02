@@ -122,6 +122,7 @@ function ConfidenceBadge({ value }) {
 // ── Move-to dropdown ───────────────────────────────────────────────────────
 function MoveTo({ item, onMove }) {
   const [open, setOpen] = useState(false)
+  const CATEGORIES = useStore(s => s.catalogCategories)
   return (
     <div className="relative">
       <button
@@ -155,6 +156,7 @@ function MoveTo({ item, onMove }) {
 // ── Inline edit row ────────────────────────────────────────────────────────
 function EditRow({ item, onSave, onCancel }) {
   const [form, setForm] = useState({ ...item })
+  const CATEGORIES = useStore(s => s.catalogCategories)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   return (
     <>
@@ -330,6 +332,7 @@ function TableView({ filtered, editId, setEditId, onSave, onDelete, onMove, addi
 // ── Sections view ──────────────────────────────────────────────────────────
 function SectionsView({ catalog, onMove, onDelete, onSave }) {
   const [collapsed, setCollapsed] = useState({})
+  const CATEGORIES = useStore(s => s.catalogCategories)
   const [editId, setEditId] = useState(null)
   const [dragOver, setDragOver] = useState(null)
   const dragItem = useRef(null)
