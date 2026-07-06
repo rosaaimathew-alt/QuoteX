@@ -357,6 +357,7 @@ export default function SignPage() {
   const salesperson  = d?.salesperson || 'Mathew Rosa'
   const projectTypes = d?.projectTypes || []
   const city         = d?.city || ''
+  const state        = d?.state || 'North Carolina'
   const lotNumber    = d?.lotNumber || ''
   const permitNumber = d?.permitNumber || ''
   const hoa          = d?.hoa
@@ -574,7 +575,7 @@ export default function SignPage() {
             <div className="border-b-2 border-gray-900 mb-5" />
 
             <p className="mb-4 text-justify">
-              THIS CONTRACT made effective on the <strong>{ordinal(now.getDate())}</strong> day of <strong>{now.toLocaleDateString('en-US',{month:'long'})}, {now.getFullYear()}</strong> In City of <strong>{city||'___________'}</strong> and the State of <strong>North Carolina</strong> by and Between <strong>{client}</strong> (PURCHASER), At <strong>{address}</strong> and <strong>Ebony Outdoor Living</strong> (BUILDER), for work to be performed at <strong>{address}</strong> (the PREMISES) in accordance with the written terms and specifications of this CONTRACT (the WORK). THE WORK shall include the following:
+              THIS CONTRACT made effective on the <strong>{ordinal(now.getDate())}</strong> day of <strong>{now.toLocaleDateString('en-US',{month:'long'})}, {now.getFullYear()}</strong> In City of <strong>{city||'___________'}</strong> and the State of <strong>{state}</strong> by and Between <strong>{client}</strong> (PURCHASER), At <strong>{address}</strong> and <strong>Ebony Outdoor Living</strong> (BUILDER), for work to be performed at <strong>{address}</strong> (the PREMISES) in accordance with the written terms and specifications of this CONTRACT (the WORK). THE WORK shall include the following:
             </p>
 
             <p className="mb-1 flex flex-wrap gap-x-4 gap-y-1">

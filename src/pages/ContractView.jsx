@@ -250,6 +250,7 @@ export default function ContractView() {
   const [ceilingFanNote,  setCeilingFanNote]  = useState('Homeowner to provide 1 ceiling fan with downrod')
   const [contractNum,     setContractNum]     = useState('')
   const [city,            setCity]            = useState('')
+  const [state,           setState]           = useState('North Carolina')
   const [showItemPicker,       setShowItemPicker]       = useState(false)
   const [pickerSelection,      setPickerSelection]      = useState(new Set())
   const [milestoneLabels,        setMilestoneLabels]        = useState([])
@@ -290,6 +291,7 @@ export default function ContractView() {
       // Restore all saved state from draft
       setContractNum(draft.contractNum ?? d.contractNumber ?? '')
       setCity(draft.city ?? '')
+      setState(draft.state ?? 'North Carolina')
       setLotNumber(draft.lotNumber ?? '')
       setPermitNumber(draft.permitNumber ?? '')
       setHoa(draft.hoa ?? null)
@@ -448,6 +450,7 @@ export default function ContractView() {
         projectTypes,
         // Processing form
         city,
+        state,
         lotNumber,
         permitNumber,
         hoa,
@@ -502,7 +505,7 @@ export default function ContractView() {
         setSigningLinks(result.links)
         if (data?.proposalId && result.recordId) {
           saveContractDraft(data.proposalId, {
-            contractNum, city, lotNumber, permitNumber, hoa, permitReq,
+            contractNum, city, state, lotNumber, permitNumber, hoa, permitReq,
             specialInstructions, directions, lumberDrop, power, gateCode,
             paymentMethods, otherTerms, includesElectrical, recessedSize,
             homePhone, cellPhone, elecItems, projectSummary, scopeLines,
@@ -530,7 +533,7 @@ export default function ContractView() {
       // list page can fetch and display signatures once parties have signed.
       if (data?.proposalId && result.recordId) {
         saveContractDraft(data.proposalId, {
-          contractNum, city, lotNumber, permitNumber, hoa, permitReq,
+          contractNum, city, state, lotNumber, permitNumber, hoa, permitReq,
           specialInstructions, directions, lumberDrop, power, gateCode,
           paymentMethods, otherTerms, includesElectrical, recessedSize,
           homePhone, cellPhone, elecItems, projectSummary, scopeLines,
@@ -772,6 +775,15 @@ export default function ContractView() {
             />
           </div>
           <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-500 font-medium shrink-0">State</label>
+            <input
+              className="border border-gray-300 rounded px-2 py-1 text-sm w-40 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              value={state}
+              onChange={e => setState(e.target.value)}
+              placeholder="e.g. North Carolina"
+            />
+          </div>
+          <div className="flex items-center gap-2">
             <label className="text-xs text-gray-500 font-medium shrink-0">Contract #</label>
             <input
               className="border border-gray-300 rounded px-2 py-1 text-sm font-mono w-36 focus:outline-none focus:ring-2 focus:ring-blue-300"
@@ -785,7 +797,7 @@ export default function ContractView() {
           onClick={() => {
             if (!data?.proposalId) return
             saveContractDraft(data.proposalId, {
-              contractNum, city, lotNumber, permitNumber, hoa, permitReq,
+              contractNum, city, state, lotNumber, permitNumber, hoa, permitReq,
               specialInstructions, directions, lumberDrop, power, gateCode,
               paymentMethods, otherTerms, includesElectrical, recessedSize,
               homePhone, cellPhone, elecItems, projectSummary, scopeLines,
@@ -1268,7 +1280,7 @@ export default function ContractView() {
             <div className="border-b-2 border-gray-900 mb-5" />
 
             <p className="mb-4 text-justify">
-              THIS CONTRACT made effective on the <strong>{ordinal(now.getDate())}</strong> day of <strong>{now.toLocaleDateString('en-US',{month:'long'})}, {now.getFullYear()}</strong> In City of <strong>{city || '___________'}</strong> and the State of <strong>North Carolina</strong> by and Between <strong>{client}</strong> (PURCHASER), At <strong>{address}</strong> and <strong>Ebony Outdoor Living</strong> (BUILDER), for work to be performed at <strong>{address}</strong> (the PREMISES) in accordance with the written terms and specifications of this CONTRACT (the WORK). THE WORK shall include the following:
+              THIS CONTRACT made effective on the <strong>{ordinal(now.getDate())}</strong> day of <strong>{now.toLocaleDateString('en-US',{month:'long'})}, {now.getFullYear()}</strong> In City of <strong>{city || '___________'}</strong> and the State of <strong>{state || 'North Carolina'}</strong> by and Between <strong>{client}</strong> (PURCHASER), At <strong>{address}</strong> and <strong>Ebony Outdoor Living</strong> (BUILDER), for work to be performed at <strong>{address}</strong> (the PREMISES) in accordance with the written terms and specifications of this CONTRACT (the WORK). THE WORK shall include the following:
             </p>
 
             <p className="mb-1 flex flex-wrap gap-x-4 gap-y-1">

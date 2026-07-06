@@ -148,6 +148,7 @@ export default function ContractViewFull() {
   const salesperson  = d?.salesperson || 'Mathew Rosa'
   const projectTypes = d?.projectTypes || []
   const city         = d?.city || ''
+  const state        = d?.state || 'North Carolina'
   const lotNumber    = d?.lotNumber || ''
   const permitNumber = d?.permitNumber || ''
   const hoa          = d?.hoa
@@ -219,7 +220,7 @@ export default function ContractViewFull() {
             </div>
             <div className="border-b-2 border-gray-900 mb-5" />
 
-            <p className="mb-4 text-justify">THIS CONTRACT made effective on the <strong>{ordinal(createdDate.getDate())}</strong> day of <strong>{createdDate.toLocaleDateString('en-US',{month:'long'})}, {createdDate.getFullYear()}</strong> In City of <strong>{city||'___________'}</strong> and the State of <strong>North Carolina</strong> by and Between <strong>{client}</strong> (PURCHASER), At <strong>{address}</strong> and <strong>Ebony Outdoor Living</strong> (BUILDER), for work to be performed at <strong>{address}</strong> (the PREMISES).</p>
+            <p className="mb-4 text-justify">THIS CONTRACT made effective on the <strong>{ordinal(createdDate.getDate())}</strong> day of <strong>{createdDate.toLocaleDateString('en-US',{month:'long'})}, {createdDate.getFullYear()}</strong> In City of <strong>{city||'___________'}</strong> and the State of <strong>{state}</strong> by and Between <strong>{client}</strong> (PURCHASER), At <strong>{address}</strong> and <strong>Ebony Outdoor Living</strong> (BUILDER), for work to be performed at <strong>{address}</strong> (the PREMISES).</p>
 
             <p className="mb-1 flex flex-wrap gap-x-4 gap-y-1">{PROJECT_TYPES.map(t => <span key={t}><CB checked={projectTypes.includes(t)} />{t}</span>)}</p>
             <p className="mb-1">( &nbsp; ) Other _______________________________________________________________________________</p>
