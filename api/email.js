@@ -12,11 +12,17 @@ import { dirname, resolve } from 'path'
 import dotenv from 'dotenv'
 import { saveMessage } from './_store.js'
 import { sendMail, isMailerConfigured } from './_mailer.js'
+import { requireAuth } from './_auth.js'
 
 dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../.env') })
 
 const fmt = (n) =>
   Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+// Escape user-supplied text before interpolating into email HTML
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => (
+  { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+))
 
 // ── Proposal email HTML ───────────────────────────────────────────────────────
 function buildProposalHtml({ client, email, address, expiration, lines, companyName, fromName }) {
@@ -29,7 +35,7 @@ function buildProposalHtml({ client, email, address, expiration, lines, companyN
   const sender   = fromName   || company
   const lineRows = (lines || []).map((l, i) => `
     <tr style="background:${i % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-      <td style="padding:10px 16px;font-size:13px;color:#1e293b;font-weight:500;border-bottom:1px solid #f1f5f9;">${l.name || '—'}</td>
+      <td style="padding:10px 16px;font-size:13px;color:#1e293b;font-weight:500;border-bottom:1px solid #f1f5f9;">${esc(l.name) || '—'}</td>
       <td style="padding:10px 16px;font-size:13px;font-weight:600;color:#1e293b;text-align:right;border-bottom:1px solid #f1f5f9;">$${fmt((l.qty || 1) * (l.unitPrice || 0))}</td>
     </tr>`).join('')
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -218,6 +224,7 @@ function buildCloseoutHtml({ client, contractNum, address, projectType, completi
 // ── Main handler ──────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  if (!requireAuth(req, res)) return
   if (!isMailerConfigured()) {
     return res.status(500).json({ error: 'Gmail SMTP not configured. Add GMAIL_USER and GMAIL_APP_PASSWORD to Vercel environment variables.' })
   }
@@ -267,8 +274,8 @@ export default async function handler(req, res) {
           We have a change order for your project that requires your signature. Please review the details below and sign at your earliest convenience.
         </p>
         <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:24px;">
-          <tr><td style="padding:4px 0;font-size:12px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Change Order #</td><td style="padding:4px 0;font-size:13px;color:#1e293b;font-weight:600;text-align:right;">${coNumber}</td></tr>
-          <tr><td style="padding:4px 0;font-size:12px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Description</td><td style="padding:4px 0;font-size:13px;color:#1e293b;text-align:right;">${description}</td></tr>
+          <tr><td style="padding:4px 0;font-size:12px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Change Order #</td><td style="padding:4px 0;font-size:13px;color:#1e293b;font-weight:600;text-align:right;">${esc(coNumber)}</td></tr>
+          <tr><td style="padding:4px 0;font-size:12px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Description</td><td style="padding:4px 0;font-size:13px;color:#1e293b;text-align:right;">${esc(description)}</td></tr>
           <tr><td style="padding:4px 0;font-size:12px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;border-top:1px solid #e2e8f0;padding-top:12px;">Amount</td><td style="padding:4px 0;font-size:16px;color:#1e293b;font-weight:700;text-align:right;border-top:1px solid #e2e8f0;padding-top:12px;">$${fmt(amount)}</td></tr>
         </table>
         <div style="text-align:center;margin:28px 0;">

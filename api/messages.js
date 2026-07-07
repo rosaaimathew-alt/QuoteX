@@ -1,6 +1,9 @@
 import { getMessages, saveMessage, deleteMessage } from './_store.js'
+import { requireAuth } from './_auth.js'
 
 export default async function handler(req, res) {
+  if (!requireAuth(req, res)) return
+
   if (req.method === 'GET') {
     try {
       const messages = await getMessages(200)

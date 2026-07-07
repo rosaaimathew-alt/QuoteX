@@ -25,8 +25,6 @@ export function logout() {
 }
 
 export default function AuthGuard({ children }) {
-  // Skip auth in local dev (Vite dev server on port 5173)
-  if (window.location.port === '5173') return children
   const token = getToken()
   if (!isTokenValid(token)) return <Navigate to="/login" replace />
   return children

@@ -1,5 +1,6 @@
 import crypto from 'crypto'
 import { uploadToDrive } from '../_google-drive.js'
+import { verifyToken } from '../_auth.js'
 
 export const config = { api: { bodyParser: { sizeLimit: '10mb' } } }
 
@@ -9,6 +10,15 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   const token = req.query.token
   if (!token) return res.status(400).json({ error: 'Missing token' })
+
+  // Admin actions (create links / recover links / look up by contract number)
+  // require a signed-in operator. Client signing via role tokens stays public.
+  const isAdminAction = token === 'create' || token.startsWith('recover-') || token.startsWith('lookup-')
+  if (isAdminAction) {
+    const header = req.headers.authorization || ''
+    const bearer = header.startsWith('Bearer ') ? header.slice(7) : (req.headers['x-qx-token'] || null)
+    if (!verifyToken(bearer)) return res.status(401).json({ error: 'Unauthorized' })
+  }
 
   // Health check
   if (token === 'ping') {

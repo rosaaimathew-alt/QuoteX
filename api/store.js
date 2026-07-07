@@ -1,3 +1,5 @@
+import { requireAuth } from './_auth.js'
+
 const KV_KEY = 'quotex:store'
 
 async function getKV() {
@@ -6,8 +8,8 @@ async function getKV() {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Content-Type', 'application/json')
+  if (!requireAuth(req, res)) return
 
   if (req.method === 'GET') {
     try {

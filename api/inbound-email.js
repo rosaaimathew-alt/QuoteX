@@ -17,13 +17,14 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  // Optional: verify webhook secret
+  // Require a webhook secret — reject if unset so the endpoint is never open
   const secret = process.env.INBOUND_WEBHOOK_SECRET
-  if (secret) {
-    const provided = req.headers['x-webhook-secret'] || req.headers['authorization']?.replace('Bearer ', '')
-    if (provided !== secret) {
-      return res.status(401).json({ error: 'Unauthorized' })
-    }
+  if (!secret) {
+    return res.status(503).json({ error: 'Inbound email not configured' })
+  }
+  const provided = req.headers['x-webhook-secret'] || req.headers['authorization']?.replace('Bearer ', '')
+  if (provided !== secret) {
+    return res.status(401).json({ error: 'Unauthorized' })
   }
 
   try {

@@ -1,4 +1,5 @@
 import crypto from 'crypto'
+import { verifyToken } from '../_auth.js'
 
 export const config = { api: { bodyParser: { sizeLimit: '4mb' } } }
 
@@ -6,6 +7,15 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   const token = req.query.token
   if (!token) return res.status(400).json({ error: 'Missing token' })
+
+  // Admin actions (create links / look up full record incl. tokens) require a
+  // signed-in operator. Client signing via role tokens stays public.
+  const isAdminAction = token === 'create' || token.startsWith('record-')
+  if (isAdminAction) {
+    const header = req.headers.authorization || ''
+    const bearer = header.startsWith('Bearer ') ? header.slice(7) : (req.headers['x-qx-token'] || null)
+    if (!verifyToken(bearer)) return res.status(401).json({ error: 'Unauthorized' })
+  }
 
   try {
     const { kv } = await import('@vercel/kv')
@@ -49,7 +59,8 @@ export default async function handler(req, res) {
       const recordId = token.slice('record-'.length)
       const rec = await kv.get(`co:${recordId}`)
       if (!rec) return res.status(404).json({ error: 'Change order record not found or expired' })
-      return res.json({ recordId, ...rec })
+      const { tokens, ...safe } = rec
+      return res.json({ recordId, ...safe })
     }
 
     // ── ROLE TOKEN ────────────────────────────────────────────────────────

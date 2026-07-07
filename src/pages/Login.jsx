@@ -21,7 +21,8 @@ export default function Login() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Login failed')
       localStorage.setItem('qx_token', data.token)
-      navigate('/')
+      // Full reload so the data store re-initializes with the token attached.
+      window.location.href = '/'
     } catch (err) {
       setError(err.message)
     } finally {

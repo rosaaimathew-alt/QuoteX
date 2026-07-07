@@ -1,131 +1,70 @@
-// AI adapter — hybrid approach:
-//   Analyze estimates → Anthropic Claude (requires accuracy & document understanding)
-//   AI Chat + Catalog suggestions → Ollama local (free, good enough for Q&A)
-//
-// Ollama setup: ollama pull mistral && ollama pull llava
+// AI adapter — all calls go through the server proxy at /api/ai-chat so the
+// Anthropic API key lives only on the server and is never shipped to the
+// browser. The provider (Claude) is unchanged from the client's perspective.
 
-import Anthropic from '@anthropic-ai/sdk'
-
-// ── Anthropic client (used only for Analyze) ──────────────────────────────────
-const _k = [
-  'sk-ant-api03-7RhjczajSbAI6qFZEcSRHuCWQla5bHS',
-  'qnuMrBWdYpGlBcz04I3FsCQlgZsKYRRA2TR8Zeq_Cfen7U51eXfQo1g-t4Ef_AAA',
-].join('')
-
-const anthropic = new Anthropic({
-  apiKey: import.meta.env.VITE_ANTHROPIC_API_KEY || _k,
-  dangerouslyAllowBrowser: true,
-})
-
-// ── Ollama helpers (used for Chat + Catalog) ──────────────────────────────────
-const TEXT_MODEL   = 'mistral'
-const VISION_MODEL = 'llava'
-const API_BASE     = '/api/ai'
-
-async function callOllama(model, messages, system, maxTokens = 4096) {
-  let res
+async function callAI({ system, messages, maxTokens }) {
+  const res = await fetch('/api/ai-chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ system, messages, maxTokens }),
+  })
+  let data
   try {
-    res = await fetch(`${API_BASE}/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        messages: [
-          ...(system ? [{ role: 'system', content: system }] : []),
-          ...messages,
-        ],
-        max_tokens: maxTokens,
-        stream: false,
-      }),
-    })
+    data = await res.json()
   } catch {
-    throw new Error('AI is offline — open the Ollama app or run "ollama serve" in Terminal, then try again.')
+    throw new Error(`AI request failed (${res.status})`)
   }
-  if (res.status === 503) {
-    throw new Error('Ollama is not running. Open the Ollama app or run "ollama serve" in Terminal, then try again.')
-  }
-  if (!res.ok) {
-    const err = await res.text().catch(() => res.statusText)
-    throw new Error(`Ollama error (${res.status}): ${err}`)
-  }
-  const data = await res.json()
-  return data.choices[0].message.content
+  if (!res.ok) throw new Error(data.error || `AI request failed (${res.status})`)
+  return data.text || ''
 }
 
-// ── getModel — Claude (Chat + Catalog + Scope) ───────────────────────────────
+// Normalize a prompt (string | array-with-inlineData) into Anthropic content.
+function toContent(prompt, fallback) {
+  if (Array.isArray(prompt)) {
+    const imgPart = prompt.find(p => p?.inlineData)
+    const txtPart = prompt.find(p => typeof p === 'string') || fallback
+    if (imgPart) {
+      return [
+        { type: 'image', source: { type: 'base64', media_type: imgPart.inlineData.mimeType, data: imgPart.inlineData.data } },
+        { type: 'text', text: txtPart },
+      ]
+    }
+    return txtPart
+  }
+  return prompt
+}
+
+// ── getModel — Chat + Catalog + Scope ─────────────────────────────────────────
 export function getModel(systemInstruction) {
   return {
     startChat({ history = [] }) {
-      const toAnthropic = msgs => msgs.map(m => ({
+      const normalized = history.map(m => ({
         role: m.role === 'user' ? 'user' : 'assistant',
         content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
       }))
       return {
         async sendMessage(text) {
-          const messages = [...history, { role: 'user', content: text }]
-          const res = await anthropic.messages.create({
-            model: 'claude-haiku-4-5-20251001',
-            max_tokens: 4096,
-            system: systemInstruction,
-            messages: toAnthropic(messages),
-          })
-          return { response: { text: () => res.content[0].text } }
+          const messages = [...normalized, { role: 'user', content: text }]
+          const out = await callAI({ system: systemInstruction, messages, maxTokens: 4096 })
+          return { response: { text: () => out } }
         },
       }
     },
     async generateContent(prompt) {
-      let content
-      if (Array.isArray(prompt)) {
-        const imgPart = prompt.find(p => p?.inlineData)
-        const txtPart = prompt.find(p => typeof p === 'string') || 'Extract all line items.'
-        if (imgPart) {
-          content = [
-            { type: 'image', source: { type: 'base64', media_type: imgPart.inlineData.mimeType, data: imgPart.inlineData.data } },
-            { type: 'text', text: txtPart },
-          ]
-        } else {
-          content = txtPart
-        }
-      } else {
-        content = prompt
-      }
-      const res = await anthropic.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 8192,
-        system: systemInstruction,
-        messages: [{ role: 'user', content }],
-      })
-      return { response: { text: () => res.content[0].text } }
+      const content = toContent(prompt, 'Extract all line items.')
+      const out = await callAI({ system: systemInstruction, messages: [{ role: 'user', content }], maxTokens: 8192 })
+      return { response: { text: () => out } }
     },
   }
 }
 
-// ── getAnalyzeModel — Claude (Analyze page only) ──────────────────────────────
+// ── getAnalyzeModel — Analyze page ────────────────────────────────────────────
 export function getAnalyzeModel(systemInstruction) {
   return {
     async generateContent(prompt) {
-      let content
-      if (Array.isArray(prompt)) {
-        const imgPart = prompt.find(p => p?.inlineData)
-        const txtPart = prompt.find(p => typeof p === 'string')
-        if (imgPart) {
-          content = [
-            { type: 'image', source: { type: 'base64', media_type: imgPart.inlineData.mimeType, data: imgPart.inlineData.data } },
-            { type: 'text', text: txtPart || 'Extract all line items from this estimate.' },
-          ]
-        } else {
-          content = txtPart || ''
-        }
-      } else {
-        content = prompt
-      }
-      const res = await anthropic.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 8192,
-        system: systemInstruction,
-        messages: [{ role: 'user', content }],
-      })
-      return { response: { text: () => res.content[0].text } }
+      const content = toContent(prompt, 'Extract all line items from this estimate.')
+      const out = await callAI({ system: systemInstruction, messages: [{ role: 'user', content }], maxTokens: 8192 })
+      return { response: { text: () => out } }
     },
   }
 }

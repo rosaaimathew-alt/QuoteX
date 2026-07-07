@@ -360,6 +360,33 @@ class SignBoundary extends Component {
   }
 }
 
+// Recoverable boundary for the main app — shows a friendly message with a way
+// back instead of a blank white screen when a page component throws.
+class AppBoundary extends Component {
+  state = { err: null }
+  static getDerivedStateFromError(e) { return { err: e } }
+  handleReset = () => { this.setState({ err: null }); window.location.href = '/' }
+  render() {
+    if (this.state.err) return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', padding: '1.5rem' }}>
+        <div style={{ maxWidth: 440, textAlign: 'center', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 16, padding: '2rem', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>⚠️</div>
+          <h1 style={{ fontSize: 18, fontWeight: 700, color: '#0f172a', margin: '0 0 8px' }}>Something went wrong on this page</h1>
+          <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 20px', lineHeight: 1.6 }}>
+            Your data is safe. This screen hit an error, but nothing was lost — you can head back and keep working.
+          </p>
+          <button onClick={this.handleReset}
+            style={{ background: '#0f172a', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+            Back to Dashboard
+          </button>
+          <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 16, fontFamily: 'monospace', wordBreak: 'break-word' }}>{this.state.err.message}</p>
+        </div>
+      </div>
+    )
+    return this.props.children
+  }
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -368,7 +395,7 @@ export default function App() {
         <Route path="/sign/:token" element={<SignBoundary><SignPage /></SignBoundary>} />
         <Route path="/co/:token"   element={<SignBoundary><COSignPage /></SignBoundary>} />
         <Route path="/view/:recordId" element={<SignBoundary><ContractViewFull /></SignBoundary>} />
-        <Route path="*"            element={<AuthGuard><AppShell /></AuthGuard>} />
+        <Route path="*"            element={<AuthGuard><AppBoundary><AppShell /></AppBoundary></AuthGuard>} />
       </Routes>
     </BrowserRouter>
   )
