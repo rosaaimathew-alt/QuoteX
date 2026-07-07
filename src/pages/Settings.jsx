@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Upload, Trash2, CheckCircle, RefreshCw, Palette, Building2, Eye, Download, FolderOpen, AlertTriangle, CloudUpload, HardDrive, Wifi, WifiOff } from 'lucide-react'
+import { Upload, Trash2, CheckCircle, RefreshCw, Palette, Building2, Eye, Download, FolderOpen, AlertTriangle, CloudUpload, HardDrive, Wifi, WifiOff, Lock, Sparkles } from 'lucide-react'
 import { useStore } from '../store'
-import { extractDominantColor, generatePalette, applyBrandStyles, DEFAULT_BRAND_COLOR } from '../brand'
+import { extractDominantColor, generatePalette, applyBrandStyles, DEFAULT_BRAND_COLOR, FREE_PRIMARY_COLOR, FREE_SIDEBAR_COLOR, BRAND_PRESETS } from '../brand'
+import { canCustomizeBranding, PLAN_ORDER, PLAN_META } from '../plans'
 
 const PRESET_COLORS = [
   { label: 'Sky Blue',    hex: '#0369a1' },
@@ -18,18 +19,26 @@ const PRESET_COLORS = [
   { label: 'Navy',        hex: '#1e3a5f' },
 ]
 
-function SidebarPreview({ companyName, tagline, logo, color }) {
+function SidebarPreview({ companyName, tagline, logo, color, sidebar }) {
   const palette = generatePalette(color || DEFAULT_BRAND_COLOR)
+  const bg = sidebar || palette[700]
+  // Pick readable text on the sidebar background
+  const lum = (() => {
+    const h = bg.replace('#', '')
+    const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16)
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  })()
+  const navText = lum > 0.62 ? '#1f2937' : palette[100]
   return (
     <div
       className="rounded-xl overflow-hidden shadow-lg w-48 shrink-0"
-      style={{ backgroundColor: palette[700] }}
+      style={{ backgroundColor: bg }}
     >
       {/* Logo area */}
-      <div className="px-4 py-4 border-b flex flex-col items-center" style={{ borderColor: palette[600] }}>
+      <div className="px-4 py-4 border-b flex flex-col items-center" style={{ borderColor: 'rgba(255,255,255,0.14)' }}>
         {logo
           ? <img src={logo} alt="logo" className="h-12 object-contain" />
-          : <p className="text-lg font-black text-white tracking-widest leading-tight">{companyName || 'QUOTEX'}</p>}
+          : <p className="text-lg font-black tracking-widest leading-tight" style={{ color: lum > 0.62 ? '#1f2937' : '#fff' }}>{companyName || 'QUOTEX'}</p>}
       </div>
       {/* Nav items preview */}
       <div className="py-3 px-2 space-y-0.5">
@@ -37,14 +46,14 @@ function SidebarPreview({ companyName, tagline, logo, color }) {
           <div
             key={item}
             className="px-3 py-1.5 rounded-lg text-xs font-medium"
-            style={i === 0 ? { backgroundColor: '#fff', color: palette[700] } : { color: palette[100] }}
+            style={i === 0 ? { backgroundColor: '#fff', color: palette[700] } : { color: navText }}
           >
             {item}
           </div>
         ))}
       </div>
-      <div className="px-4 py-2.5 border-t" style={{ borderColor: palette[600] }}>
-        <p className="text-xs" style={{ color: palette[400] }}>© 2025 {companyName || 'QUOTEX'}</p>
+      <div className="px-4 py-2.5 border-t" style={{ borderColor: 'rgba(255,255,255,0.14)' }}>
+        <p className="text-xs" style={{ color: navText }}>© 2025 {companyName || 'QUOTEX'}</p>
       </div>
     </div>
   )
@@ -300,12 +309,19 @@ export default function Settings() {
   const [tagline, setTagline]           = useState(branding.tagline || '')
   const [logo, setLogo]                 = useState(branding.logo || null)
   const [primaryColor, setPrimaryColor] = useState(branding.primaryColor || DEFAULT_BRAND_COLOR)
+  const [sidebarColor, setSidebarColor] = useState(branding.sidebarColor || FREE_SIDEBAR_COLOR)
+  const [accentColor, setAccentColor]   = useState(branding.accentColor || '')
   const [extracting, setExtracting]     = useState(false)
   const [saved, setSaved]               = useState(false)
   const fileRef = useRef()
 
+  const plan     = branding.plan || 'enterprise'
+  const canBrand = canCustomizeBranding(plan)
+
   // Keep preview in sync
-  useEffect(() => { applyBrandStyles(primaryColor) }, [primaryColor])
+  useEffect(() => {
+    applyBrandStyles(primaryColor, { sidebar: sidebarColor, accent: accentColor || null })
+  }, [primaryColor, sidebarColor, accentColor])
 
   const handleLogoUpload = async (file) => {
     if (!file) return
@@ -325,22 +341,32 @@ export default function Settings() {
   }
 
   const handleSave = () => {
-    updateBranding({ companyName, tagline, logo, primaryColor })
-    applyBrandStyles(primaryColor)
+    updateBranding({ companyName, tagline, logo, primaryColor, sidebarColor, accentColor: accentColor || null })
+    applyBrandStyles(primaryColor, { sidebar: sidebarColor, accent: accentColor || null })
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
   }
 
   const handleReset = () => {
-    const defaults = { companyName: 'QUOTEX', tagline: 'Smart Contractor Pricing', logo: null, primaryColor: null }
-    updateBranding(defaults)
-    setCompanyName(defaults.companyName)
-    setTagline(defaults.tagline)
+    // Reset to the standard-tier charcoal & brass identity
+    updateBranding({ companyName: 'QUOTEX', tagline: 'Smart Contractor Pricing', logo: null, primaryColor: FREE_PRIMARY_COLOR, sidebarColor: FREE_SIDEBAR_COLOR, accentColor: null })
+    setCompanyName('QUOTEX')
+    setTagline('Smart Contractor Pricing')
     setLogo(null)
-    setPrimaryColor(DEFAULT_BRAND_COLOR)
-    applyBrandStyles(DEFAULT_BRAND_COLOR)
+    setPrimaryColor(FREE_PRIMARY_COLOR)
+    setSidebarColor(FREE_SIDEBAR_COLOR)
+    setAccentColor('')
+    applyBrandStyles(FREE_PRIMARY_COLOR, { sidebar: FREE_SIDEBAR_COLOR })
     if (fileRef.current) fileRef.current.value = ''
   }
+
+  const applyPreset = (preset) => {
+    setPrimaryColor(preset.primary)
+    setSidebarColor(preset.sidebar)
+    setSaved(false)
+  }
+
+  const setPlan = (p) => updateBranding({ plan: p })
 
   return (
     <div className="p-6 max-w-5xl">
@@ -365,6 +391,7 @@ export default function Settings() {
         <div className="flex-1 min-w-80 space-y-5">
 
           {/* Company identity */}
+          {canBrand && (
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <div className="flex items-center gap-2 mb-4">
               <Building2 size={16} className="text-gray-400" />
@@ -392,7 +419,10 @@ export default function Settings() {
             </div>
           </div>
 
+          )}
+
           {/* Logo upload */}
+          {canBrand && (
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <div className="flex items-center gap-2 mb-4">
               <Upload size={16} className="text-gray-400" />
@@ -440,43 +470,93 @@ export default function Settings() {
               </button>
             )}
           </div>
+          )}
 
-          {/* Color picker */}
+          {/* Plan / subscription tier */}
           <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <Palette size={16} className="text-gray-400" />
-              <h3 className="font-semibold text-gray-800 text-sm">Brand Color</h3>
+            <div className="flex items-center gap-2 mb-1">
+              <Sparkles size={16} className="text-gray-400" />
+              <h3 className="font-semibold text-gray-800 text-sm">Subscription Plan</h3>
             </div>
-
-            {/* Presets */}
-            <div className="grid grid-cols-6 gap-2 mb-4">
-              {PRESET_COLORS.map(({ label, hex }) => (
-                <button
-                  key={hex}
-                  onClick={() => { setPrimaryColor(hex); setSaved(false) }}
-                  title={label}
-                  className={`w-9 h-9 rounded-lg transition-all ${primaryColor === hex ? 'ring-2 ring-offset-2 ring-gray-400 scale-110' : 'hover:scale-105'}`}
-                  style={{ backgroundColor: hex }}
-                />
-              ))}
-            </div>
-
-            {/* Custom hex picker */}
-            <div className="flex items-center gap-3">
-              <input
-                type="color"
-                value={primaryColor}
-                onChange={e => { setPrimaryColor(e.target.value); setSaved(false) }}
-                className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5"
-              />
-              <div>
-                <p className="text-xs font-medium text-gray-700">Custom color</p>
-                <p className="text-xs text-gray-400 font-mono">{primaryColor}</p>
-              </div>
+            <p className="text-xs text-gray-400 mb-4">Controls which sections and customization this account can access.</p>
+            <div className="grid grid-cols-3 gap-2">
+              {PLAN_ORDER.map(key => {
+                const active = plan === key
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setPlan(key)}
+                    className={`text-left rounded-lg border p-3 transition-colors ${active ? 'border-[var(--brand-500)] bg-[var(--brand-50)]' : 'border-gray-200 hover:border-gray-300'}`}
+                  >
+                    <p className={`text-sm font-semibold ${active ? 'text-[var(--brand-700)]' : 'text-gray-700'}`}>{PLAN_META[key].label}</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5 leading-snug">{PLAN_META[key].blurb}</p>
+                  </button>
+                )
+              })}
             </div>
           </div>
 
+          {/* Theme customizer — Pro & Enterprise only */}
+          {canBrand ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Palette size={16} className="text-gray-400" />
+                <h3 className="font-semibold text-gray-800 text-sm">Theme Colors</h3>
+              </div>
+
+              {/* Preset theme combos (primary + sidebar) */}
+              <p className="text-xs font-medium text-gray-500 mb-2">Preset themes</p>
+              <div className="grid grid-cols-4 gap-2 mb-5">
+                {BRAND_PRESETS.map(preset => {
+                  const active = primaryColor === preset.primary && sidebarColor === preset.sidebar
+                  return (
+                    <button
+                      key={preset.label}
+                      onClick={() => applyPreset(preset)}
+                      title={preset.label}
+                      className={`rounded-lg overflow-hidden border transition-all ${active ? 'ring-2 ring-offset-1 ring-gray-400' : 'hover:scale-105'}`}
+                    >
+                      <div className="flex h-9">
+                        <span className="flex-1" style={{ backgroundColor: preset.sidebar }} />
+                        <span className="flex-1" style={{ backgroundColor: preset.primary }} />
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Individual color pickers */}
+              <div className="space-y-3">
+                {[
+                  { label: 'Primary / buttons', value: primaryColor, set: setPrimaryColor },
+                  { label: 'Sidebar', value: sidebarColor, set: setSidebarColor },
+                  { label: 'Accent (optional)', value: accentColor || primaryColor, set: setAccentColor },
+                ].map(({ label, value, set }) => (
+                  <div key={label} className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={value}
+                      onChange={e => { set(e.target.value); setSaved(false) }}
+                      className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5 shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-gray-700">{label}</p>
+                      <p className="text-xs text-gray-400 font-mono">{value}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-gray-50 rounded-xl border border-dashed border-gray-300 p-5 text-center">
+              <Lock size={18} className="text-gray-400 mx-auto mb-2" />
+              <p className="text-sm font-semibold text-gray-700">Custom theming is a Professional feature</p>
+              <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">Your workspace uses the standard Charcoal &amp; Brass identity. Upgrade to Professional to pick your own colors, logo accent, and sidebar.</p>
+            </div>
+          )}
+
           {/* Action buttons */}
+          {canBrand && (
           <div className="flex items-center gap-3">
             <button
               onClick={handleSave}
@@ -494,6 +574,7 @@ export default function Settings() {
               Reset to Defaults
             </button>
           </div>
+          )}
 
           {/* Data backup / restore */}
           <DataManagement />
@@ -511,6 +592,7 @@ export default function Settings() {
               tagline={tagline}
               logo={logo}
               color={primaryColor}
+              sidebar={sidebarColor}
             />
             <p className="text-xs text-gray-400 mt-3 text-center">Reflects across the whole platform</p>
           </div>

@@ -63,11 +63,28 @@ export function generatePalette(primaryHex) {
 
 // ── DOM injection ─────────────────────────────────────────────────────────────
 
-export function applyBrandStyles(primaryHex) {
-  const p = generatePalette(primaryHex || '#0369a1')
+// Darken a hex by mixing toward black (amount 0..1)
+function darken(hex, amount) {
+  const [h, s, l] = hexToHsl(hex)
+  return hslToHex(h, s, Math.max(0, l - amount * 100))
+}
+// Is a color light enough that text on it should be dark?
+function isLight(hex) {
+  const [, , l] = hexToHsl(hex)
+  return l > 62
+}
 
-  // CSS variables on :root (used by inline styles and arbitrary Tailwind values)
-  // Plus named utility classes for sidebar nav hover states (can't do hover via inline style)
+// Apply the full brand theme. `opts.sidebar` sets the nav background
+// independently of the primary color (so e.g. a charcoal sidebar can pair with
+// a brass accent). `opts.accent` overrides the secondary highlight color.
+export function applyBrandStyles(primaryHex, opts = {}) {
+  const p = generatePalette(primaryHex || FREE_PRIMARY_COLOR)
+  const sidebar       = opts.sidebar || p[700]
+  const sidebarBorder = darken(sidebar, 0.08)
+  const sidebarHover  = isLight(sidebar) ? darken(sidebar, 0.08) : p[600]
+  const navText       = isLight(sidebar) ? '#1f2937' : p[100]
+  const accent        = opts.accent || p[500]
+
   let el = document.getElementById('qx-brand')
   if (!el) { el = document.createElement('style'); el.id = 'qx-brand'; document.head.appendChild(el) }
   el.textContent = `
@@ -82,13 +99,35 @@ export function applyBrandStyles(primaryHex) {
       --brand-700: ${p[700]};
       --brand-800: ${p[800]};
       --brand-900: ${p[900]};
+      --accent:         ${accent};
+      --sidebar:        ${sidebar};
+      --sidebar-border: ${sidebarBorder};
     }
-    .brand-nav-inactive        { color: ${p[100]}; }
-    .brand-nav-inactive:hover  { background-color: ${p[600]}; color: #fff; }
+    .brand-nav-inactive        { color: ${navText}; }
+    .brand-nav-inactive:hover  { background-color: ${sidebarHover}; color: #fff; }
     .brand-nav-active          { background-color: #fff; color: ${p[700]}; }
     .brand-badge               { color: ${p[700]}; }
-    .brand-footer              { color: ${p[400]}; }
+    .brand-footer              { color: ${navText}; }
     .brand-bg-light            { background-color: ${p[50]}; }
+
+    /* Make the app's hard-coded blue follow the brand color, app-wide. */
+    .bg-blue-600  { background-color: var(--brand-600) !important; }
+    .bg-blue-700  { background-color: var(--brand-700) !important; }
+    .bg-blue-500  { background-color: var(--brand-500) !important; }
+    .hover\\:bg-blue-700:hover { background-color: var(--brand-700) !important; }
+    .hover\\:bg-blue-600:hover { background-color: var(--brand-600) !important; }
+    .hover\\:bg-blue-50:hover  { background-color: var(--brand-50)  !important; }
+    .text-blue-700 { color: var(--brand-700) !important; }
+    .text-blue-600 { color: var(--brand-600) !important; }
+    .text-blue-500 { color: var(--brand-500) !important; }
+    .text-blue-400 { color: var(--brand-400) !important; }
+    .hover\\:text-blue-700:hover { color: var(--brand-700) !important; }
+    .border-blue-600 { border-color: var(--brand-600) !important; }
+    .border-blue-300 { border-color: var(--brand-300) !important; }
+    .border-blue-200 { border-color: var(--brand-200) !important; }
+    .focus\\:ring-blue-300:focus { --tw-ring-color: var(--brand-300) !important; }
+    .focus\\:ring-blue-400:focus { --tw-ring-color: var(--brand-400) !important; }
+    .focus\\:ring-blue-500:focus { --tw-ring-color: var(--brand-500) !important; }
   `
 }
 
@@ -142,7 +181,23 @@ export function extractDominantColor(dataUrl) {
   })
 }
 
-export const DEFAULT_BRAND_COLOR = '#0369a1'  // sky-700 equivalent
+export const DEFAULT_BRAND_COLOR = '#0369a1'  // sky-700 equivalent (legacy fallback)
+
+// Standard/free tier default identity: charcoal sidebar + brass accent
+export const FREE_PRIMARY_COLOR = '#b0894f'  // brass
+export const FREE_SIDEBAR_COLOR = '#26262b'  // charcoal
+
+// Curated presets offered to Pro customers in the theme customizer
+export const BRAND_PRESETS = [
+  { label: 'Charcoal & Brass', primary: '#b0894f', sidebar: '#26262b' },
+  { label: 'Ebony Blue',       primary: '#0369a1', sidebar: '#075985' },
+  { label: 'Forest',           primary: '#3f7d54', sidebar: '#1f3a2b' },
+  { label: 'Terracotta',       primary: '#c0603f', sidebar: '#3a2420' },
+  { label: 'Slate',            primary: '#475569', sidebar: '#1e293b' },
+  { label: 'Plum',             primary: '#7c4d70', sidebar: '#2e1f2b' },
+  { label: 'Crimson',          primary: '#b23b47', sidebar: '#2c1518' },
+  { label: 'Teal',             primary: '#2f8080', sidebar: '#123333' },
+]
 
 // ── Dark mode injection ───────────────────────────────────────────────────────
 // Overrides the most common Tailwind utility colors with dark equivalents.

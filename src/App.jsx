@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, NavLink, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, FileText, BookOpen, ClipboardList, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon, Sun, Moon, Users, FileSignature, LogOut, TrendingUp, Menu, HardHat, Wrench, CalendarDays, Kanban, PieChart } from 'lucide-react'
 import { Component, useEffect, useState, useRef } from 'react'
 import Dashboard from './pages/Dashboard'
@@ -26,6 +26,7 @@ import Scheduler from './pages/Scheduler'
 import AuthGuard, { logout } from './components/AuthGuard'
 import { useStore } from './store'
 import { applyBrandStyles, applyTheme, DEFAULT_BRAND_COLOR } from './brand'
+import { canAccessRoute, landingRoute } from './plans'
 
 const NAV = [
   { to: '/',        label: 'Dashboard',       icon: LayoutDashboard },
@@ -162,6 +163,13 @@ function GlobalSearch() {
   )
 }
 
+// Blocks a route the current plan can't reach, redirecting to their home page.
+function Gated({ path, children }) {
+  const plan = useStore(s => s.branding?.plan || 'enterprise')
+  if (!canAccessRoute(plan, path)) return <Navigate to={landingRoute(plan)} replace />
+  return children
+}
+
 // ── App Shell ────────────────────────────────────────────────────────────────
 function AppShell() {
   const proposals      = useStore(s => s.proposals)
@@ -175,9 +183,14 @@ function AppShell() {
   const isDark = theme === 'dark'
   const closeSidebar = () => setSidebarOpen(false)
 
+  const plan = branding?.plan || 'enterprise'
+
   useEffect(() => {
-    applyBrandStyles(branding?.primaryColor || DEFAULT_BRAND_COLOR)
-  }, [branding?.primaryColor])
+    applyBrandStyles(branding?.primaryColor || DEFAULT_BRAND_COLOR, {
+      sidebar: branding?.sidebarColor || null,
+      accent:  branding?.accentColor  || null,
+    })
+  }, [branding?.primaryColor, branding?.sidebarColor, branding?.accentColor])
 
   useEffect(() => {
     applyTheme(isDark)
@@ -227,10 +240,10 @@ function AppShell() {
           fixed lg:relative inset-y-0 left-0 z-50 h-full
           transition-transform duration-200 ease-in-out
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
-        style={{ backgroundColor: 'var(--brand-700)' }}
+        style={{ backgroundColor: 'var(--sidebar)' }}
       >
         {/* Logo + close button on mobile */}
-        <div className="px-5 py-5 border-b flex items-center justify-between" style={{ borderColor: 'var(--brand-600)' }}>
+        <div className="px-5 py-5 border-b flex items-center justify-between" style={{ borderColor: 'var(--sidebar-border)' }}>
           <div className="flex-1 flex justify-center">
             {logo
               ? <img src={logo} alt="logo" className="h-12 object-contain" />
@@ -243,7 +256,7 @@ function AppShell() {
 
         {/* Nav links */}
         <nav className="flex-1 py-4 space-y-0.5 px-2 overflow-y-auto">
-          {NAV.map(({ to, label, icon: Icon }) => (
+          {NAV.filter(({ to }) => canAccessRoute(plan, to)).map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -321,24 +334,24 @@ function AppShell() {
         {/* Page content */}
         <main className="flex-1 overflow-auto print:overflow-visible print:h-auto">
           <Routes>
-            <Route path="/"         element={<Dashboard />} />
-            <Route path="/analyze"  element={<Analyze />} />
-            <Route path="/ai"       element={<AiChat />} />
-            <Route path="/catalog"  element={<ItemCatalog />} />
-            <Route path="/quote"     element={<BuildQuote />} />
-            <Route path="/analytics" element={<Analytics />} />
-            <Route path="/proposal"  element={<ProposalView />} />
-            <Route path="/clients"  element={<ClientList />} />
-            <Route path="/tracker"  element={<ProposalTracker />} />
-            <Route path="/inbox"    element={<InboxPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/contracts"     element={<ContractsList />} />
-            <Route path="/contract"      element={<ContractView />} />
-            <Route path="/jobs"          element={<Jobs />} />
-            <Route path="/subs"          element={<Subcontractors />} />
-            <Route path="/scheduler"     element={<Scheduler />} />
-            <Route path="/profitability" element={<ProfitabilityTracker />} />
-            <Route path="/pipeline"      element={<Pipeline />} />
+            <Route path="/"         element={<Gated path="/"><Dashboard /></Gated>} />
+            <Route path="/analyze"  element={<Gated path="/analyze"><Analyze /></Gated>} />
+            <Route path="/ai"       element={<Gated path="/ai"><AiChat /></Gated>} />
+            <Route path="/catalog"  element={<Gated path="/catalog"><ItemCatalog /></Gated>} />
+            <Route path="/quote"     element={<Gated path="/quote"><BuildQuote /></Gated>} />
+            <Route path="/analytics" element={<Gated path="/analytics"><Analytics /></Gated>} />
+            <Route path="/proposal"  element={<Gated path="/proposal"><ProposalView /></Gated>} />
+            <Route path="/clients"  element={<Gated path="/clients"><ClientList /></Gated>} />
+            <Route path="/tracker"  element={<Gated path="/tracker"><ProposalTracker /></Gated>} />
+            <Route path="/inbox"    element={<Gated path="/inbox"><InboxPage /></Gated>} />
+            <Route path="/settings" element={<Gated path="/settings"><SettingsPage /></Gated>} />
+            <Route path="/contracts"     element={<Gated path="/contracts"><ContractsList /></Gated>} />
+            <Route path="/contract"      element={<Gated path="/contract"><ContractView /></Gated>} />
+            <Route path="/jobs"          element={<Gated path="/jobs"><Jobs /></Gated>} />
+            <Route path="/subs"          element={<Gated path="/subs"><Subcontractors /></Gated>} />
+            <Route path="/scheduler"     element={<Gated path="/scheduler"><Scheduler /></Gated>} />
+            <Route path="/profitability" element={<Gated path="/profitability"><ProfitabilityTracker /></Gated>} />
+            <Route path="/pipeline"      element={<Gated path="/pipeline"><Pipeline /></Gated>} />
           </Routes>
         </main>
       </div>

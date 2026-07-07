@@ -72,6 +72,28 @@ const SEED_CATALOG = [
 
 export const PROPOSAL_STATUSES = ['Draft', 'Sent', 'Followed Up', 'Negotiating', 'Won', 'Lost', 'MIA']
 
+// Fill in any branding fields missing from an older persisted install. Existing
+// installs (which predate the plan/color fields) are treated as the owner's own
+// account: full Enterprise access, and their prior look (sky blue) is preserved
+// rather than being reset to the new free-tier charcoal/brass default.
+export function normalizeBranding(b) {
+  if (!b) {
+    return {
+      companyName: 'QUOTEX', tagline: 'Smart Contractor Pricing', logo: null,
+      primaryColor: '#b0894f', sidebarColor: '#26262b', accentColor: null, plan: 'enterprise',
+    }
+  }
+  return {
+    companyName: b.companyName ?? 'QUOTEX',
+    tagline: b.tagline ?? 'Smart Contractor Pricing',
+    logo: b.logo ?? null,
+    primaryColor: b.primaryColor || '#0369a1',   // preserve legacy blue if unset
+    sidebarColor: b.sidebarColor || null,          // null → derives from primary
+    accentColor: b.accentColor ?? null,
+    plan: b.plan || 'enterprise',
+  }
+}
+
 export const WIN_REASONS = [
   'Price competitive', 'Strong relationship', 'Fast turnaround',
   'Client referral', 'Quality reputation', 'Best value', 'Other',
@@ -769,7 +791,10 @@ export const useStore = create(
         companyName: 'QUOTEX',
         tagline: 'Smart Contractor Pricing',
         logo: null,           // base64 data URL
-        primaryColor: null,   // hex string, null = default sky-700
+        primaryColor: '#b0894f',  // brass (free-tier default accent)
+        sidebarColor: '#26262b',  // charcoal (free-tier default sidebar)
+        accentColor: null,        // optional secondary highlight (Pro)
+        plan: 'free',             // 'free' | 'pro' — Pro unlocks custom colors
       },
 
       updateBranding: (changes) =>
@@ -880,7 +905,7 @@ export const useStore = create(
           nextProposalId:     persisted?.nextProposalId     || 1,
           readMessageIds:     persisted?.readMessageIds     || [],
           theme:              persisted?.theme              || 'light',
-          branding:           persisted?.branding           || { companyName: 'QUOTEX', tagline: 'Smart Contractor Pricing', logo: null, primaryColor: null },
+          branding:           normalizeBranding(persisted?.branding),
           scopeExamples:      persisted?.scopeExamples      || [],
           jobCosts:           persisted?.jobCosts           || {},
           catalogCategories:  persisted?.catalogCategories  || [
@@ -962,6 +987,7 @@ export const useStore = create(
           ...currentState,
           ...persistedState,
           proposals,
+          branding: normalizeBranding(persistedState?.branding),
           // Catalog: always prefer stored data; only fall back to seed when truly empty
           catalog: (persistedState?.catalog?.length > 0)
             ? persistedState.catalog
