@@ -6,11 +6,25 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 // to localStorage when the API is not available (e.g. cloud deployment).
 let _initial = null // cached promise for the first GET
 
+// The persisted store loads at module-import time — before the global fetch
+// helper installs — so it must attach the session token itself. Without this,
+// the very first /api/store read is unauthenticated (401) and the app silently
+// falls back to this device's stale localStorage, which is what makes one
+// device (e.g. a phone) show different data than another.
+function _authHeaders(extra = {}) {
+  let token = null
+  try { token = localStorage.getItem('qx_token') } catch {}
+  return token ? { ...extra, Authorization: `Bearer ${token}` } : { ...extra }
+}
+
 function _fetchInitial() {
   if (!_initial) {
-    _initial = fetch('/api/store', { signal: AbortSignal.timeout(1500) })
+    _initial = fetch('/api/store', { headers: _authHeaders(), signal: AbortSignal.timeout(6000) })
       .then(async r => {
-        if (!r.ok) return { mode: 'local', data: null }
+        // 401 = signed out / token not ready. Treat as "no answer yet" and use
+        // local so we never overwrite the server copy, but don't cache a bad
+        // read permanently — a reload after login will pick up the real data.
+        if (!r.ok) return { mode: 'local', data: null, unauthorized: r.status === 401 }
         const text = await r.text()
         return { mode: 'file', data: (text && text !== 'null') ? text : null }
       })
@@ -30,7 +44,7 @@ const smartStorage = {
       if (local) {
         fetch('/api/store', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: _authHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ value: local }),
         }).catch(() => {})
         return local
@@ -46,11 +60,14 @@ const smartStorage = {
       // Fire-and-forget — don't block the UI while saving
       fetch('/api/store', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: _authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ value }),
       }).catch(() => localStorage.setItem(name, value))
       return
     }
+    // Local mode (offline or not signed in): keep a device-local copy only.
+    // Never auto-push local data to the server here — if this device loaded a
+    // stale copy, pushing it would overwrite the good server data.
     localStorage.setItem(name, value)
   },
 
