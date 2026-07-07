@@ -364,7 +364,9 @@ export default function Inbox() {
   const fetchMessages = useCallback(async (silent = false) => {
     if (!silent) setRefreshing(true)
     try {
-      const res = await fetch('/api/messages')
+      // Pull fresh replies from the connected Gmail on manual/initial load;
+      // background polls just read what's already stored.
+      const res = await fetch(`/api/messages${silent ? '' : '?sync=1'}`)
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
       const data = await res.json()
       setMessages(data.messages || [])

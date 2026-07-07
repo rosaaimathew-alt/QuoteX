@@ -225,8 +225,8 @@ function buildCloseoutHtml({ client, contractNum, address, projectType, completi
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   if (!requireAuth(req, res)) return
-  if (!isMailerConfigured()) {
-    return res.status(500).json({ error: 'Gmail SMTP not configured. Add GMAIL_USER and GMAIL_APP_PASSWORD to Vercel environment variables.' })
+  if (!(await isMailerConfigured())) {
+    return res.status(500).json({ error: 'No email account connected. Connect your Google account in Settings (or set GMAIL_USER / GMAIL_APP_PASSWORD).' })
   }
 
   const { action, ...body } = req.body || {}
@@ -362,7 +362,7 @@ export default async function handler(req, res) {
     ? [{ filename: pdfFilename || 'Proposal.pdf', content: Buffer.from(pdfBase64, 'base64'), contentType: 'application/pdf' }]
     : undefined
 
-  const result = await sendMail({ to: recipientEmail, subject, html, attachments })
+  const result = await sendMail({ to: recipientEmail, subject, html, attachments, fromName: sender })
   if (result.error) return res.status(500).json({ error: result.error })
 
   const msgId = `out_${result.messageId || Date.now()}`

@@ -1,11 +1,22 @@
 import { getMessages, saveMessage, deleteMessage } from './_store.js'
 import { requireAuth } from './_auth.js'
+import { listRecentInbox } from './_gmail.js'
 
 export default async function handler(req, res) {
   if (!requireAuth(req, res)) return
 
   if (req.method === 'GET') {
     try {
+      // Optional: pull recent replies from the connected Gmail before returning.
+      if (req.query.sync === '1') {
+        try {
+          const inbound = await listRecentInbox({ max: 25 })
+          await Promise.all(inbound.map(saveMessage))
+        } catch (err) {
+          // Not connected / scope not granted — just return stored messages.
+          console.error('Gmail sync skipped:', err.message)
+        }
+      }
       const messages = await getMessages(200)
       return res.status(200).json({ messages })
     } catch (err) {

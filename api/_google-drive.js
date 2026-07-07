@@ -5,7 +5,17 @@ import { fileURLToPath } from 'url'
 const __dirname    = path.dirname(fileURLToPath(import.meta.url))
 const TOKEN_FILE   = path.resolve(__dirname, '../google-tokens.json')
 const KV_TOKEN_KEY = 'google:oauth:tokens'
-const SCOPES       = 'https://www.googleapis.com/auth/drive.file'
+// drive.file  → PDF/data backups
+// gmail.send  → send proposals/reminders as the connected account (sensitive)
+// gmail.readonly → sync replies into the Inbox (restricted)
+// openid email → capture which address is connected
+const SCOPES = [
+  'https://www.googleapis.com/auth/drive.file',
+  'https://www.googleapis.com/auth/gmail.send',
+  'https://www.googleapis.com/auth/gmail.readonly',
+  'openid',
+  'email',
+].join(' ')
 
 async function loadTokens() {
   if (process.env.KV_REST_API_URL) {
@@ -59,8 +69,40 @@ export async function handleCallback(code, stateB64) {
   if (!res.ok) throw new Error(`Token exchange failed: ${await res.text()}`)
   const tokens = await res.json()
   tokens.expiry_date = Date.now() + (tokens.expires_in * 1000)
+  // Capture which Google account was connected (for the From address + inbox sync)
+  try {
+    const profile = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { Authorization: `Bearer ${tokens.access_token}` },
+    })
+    if (profile.ok) tokens.email = (await profile.json()).email || null
+  } catch {}
   await saveTokens(tokens)
   return `${origin}${returnTo}`
+}
+
+// The connected Google account's email address, or null.
+export async function getConnectedEmail() {
+  const t = await loadTokens()
+  return t?.email || null
+}
+
+// A valid access token for Gmail API calls (throws if not connected).
+export async function getGoogleAccessToken() {
+  return getValidAccessToken()
+}
+
+// OAuth2 credentials for sending mail via the connected Gmail account, or null.
+export async function getGmailOAuthCredentials() {
+  const tokens = await loadTokens()
+  if (!tokens || !tokens.email || !tokens.refresh_token) return null
+  const accessToken = await getValidAccessToken()
+  return {
+    user:         tokens.email,
+    clientId:     process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    refreshToken: tokens.refresh_token,
+    accessToken,
+  }
 }
 
 export async function backupJsonToDrive({ jsonString, existingFileId }) {

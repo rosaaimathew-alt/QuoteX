@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Upload, Trash2, CheckCircle, RefreshCw, Palette, Building2, Eye, Download, FolderOpen, AlertTriangle, CloudUpload, HardDrive, Wifi, WifiOff, Lock, Sparkles } from 'lucide-react'
+import { Upload, Trash2, CheckCircle, RefreshCw, Palette, Building2, Eye, Download, FolderOpen, AlertTriangle, CloudUpload, HardDrive, Wifi, WifiOff, Lock, Sparkles, Mail } from 'lucide-react'
 import { useStore } from '../store'
 import { extractDominantColor, generatePalette, applyBrandStyles, DEFAULT_BRAND_COLOR, FREE_PRIMARY_COLOR, FREE_SIDEBAR_COLOR, BRAND_PRESETS } from '../brand'
 import { canCustomizeBranding, PLAN_ORDER, PLAN_META } from '../plans'
@@ -55,6 +55,69 @@ function SidebarPreview({ companyName, tagline, logo, color, sidebar }) {
       <div className="px-4 py-2.5 border-t" style={{ borderColor: 'rgba(255,255,255,0.14)' }}>
         <p className="text-xs" style={{ color: navText }}>© 2025 {companyName || 'QUOTEX'}</p>
       </div>
+    </div>
+  )
+}
+
+// ── Connect email (Google OAuth) ──────────────────────────────────────────────
+function EmailConnectCard() {
+  const [status, setStatus] = useState(null) // { authenticated, email }
+  const [busy, setBusy]     = useState(false)
+
+  const load = useCallback(async () => {
+    try {
+      const r = await fetch('/api/google-auth/status')
+      setStatus(await r.json())
+    } catch { setStatus({ authenticated: false }) }
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  const connect = async () => {
+    setBusy(true)
+    try {
+      const origin   = window.location.origin
+      const returnTo = '/settings'
+      const r = await fetch(`/api/google-auth/start?origin=${encodeURIComponent(origin)}&returnTo=${encodeURIComponent(returnTo)}`)
+      const { url } = await r.json()
+      if (url) window.location.href = url
+      else setBusy(false)
+    } catch { setBusy(false) }
+  }
+
+  const connected = status?.authenticated
+  const email     = status?.email
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-5">
+      <div className="flex items-center gap-2 mb-1">
+        <Mail size={16} className="text-gray-400" />
+        <h3 className="font-semibold text-gray-800 text-sm">Email Account</h3>
+      </div>
+      <p className="text-xs text-gray-400 mb-4">Connect your Google account to send proposals from your own address and receive replies in your Inbox.</p>
+
+      {connected ? (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <CheckCircle size={16} className="text-green-600 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-green-800">Connected{email ? '' : ' to Google'}</p>
+              {email && <p className="text-xs text-green-700 truncate">{email}</p>}
+            </div>
+          </div>
+          <button onClick={connect} disabled={busy}
+            className="text-xs px-3 py-1.5 rounded-lg border border-green-300 text-green-700 hover:bg-green-100 disabled:opacity-50 shrink-0">
+            {busy ? 'Opening…' : 'Reconnect'}
+          </button>
+        </div>
+      ) : (
+        <button onClick={connect} disabled={busy}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+          <Mail size={15} /> {busy ? 'Opening Google…' : 'Connect Google account'}
+        </button>
+      )}
+      <p className="text-[11px] text-gray-400 mt-3 leading-relaxed">
+        Sending works on your own account immediately. For customer accounts, Google requires app verification before sending, and a security review before reading replies into the Inbox.
+      </p>
     </div>
   )
 }
@@ -389,6 +452,9 @@ export default function Settings() {
 
         {/* Left: form */}
         <div className="flex-1 min-w-80 space-y-5">
+
+          {/* Email connection — available to all tiers (needed to send proposals) */}
+          <EmailConnectCard />
 
           {/* Company identity */}
           {canBrand && (
