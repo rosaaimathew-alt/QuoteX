@@ -15,6 +15,7 @@ import ClientList from './pages/ClientList'
 import ContractView from './pages/ContractView'
 import ContractsList from './pages/ContractsList'
 import Login from './pages/Login'
+import Landing from './pages/Landing'
 import SignPage from './pages/SignPage'
 import COSignPage from './pages/COSignPage'
 import ContractViewFull from './pages/ContractViewFull'
@@ -404,6 +405,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/welcome"     element={<Landing />} />
         <Route path="/login"       element={<Login />} />
         <Route path="/sign/:token" element={<SignBoundary><SignPage /></SignBoundary>} />
         <Route path="/co/:token"   element={<SignBoundary><COSignPage /></SignBoundary>} />
