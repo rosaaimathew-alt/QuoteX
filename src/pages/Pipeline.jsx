@@ -1,13 +1,140 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useStore, PROPOSAL_STATUSES } from '../store'
-import { DollarSign, ChevronRight, UserX, TrendingUp } from 'lucide-react'
+import { useStore, PROPOSAL_STATUSES, ACTIVITY_TYPES } from '../store'
+import { DollarSign, ChevronRight, UserX, TrendingUp, StickyNote, X, Trash2, Phone, Mail, MapPin, Clock, Plus, FileText } from 'lucide-react'
 
 const fmtDol = (n) => {
   const v = Number(n) || 0
   if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(2)}M`
   if (v >= 1_000)     return `$${(v / 1_000).toFixed(1)}k`
   return `$${v.toFixed(0)}`
+}
+
+const ACTIVITY_STYLE = {
+  Call:        'bg-blue-50 text-blue-700 border-blue-200',
+  'Follow-up': 'bg-purple-50 text-purple-700 border-purple-200',
+  Meeting:     'bg-teal-50 text-teal-700 border-teal-200',
+  Email:       'bg-sky-50 text-sky-700 border-sky-200',
+  Objection:   'bg-red-50 text-red-700 border-red-200',
+  Note:        'bg-gray-50 text-gray-600 border-gray-200',
+}
+
+const relTime = (iso) => {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const days = Math.floor((Date.now() - d.getTime()) / 86400000)
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  if (days < 30) return `${days}d ago`
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })
+}
+
+// ── Customer notes slide-over ────────────────────────────────────────────────
+function NotesDrawer({ proposal, onClose, onOpenProposal }) {
+  const addActivity    = useStore(s => s.addActivity)
+  const deleteActivity = useStore(s => s.deleteActivity)
+  // Read the live copy so new notes render immediately
+  const live = useStore(s => s.proposals.find(p => p.id === proposal.id)) || proposal
+  const activities = live.activities || []
+
+  const [type, setType] = useState('Call')
+  const [text, setText] = useState('')
+
+  const submit = () => {
+    if (!text.trim()) return
+    addActivity(proposal.id, { type, text: text.trim() })
+    setText('')
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col">
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-gray-100 shrink-0">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="text-lg font-bold text-gray-900 truncate">{live.client || 'Unnamed customer'}</h3>
+              <div className="mt-1 space-y-0.5 text-xs text-gray-500">
+                {live.phone   && <p className="flex items-center gap-1.5"><Phone size={11} /> {live.phone}</p>}
+                {live.email   && <p className="flex items-center gap-1.5"><Mail size={11} /> {live.email}</p>}
+                {live.address && <p className="flex items-center gap-1.5"><MapPin size={11} /> <span className="truncate">{live.address}</span></p>}
+              </div>
+            </div>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 shrink-0"><X size={18} /></button>
+          </div>
+          <div className="flex items-center gap-3 mt-3">
+            <span className="text-sm font-semibold text-gray-700">{fmtDol(live.total)}</span>
+            <span className="text-xs text-gray-300">·</span>
+            <span className="text-xs text-gray-500">{live.status}</span>
+            <button onClick={() => onOpenProposal(live)} className="ml-auto text-xs font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">
+              <FileText size={12} /> Open proposal
+            </button>
+          </div>
+        </div>
+
+        {/* Add note */}
+        <div className="px-5 py-4 border-b border-gray-100 shrink-0">
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {ACTIVITY_TYPES.map(t => (
+              <button key={t} onClick={() => setType(t)}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                  type === t ? ACTIVITY_STYLE[t] || 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                }`}>
+                {t}
+              </button>
+            ))}
+          </div>
+          <textarea
+            rows={3}
+            value={text}
+            onChange={e => setText(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit() }}
+            placeholder="What happened on this call? Objections, next steps, what's holding them back…"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-300"
+          />
+          <div className="flex items-center justify-between mt-2">
+            <span className="text-[11px] text-gray-400">⌘+Enter to log</span>
+            <button onClick={submit} disabled={!text.trim()}
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-700 disabled:opacity-40 transition-colors">
+              <Plus size={14} /> Log note
+            </button>
+          </div>
+        </div>
+
+        {/* Timeline */}
+        <div className="flex-1 overflow-y-auto px-5 py-4">
+          {activities.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              <StickyNote size={26} className="mx-auto mb-2 opacity-50" />
+              <p className="text-sm font-medium">No notes yet</p>
+              <p className="text-xs mt-1">Log your first call above so next time you're ready.</p>
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {activities.map(a => (
+                <li key={a.id} className="group flex gap-3">
+                  <div className="flex flex-col items-center pt-1">
+                    <span className={`w-2 h-2 rounded-full ${(ACTIVITY_STYLE[a.type] || '').split(' ')[0] || 'bg-gray-300'}`} />
+                    <span className="flex-1 w-px bg-gray-100 mt-1" />
+                  </div>
+                  <div className="flex-1 min-w-0 pb-1">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className={`text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border ${ACTIVITY_STYLE[a.type] || 'bg-gray-50 text-gray-500 border-gray-200'}`}>{a.type}</span>
+                      <span className="text-[11px] text-gray-400 flex items-center gap-1"><Clock size={10} /> {relTime(a.createdAt)}</span>
+                      <button onClick={() => deleteActivity(proposal.id, a.id)}
+                        className="ml-auto opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-opacity"><Trash2 size={12} /></button>
+                    </div>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap leading-snug">{a.text}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 const STAGE_META = {
@@ -29,6 +156,7 @@ export default function Pipeline() {
 
   const [active, setActive] = useState('All')
   const [changing, setChanging] = useState(null)
+  const [notesFor, setNotesFor] = useState(null)
 
   const byStatus = useMemo(() => {
     const map = {}
@@ -154,16 +282,39 @@ export default function Pipeline() {
                 <div key={p.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50">
                   <div className="flex-1 min-w-0">
                     <button
-                      onClick={() => openProposal(p)}
+                      onClick={() => setNotesFor(p)}
+                      title="Open customer notes"
                       className="font-medium text-sm text-gray-900 hover:text-blue-600 truncate block text-left"
                     >
                       {p.client || 'Unnamed'}
                     </button>
-                    <p className="text-xs text-gray-400 truncate">
-                      {p.address || p.email || '—'}
-                      {p.createdAt && ` · ${new Date(p.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}`}
+                    <p className="text-xs text-gray-400 truncate flex items-center gap-1.5">
+                      <span className="truncate">{p.address || p.email || '—'}</span>
+                      {(() => {
+                        const acts = p.activities || []
+                        if (!acts.length) return null
+                        return (
+                          <span className="inline-flex items-center gap-1 text-gray-400 shrink-0">
+                            <span className="text-gray-300">·</span>
+                            <StickyNote size={10} /> {acts.length}
+                            <span className="text-gray-300">·</span>
+                            last {relTime(acts[0].createdAt)}
+                          </span>
+                        )
+                      })()}
                     </p>
                   </div>
+
+                  <button
+                    onClick={() => setNotesFor(p)}
+                    title="Customer notes"
+                    className="shrink-0 p-1.5 rounded-lg text-gray-300 hover:text-blue-600 hover:bg-blue-50 transition-colors relative"
+                  >
+                    <StickyNote size={15} />
+                    {(p.activities || []).length > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-blue-600 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{(p.activities || []).length}</span>
+                    )}
+                  </button>
 
                   <span className="text-sm font-semibold text-gray-700 shrink-0">
                     {fmtDol(p.total)}
@@ -212,6 +363,14 @@ export default function Pipeline() {
           </div>
         )}
       </div>
+
+      {notesFor && (
+        <NotesDrawer
+          proposal={notesFor}
+          onClose={() => setNotesFor(null)}
+          onOpenProposal={(p) => { setNotesFor(null); openProposal(p) }}
+        />
+      )}
     </div>
   )
 }

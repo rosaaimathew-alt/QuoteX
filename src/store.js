@@ -120,7 +120,7 @@ export const LOSS_REASONS = [
   'No response', 'Timing not right', 'Scope mismatch', 'Other',
 ]
 
-export const ACTIVITY_TYPES = ['Call', 'Email', 'Meeting', 'Follow-up', 'Note']
+export const ACTIVITY_TYPES = ['Call', 'Follow-up', 'Meeting', 'Email', 'Objection', 'Note']
 
 export const useStore = create(
   persist(
