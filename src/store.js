@@ -62,6 +62,7 @@ export function mergeStoreStrings(serverStr, localStr) {
   merged.paymentSchedules = _unionById(s.paymentSchedules, l.paymentSchedules)
   merged.subcontractors   = _unionById(s.subcontractors, l.subcontractors)
   merged.standaloneChangeOrders = _unionById(s.standaloneChangeOrders, l.standaloneChangeOrders, true)
+  merged.todos            = _unionById(s.todos, l.todos, true)
   merged.jobCosts         = { ...(s.jobCosts || {}), ...(l.jobCosts || {}) }
   for (const k of ['nextCatalogId', 'nextProposalId', 'nextTemplateId', 'nextScopeTemplateId', 'nextPaymentScheduleId', 'nextSubId']) {
     const v = Math.max(Number(s[k]) || 0, Number(l[k]) || 0)
@@ -898,6 +899,19 @@ export const useStore = create(
       theme: 'light',
       setTheme: (theme) => set({ theme }),
 
+      // ── Daily to-do list ─────────────────────────────────────────────────────
+      todos: [],
+      todoPin: 'off', // 'off' | 'left' | 'right' — pins the list as a side panel
+      addTodo: (text) =>
+        set((s) => ({ todos: [{ id: Date.now(), text, done: false, createdAt: new Date().toISOString() }, ...s.todos] })),
+      toggleTodo: (id) =>
+        set((s) => ({ todos: s.todos.map((t) => (t.id === id ? { ...t, done: !t.done } : t)) })),
+      deleteTodo: (id) =>
+        set((s) => ({ todos: s.todos.filter((t) => t.id !== id) })),
+      clearDoneTodos: () =>
+        set((s) => ({ todos: s.todos.filter((t) => !t.done) })),
+      setTodoPin: (side) => set({ todoPin: side }),
+
       // ── Branding ─────────────────────────────────────────────────────────────
       branding: {
         companyName: 'QUOTEX',
@@ -1016,6 +1030,8 @@ export const useStore = create(
           proposals,
           nextProposalId:     persisted?.nextProposalId     || 1,
           readMessageIds:     persisted?.readMessageIds     || [],
+          todos:              persisted?.todos              || [],
+          todoPin:            persisted?.todoPin            || 'off',
           theme:              persisted?.theme              || 'light',
           branding:           normalizeBranding(persisted?.branding),
           scopeExamples:      persisted?.scopeExamples      || [],

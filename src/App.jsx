@@ -28,6 +28,7 @@ import AuthGuard, { logout } from './components/AuthGuard'
 import { useStore } from './store'
 import { applyBrandStyles, applyTheme, DEFAULT_BRAND_COLOR } from './brand'
 import { canAccessRoute, landingRoute } from './plans'
+import { TodoDock } from './components/TodoPanel'
 
 const NAV = [
   { to: '/',        label: 'Dashboard',       icon: LayoutDashboard },
@@ -356,6 +357,9 @@ function AppShell() {
           </Routes>
         </main>
       </div>
+
+      {/* Pinned daily to-do — floats on every page when pinned */}
+      <TodoDock />
     </div>
   )
 }

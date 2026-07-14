@@ -7,6 +7,7 @@ import {
   ChevronLeft,
 } from 'lucide-react'
 import { useStore } from '../store'
+import { TodoCard } from '../components/TodoPanel'
 import { getPeriodRange, shiftPeriod, getPeriodSegments, isCurrentPeriod } from '../periodUtils'
 
 const fmt   = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -465,6 +466,9 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+
+          {/* Daily to-do checklist */}
+          <TodoCard />
 
           {/* Upcoming reminders */}
           <div className="bg-white rounded-xl border border-gray-200 p-5 flex-1">
