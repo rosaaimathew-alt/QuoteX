@@ -633,9 +633,11 @@ function BudgetTab({ proposal }) {
 // ── Change Orders tab ──────────────────────────────────────────────────────────
 function ChangeOrdersTab({ proposal }) {
   const { addChangeOrder, updateChangeOrder, deleteChangeOrder } = useStore()
+  const branding = useStore(s => s.branding)
   const [builderOpen, setBuilderOpen] = useState(false)
   const [editingCo, setEditingCo]     = useState(null)
   const [checking, setChecking]       = useState(null)
+  const [sendingId, setSendingId]     = useState(null)
   const cos   = proposal.jobData?.changeOrders || []
   const approved = cos.filter(c => c.status === 'Approved').reduce((s, c) => s + Number(c.amount || 0), 0)
   const contractNum = proposal.contractDraft?.contractNum || `EOL${String(70000 + proposal.id).padStart(6,'0')}`
@@ -717,6 +719,57 @@ function ChangeOrdersTab({ proposal }) {
     setEditingCo(null)
   }
 
+  // Generate a signing link for an already-drafted CO and send it — no rebuild.
+  const sendForSignature = async (co) => {
+    setSendingId(co.id)
+    try {
+      const coPayload = {
+        coNumber:      co.coNumber,
+        contractNum,
+        description:   co.description,
+        lines:         co.lines || [],
+        scopeLines:    co.scopeLines || [],
+        payments:      co.payments  || [],
+        originalTotal: Number(proposal.total),
+        newTotal:      Number(proposal.total) + Number(co.amount || 0),
+        client:        proposal.client,
+        address:       proposal.address,
+        branding:      { logo: branding?.logo || null, companyName: branding?.companyName || 'Ebony Outdoor Living' },
+      }
+      const res = await fetch('/api/co/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coData: coPayload }),
+      })
+      if (!res.ok) throw new Error('link')
+      const { recordId, links } = await res.json()
+      updateChangeOrder(proposal.id, co.id, {
+        signRecordId:    recordId,
+        signLink:        links.client,
+        builderSignLink: links.builder,
+        status:          'Sent for Signature',
+      })
+      if (proposal.email) {
+        await fetch('/api/email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action:      'co-signature-request',
+            to:          proposal.email,
+            client:      proposal.client,
+            coNumber:    co.coNumber,
+            description: co.description,
+            amount:      co.amount,
+            signLink:    links.client,
+          }),
+        })
+      }
+    } catch {
+      alert('Could not generate the signing link. Check your connection and try again.')
+    }
+    setSendingId(null)
+  }
+
   const checkStatus = async (co) => {
     setChecking(co.id)
     try {
@@ -796,6 +849,20 @@ function ChangeOrdersTab({ proposal }) {
             </span>
             <span className="text-xs text-gray-400">{fmtDate(co.createdAt)}</span>
           </div>
+
+          {/* Not sent yet — one tap to generate the link and send it */}
+          {!co.signLink && co.status !== 'Approved' && (
+            <div className="mt-2">
+              <button onClick={() => sendForSignature(co)} disabled={sendingId === co.id}
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                <Send size={12} />
+                {sendingId === co.id ? 'Generating…' : (proposal.email ? 'Generate link & send to client' : 'Generate signing link')}
+              </button>
+              {!proposal.email && (
+                <p className="text-[11px] text-gray-400 mt-1">No email on file for this customer — the link will be created for you to copy and send.</p>
+              )}
+            </div>
+          )}
 
           {/* Signing actions */}
           {co.signLink && co.status === 'Sent for Signature' && (
@@ -1629,202 +1696,11 @@ function JobCard({ proposal }) {
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
-// ── Standalone Change Order (for contracts signed outside QuoteX) ─────────────
-function SCOField({ label, value, onChange, placeholder, type = 'text' }) {
-  return (
-    <div>
-      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">{label}</label>
-      <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-        className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300" />
-    </div>
-  )
-}
-
-function StandaloneCOFlow({ onClose }) {
-  const addStandaloneCO    = useStore(s => s.addStandaloneCO)
-  const updateStandaloneCO = useStore(s => s.updateStandaloneCO)
-  const [step, setStep] = useState('info')
-  const [f, setF] = useState({ client: '', email: '', phone: '', address: '', contractNum: '', origTotal: '' })
-  const set = (k, v) => setF(p => ({ ...p, [k]: v }))
-
-  const contractNum = f.contractNum.trim() || 'EXT-CONTRACT'
-  const synthetic = {
-    id: 'standalone',
-    client: f.client, email: f.email, phone: f.phone, address: f.address,
-    total: Number(f.origTotal) || 0,
-    contractDraft: { contractNum, scopeLines: [], payments: [] },
-    jobData: { changeOrders: [] },
-  }
-
-  const standaloneSave = async (coData, sendForSig) => {
-    const coId = Date.now()
-    const originalTotal = Number(f.origTotal) || 0
-    const newTotal = originalTotal + Number(coData.amount || 0)
-    addStandaloneCO({
-      id: coId,
-      client: f.client, email: f.email, phone: f.phone, address: f.address,
-      contractNum, coNumber: coData.coNumber, description: coData.description,
-      amount: coData.amount, originalTotal, newTotal,
-      status: sendForSig ? 'Sent for Signature' : 'Draft',
-    })
-    if (sendForSig) {
-      try {
-        const coPayload = {
-          coNumber: coData.coNumber, contractNum,
-          description: coData.description, lines: coData.lines,
-          scopeLines: coData.scopeLines || [], payments: coData.payments || [],
-          originalTotal, newTotal, client: f.client, address: f.address,
-          branding: coData.branding || {},
-        }
-        const res = await fetch('/api/co/create', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ coData: coPayload }),
-        })
-        const { recordId, links } = await res.json()
-        updateStandaloneCO(coId, {
-          signRecordId: recordId, signLink: links.client, builderSignLink: links.builder,
-          status: 'Sent for Signature',
-        })
-        if (f.email) {
-          await fetch('/api/email', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'co-signature-request', to: f.email, client: f.client,
-              coNumber: coData.coNumber, description: coData.description,
-              amount: coData.amount, signLink: links.client,
-            }),
-          })
-        }
-      } catch (err) { console.error('Standalone CO error:', err) }
-    }
-    onClose()
-  }
-
-  if (step === 'build') {
-    return <COBuilderModal proposal={synthetic} onClose={onClose} onSave={standaloneSave} />
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[95vh] flex flex-col shadow-2xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
-          <div>
-            <p className="font-semibold text-gray-900">Standalone Change Order</p>
-            <p className="text-xs text-gray-400">For a contract signed outside QuoteX — enter the customer's details</p>
-          </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={18} /></button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          <SCOField label="Customer Name *" value={f.client} onChange={v => set('client', v)} placeholder="Jane Doe" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <SCOField label="Email (to send the link)" value={f.email} onChange={v => set('email', v)} placeholder="jane@email.com" type="email" />
-            <SCOField label="Phone" value={f.phone} onChange={v => set('phone', v)} placeholder="555-123-4567" />
-          </div>
-          <SCOField label="Project Address" value={f.address} onChange={v => set('address', v)} placeholder="123 Main St, City, ST" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <SCOField label="Original Contract #" value={f.contractNum} onChange={v => set('contractNum', v)} placeholder="their PO / contract ref" />
-            <SCOField label="Original Contract Total ($)" value={f.origTotal} onChange={v => set('origTotal', v)} placeholder="0" type="number" />
-          </div>
-          <p className="text-xs text-gray-400">Contract total is optional — used only to show the new total after this change.</p>
-        </div>
-        <div className="px-5 py-4 border-t border-gray-100 flex justify-end gap-2 shrink-0">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100">Cancel</button>
-          <button onClick={() => setStep('build')} disabled={!f.client.trim()}
-            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-40">
-            Continue → Build Change Order
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function StandaloneCOList() {
-  const list = useStore(s => s.standaloneChangeOrders) || []
-  const updateStandaloneCO = useStore(s => s.updateStandaloneCO)
-  const deleteStandaloneCO = useStore(s => s.deleteStandaloneCO)
-  const [copied, setCopied]     = useState(null)
-  const [checking, setChecking] = useState(null)
-
-  useEffect(() => {
-    list.filter(c => c.signRecordId && c.status === 'Sent for Signature').forEach(async co => {
-      try {
-        const res = await fetch(`/api/co/record-${co.signRecordId}`)
-        if (!res.ok) return
-        const rec = await res.json()
-        if (rec.signatures?.client) updateStandaloneCO(co.id, { status: 'Approved', signedAt: rec.signatures.client.signedAt })
-      } catch {}
-    })
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  if (!list.length) return null
-
-  const copyLink = (id, link) => { navigator.clipboard.writeText(link); setCopied(id); setTimeout(() => setCopied(null), 1500) }
-  const checkStatus = async (co) => {
-    if (!co.signRecordId) return
-    setChecking(co.id)
-    try {
-      const res = await fetch(`/api/co/record-${co.signRecordId}`)
-      const rec = await res.json()
-      if (rec.signatures?.client) { updateStandaloneCO(co.id, { status: 'Approved', signedAt: rec.signatures.client.signedAt }); alert('Signed by the client ✓') }
-      else alert('Not yet signed by the client.')
-    } catch { alert('Could not reach server.') }
-    setChecking(null)
-  }
-
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-5">
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Standalone Change Orders</p>
-      <div className="space-y-2.5">
-        {list.map(co => (
-          <div key={co.id} className={`border rounded-xl p-3 ${co.status === 'Approved' ? 'border-green-200 bg-green-50' : 'border-gray-200'}`}>
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-gray-800 truncate">{co.client || 'Customer'}</p>
-                <p className="text-xs font-mono text-gray-400">{co.coNumber}</p>
-                {co.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{co.description}</p>}
-              </div>
-              <div className="text-right shrink-0">
-                <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${CO_STATUS_STYLE[co.status] || 'bg-gray-100 text-gray-600'}`}>{co.status}</span>
-                <p className="text-sm font-semibold text-gray-800 mt-1">+${fmtDol(co.amount)}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap mt-2.5">
-              {co.signLink && (
-                <>
-                  <button onClick={() => copyLink(co.id, co.signLink)}
-                    className="flex items-center gap-1 text-xs px-2.5 py-1 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50">
-                    <Link2 size={12} /> {copied === co.id ? 'Copied!' : 'Copy link'}
-                  </button>
-                  <a href={co.signLink} target="_blank" rel="noreferrer"
-                    className="flex items-center gap-1 text-xs px-2.5 py-1 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50">
-                    <ExternalLink size={12} /> Open
-                  </a>
-                  {co.status !== 'Approved' && (
-                    <button onClick={() => checkStatus(co)} disabled={checking === co.id}
-                      className="flex items-center gap-1 text-xs px-2.5 py-1 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-50">
-                      <RefreshCw size={12} className={checking === co.id ? 'animate-spin' : ''} /> Check status
-                    </button>
-                  )}
-                </>
-              )}
-              <button onClick={() => { if (window.confirm('Delete this change order?')) deleteStandaloneCO(co.id) }}
-                className="flex items-center gap-1 text-xs px-2.5 py-1 text-red-400 hover:text-red-600 ml-auto">
-                <Trash2 size={12} /> Delete
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
 
 export default function Jobs() {
   const proposals = useStore(s => s.proposals)
   const [filter, setFilter] = useState('active')
   const [query,  setQuery]  = useState('')
-  const [scoOpen, setScoOpen] = useState(false)
 
   const wonJobs = proposals.filter(p => p.status === 'Won')
   const filtered = wonJobs.filter(p => {
@@ -1848,20 +1724,12 @@ export default function Jobs() {
 
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto">
-      <div className="flex items-start justify-between mb-5 gap-3">
+      <div className="flex items-center justify-between mb-5 gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Job Management</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Stages · Change orders · Daily logs · Warranty</p>
         </div>
-        <button onClick={() => setScoOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-2 bg-gray-900 text-white text-xs sm:text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors shrink-0">
-          <Plus size={14} /> Standalone CO
-        </button>
       </div>
-
-      {scoOpen && <StandaloneCOFlow onClose={() => setScoOpen(false)} />}
-
-      <StandaloneCOList />
 
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-5">
         <div className="flex gap-1 bg-gray-100 rounded-xl p-1 self-start">
