@@ -61,6 +61,7 @@ export function mergeStoreStrings(serverStr, localStr) {
   merged.scopeTemplates   = _unionById(s.scopeTemplates, l.scopeTemplates)
   merged.paymentSchedules = _unionById(s.paymentSchedules, l.paymentSchedules)
   merged.subcontractors   = _unionById(s.subcontractors, l.subcontractors)
+  merged.standaloneChangeOrders = _unionById(s.standaloneChangeOrders, l.standaloneChangeOrders, true)
   merged.jobCosts         = { ...(s.jobCosts || {}), ...(l.jobCosts || {}) }
   for (const k of ['nextCatalogId', 'nextProposalId', 'nextTemplateId', 'nextScopeTemplateId', 'nextPaymentScheduleId', 'nextSubId']) {
     const v = Math.max(Number(s[k]) || 0, Number(l[k]) || 0)
@@ -732,6 +733,27 @@ export const useStore = create(
           ),
         })),
 
+      // ── Standalone Change Orders (for contracts signed outside QuoteX) ────
+      addStandaloneCO: (co) =>
+        set((s) => ({
+          standaloneChangeOrders: [
+            { id: Date.now(), status: 'Pending', createdAt: new Date().toISOString(), ...co },
+            ...(s.standaloneChangeOrders || []),
+          ],
+        })),
+
+      updateStandaloneCO: (coId, changes) =>
+        set((s) => ({
+          standaloneChangeOrders: (s.standaloneChangeOrders || []).map((co) =>
+            co.id === coId ? { ...co, ...changes } : co
+          ),
+        })),
+
+      deleteStandaloneCO: (coId) =>
+        set((s) => ({
+          standaloneChangeOrders: (s.standaloneChangeOrders || []).filter((co) => co.id !== coId),
+        })),
+
       // ── Daily Logs ───────────────────────────────────────────────────────
       addDailyLog: (proposalId, log) =>
         set((s) => ({
@@ -816,6 +838,9 @@ export const useStore = create(
 
       deleteSubcontractor: (id) =>
         set((s) => ({ subcontractors: s.subcontractors.filter((s) => s.id !== id) })),
+
+      // ── Standalone change orders (contracts signed outside QuoteX) ────────
+      standaloneChangeOrders: [],
 
       // ── Job Costs (actual costs entered per won proposal) ────────────────
       jobCosts: {},
@@ -995,6 +1020,7 @@ export const useStore = create(
           branding:           normalizeBranding(persisted?.branding),
           scopeExamples:      persisted?.scopeExamples      || [],
           jobCosts:           persisted?.jobCosts           || {},
+          standaloneChangeOrders: persisted?.standaloneChangeOrders || [],
           catalogCategories:  persisted?.catalogCategories  || [
             'Fencing','Gates','Demo','Materials','Labor','Framing','Concrete','Electrical',
             'Plumbing','Roofing','Flooring','Drywall','Painting','HVAC','Windows','Doors',
