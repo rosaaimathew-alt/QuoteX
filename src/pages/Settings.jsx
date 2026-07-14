@@ -255,6 +255,41 @@ function DataManagement() {
   const importRef = useRef()
   const [importStatus, setImportStatus] = useState(null) // null | 'ok' | 'error'
   const [importMsg, setImportMsg]       = useState('')
+  const [syncing, setSyncing]           = useState(false)
+  const [syncStatus, setSyncStatus]     = useState(null) // null | 'ok' | 'error'
+  const [syncMsg, setSyncMsg]           = useState('')
+
+  // Force-push everything in THIS browser up to the shared server. Reads the
+  // exact payload the store already persisted locally, so it works even if the
+  // screen is currently showing the (empty) server copy.
+  const handlePushToServer = async () => {
+    setSyncing(true)
+    setSyncStatus(null)
+    try {
+      const raw = localStorage.getItem('quotex-store')
+      if (!raw) throw new Error('No local data found in this browser to push.')
+      const token = localStorage.getItem('qx_token')
+      const res = await fetch('/api/store', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ value: raw }),
+      })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        throw new Error(d.error || `Server returned ${res.status}. Make sure you're logged in and redeployed.`)
+      }
+      let count = 0
+      try { count = (JSON.parse(raw).state?.proposals || []).length } catch {}
+      setSyncStatus('ok')
+      setSyncMsg(`Pushed this device's data to the server${count ? ` (${count} proposals)` : ''}. Other devices will see it after they refresh and log in.`)
+    } catch (err) {
+      setSyncStatus('error')
+      setSyncMsg(err.message)
+    } finally {
+      setSyncing(false)
+      setTimeout(() => setSyncStatus(null), 9000)
+    }
+  }
 
   const handleExport = () => {
     const data = {
@@ -314,8 +349,32 @@ function DataManagement() {
         <h3 className="font-semibold text-gray-800 text-sm">Data Backup &amp; Restore</h3>
       </div>
       <p className="text-xs text-gray-400 mb-4">
-        Your data is saved in this browser. Export a backup to move it to another device or URL.
+        Export a file backup, or push this browser's data up to the shared server so every device and teammate sees it.
       </p>
+
+      {/* Push to shared server — the fix for "my data only shows on one device" */}
+      <div className="mb-3 rounded-lg border border-[var(--brand-200)] bg-[var(--brand-50)] p-3">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5"><CloudUpload size={14} /> Sync this device to the server</p>
+            <p className="text-xs text-gray-500 mt-0.5">Uploads everything in this browser to the shared account. Run this on the device that has all your data.</p>
+          </div>
+          <button
+            onClick={handlePushToServer}
+            disabled={syncing}
+            className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-600)] text-white text-sm font-medium rounded-lg hover:bg-[var(--brand-700)] disabled:opacity-50 transition-colors shrink-0"
+          >
+            {syncing ? <RefreshCw size={14} className="animate-spin" /> : <CloudUpload size={14} />}
+            {syncing ? 'Pushing…' : 'Push to server'}
+          </button>
+        </div>
+        {syncStatus && (
+          <div className={`mt-2 flex items-start gap-2 rounded-lg px-3 py-2 text-xs ${syncStatus === 'ok' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+            {syncStatus === 'ok' ? <CheckCircle size={13} className="shrink-0 mt-0.5" /> : <AlertTriangle size={13} className="shrink-0 mt-0.5" />}
+            {syncMsg}
+          </div>
+        )}
+      </div>
 
       <div className="flex gap-3 flex-wrap">
         <button
