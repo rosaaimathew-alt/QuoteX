@@ -725,12 +725,15 @@ function Bar({ pct, color, label, count, revenue }) {
 }
 
 // SVG line chart with hover tooltip
+const APPT_COLOR = '#0d9488' // teal — appointments line (right axis)
+
 function TrendChart({ months, activeTypes, allTypes }) {
   const svgRef = useRef(null)
   const [tooltip, setTooltip] = useState(null)
 
+  const showAppts = activeTypes.has('Appointments')
   const W = 700, H = 220
-  const PAD = { top: 16, right: 20, bottom: 40, left: 56 }
+  const PAD = { top: 16, right: showAppts ? 44 : 20, bottom: 40, left: 56 }
   const chartW = W - PAD.left - PAD.right
   const chartH = H - PAD.top - PAD.bottom
 
@@ -743,13 +746,18 @@ function TrendChart({ months, activeTypes, allTypes }) {
     return max || 1
   }, [months, activeTypes, allTypes])
 
+  // Appointments use their own (right-hand) axis since they're a count, not $.
+  const maxAppt = useMemo(() => Math.max(1, ...months.map(m => m.apptCount || 0)), [months])
+
   const xScale = i => PAD.left + (months.length <= 1 ? chartW / 2 : (i / (months.length - 1)) * chartW)
   const yScale = v => PAD.top + chartH - (v / maxVal) * chartH
+  const yScaleAppt = v => PAD.top + chartH - (v / maxAppt) * chartH
 
   const linePoints = type =>
     months.map((m, i) => `${xScale(i)},${yScale(type === 'Total' ? m.total : (m.byType[type] || 0))}`).join(' ')
+  const apptPoints = months.map((m, i) => `${xScale(i)},${yScaleAppt(m.apptCount || 0)}`).join(' ')
 
-  const yTicks = [0, 0.25, 0.5, 0.75, 1].map(f => ({ val: maxVal * f, y: yScale(maxVal * f) }))
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map(f => ({ val: maxVal * f, y: yScale(maxVal * f), appt: Math.round(maxAppt * f) }))
 
   const handleMouseMove = e => {
     if (!svgRef.current) return
@@ -772,13 +780,19 @@ function TrendChart({ months, activeTypes, allTypes }) {
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setTooltip(null)}
       >
-        {/* Y grid + labels */}
-        {yTicks.map(({ val, y }) => (
+        {/* Y grid + labels ($ on left; appointment count on right) */}
+        {yTicks.map(({ val, y, appt }) => (
           <g key={val}>
             <line x1={PAD.left} y1={y} x2={W - PAD.right} y2={y} stroke="#f3f4f6" strokeWidth="1" />
             <text x={PAD.left - 6} y={y + 4} textAnchor="end" fontSize="9" fill="#9ca3af">{fmtK(val)}</text>
+            {showAppts && (
+              <text x={W - PAD.right + 6} y={y + 4} textAnchor="start" fontSize="9" fill={APPT_COLOR}>{appt}</text>
+            )}
           </g>
         ))}
+        {showAppts && (
+          <text x={W - PAD.right + 6} y={PAD.top - 4} textAnchor="start" fontSize="8" fill={APPT_COLOR} fontWeight="600">appts</text>
+        )}
 
         {/* X labels */}
         {months.map((m, i) => (
@@ -823,6 +837,25 @@ function TrendChart({ months, activeTypes, allTypes }) {
           )
         })}
 
+        {/* Appointments line — dashed, on the right-hand count axis */}
+        {showAppts && (
+          <g>
+            <polyline
+              points={apptPoints}
+              fill="none"
+              stroke={APPT_COLOR}
+              strokeWidth={2}
+              strokeDasharray="5,4"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+            {months.map((m, i) => (m.apptCount || 0) > 0 ? (
+              <circle key={i} cx={xScale(i)} cy={yScaleAppt(m.apptCount)} r={3}
+                fill="white" stroke={APPT_COLOR} strokeWidth={1.8} />
+            ) : null)}
+          </g>
+        )}
+
         {/* Hover vertical line */}
         {tooltip && (
           <line x1={tooltip.x} y1={PAD.top} x2={tooltip.x} y2={H - PAD.bottom}
@@ -839,7 +872,8 @@ function TrendChart({ months, activeTypes, allTypes }) {
           {allTypes.filter(t => activeTypes.has(t) && tip.byType[t] > 0).map(t => (
             <p key={t} style={{ color: typeStroke(t, allTypes) }}>{t}: {fmtK(tip.byType[t])}</p>
           ))}
-          {tip.jobCount > 0 && <p className="text-gray-400 mt-1">{tip.jobCount} job{tip.jobCount !== 1 ? 's' : ''}</p>}
+          {showAppts && <p style={{ color: APPT_COLOR }} className="font-medium">{tip.apptCount || 0} appointment{(tip.apptCount || 0) !== 1 ? 's' : ''}</p>}
+          {tip.jobCount > 0 && <p className="text-gray-400 mt-1">{tip.jobCount} job{tip.jobCount !== 1 ? 's' : ''} won</p>}
         </div>
       )}
     </div>
@@ -850,7 +884,7 @@ export default function Analytics() {
   const proposals    = useStore(s => s.proposals)
   const PROJECT_TYPES = useStore(s => s.projectTypes)
   const [rangeMonths, setRangeMonths]   = useState(12)
-  const [activeTypes, setActiveTypes]   = useState(new Set(['Total']))
+  const [activeTypes, setActiveTypes]   = useState(new Set(['Total', 'Appointments']))
   const [managingTypes, setManagingTypes] = useState(false)
   const [remapping, setRemapping] = useState(false)
 
@@ -918,6 +952,7 @@ export default function Analytics() {
         total: 0,
         byType: {},
         jobCount: 0,
+        apptCount: 0,
       }
     })
     won.forEach(p => {
@@ -931,6 +966,14 @@ export default function Analytics() {
         ? p.contractDraft.projectTypes
         : p.projectTypes?.length ? p.projectTypes : ['Other']
       types.forEach(t => { m.byType[t] = (m.byType[t] || 0) + rev / types.length })
+    })
+    // Appointments = original estimates done (each root proposal, not revisions),
+    // counted by when it was created. Tracks activity volume vs. revenue.
+    proposals.forEach(p => {
+      if (p.parentId) return
+      const d = new Date(p.createdAt || p.sentAt || p.closedAt || Date.now())
+      const m = months.find(m => m.year === d.getFullYear() && m.month === d.getMonth())
+      if (m) m.apptCount += 1
     })
     return months
   }, [proposals, rangeMonths])
@@ -966,7 +1009,7 @@ export default function Analytics() {
         <div className="flex items-start justify-between flex-wrap gap-3 mb-4">
           <div>
             <h2 className="font-semibold text-gray-900 text-sm">Revenue Trend &amp; Seasonality</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Click a job type to isolate its revenue line and spot seasonal patterns</p>
+            <p className="text-xs text-gray-400 mt-0.5">Revenue by month (left axis, $) vs. appointments done (right axis, teal dashed). Toggle any line below.</p>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => setRemapping(true)}
@@ -1002,6 +1045,13 @@ export default function Analytics() {
               </button>
             )
           })}
+          {/* Appointments — plotted on the right-hand axis (a count, not dollars) */}
+          <button onClick={() => toggleType('Appointments')}
+            className={`px-2.5 py-0.5 rounded-full text-xs font-medium border transition-all ${activeTypes.has('Appointments') ? 'bg-teal-50 text-teal-700 border-teal-300' : 'bg-white text-gray-400 border-gray-200'}`}>
+            <span className="inline-block w-2 h-1.5 mr-1 align-middle rounded-sm"
+              style={{ background: activeTypes.has('Appointments') ? APPT_COLOR : '#d1d5db' }} />
+            Appointments
+          </button>
         </div>
 
         <TrendChart months={trendData} activeTypes={activeTypes} allTypes={allTypes} />
