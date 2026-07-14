@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Upload, Trash2, CheckCircle, RefreshCw, Palette, Building2, Eye, Download, FolderOpen, AlertTriangle, CloudUpload, HardDrive, Wifi, WifiOff, Lock, Sparkles, Mail } from 'lucide-react'
-import { useStore } from '../store'
+import { useStore, syncThisDeviceUp } from '../store'
 import { extractDominantColor, generatePalette, applyBrandStyles, DEFAULT_BRAND_COLOR, FREE_PRIMARY_COLOR, FREE_SIDEBAR_COLOR, BRAND_PRESETS } from '../brand'
 import { canCustomizeBranding, PLAN_ORDER, PLAN_META } from '../plans'
 
@@ -259,29 +259,16 @@ function DataManagement() {
   const [syncStatus, setSyncStatus]     = useState(null) // null | 'ok' | 'error'
   const [syncMsg, setSyncMsg]           = useState('')
 
-  // Force-push everything in THIS browser up to the shared server. Reads the
-  // exact payload the store already persisted locally, so it works even if the
-  // screen is currently showing the (empty) server copy.
+  // Merge this browser's data up into the shared server (union, never
+  // overwrites). Normally unnecessary — data syncs automatically — but useful
+  // to reconcile a device that was holding records from before auto-sync.
   const handlePushToServer = async () => {
     setSyncing(true)
     setSyncStatus(null)
     try {
-      const raw = localStorage.getItem('quotex-store')
-      if (!raw) throw new Error('No local data found in this browser to push.')
-      const token = localStorage.getItem('qx_token')
-      const res = await fetch('/api/store', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ value: raw }),
-      })
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}))
-        throw new Error(d.error || `Server returned ${res.status}. Make sure you're logged in and redeployed.`)
-      }
-      let count = 0
-      try { count = (JSON.parse(raw).state?.proposals || []).length } catch {}
+      const { count } = await syncThisDeviceUp()
       setSyncStatus('ok')
-      setSyncMsg(`Pushed this device's data to the server${count ? ` (${count} proposals)` : ''}. Other devices will see it after they refresh and log in.`)
+      setSyncMsg(`Synced — the shared account now has ${count} proposals. Other devices will see them after they refresh.`)
     } catch (err) {
       setSyncStatus('error')
       setSyncMsg(err.message)
@@ -357,7 +344,7 @@ function DataManagement() {
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5"><CloudUpload size={14} /> Sync this device to the server</p>
-            <p className="text-xs text-gray-500 mt-0.5">Uploads everything in this browser to the shared account. Run this on the device that has all your data.</p>
+            <p className="text-xs text-gray-500 mt-0.5">Data now syncs automatically. Use this only to merge in older records from a device that has history the server doesn't — it adds, never overwrites.</p>
           </div>
           <button
             onClick={handlePushToServer}

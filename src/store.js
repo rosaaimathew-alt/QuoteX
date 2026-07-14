@@ -1,77 +1,147 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
-// Smart storage: saves to a file on the local Mac (via /api/store) so every
-// device on the network always reads the same data. Automatically falls back
-// to localStorage when the API is not available (e.g. cloud deployment).
+// Smart storage: the shared server (Vercel KV via /api/store) is the source of
+// truth. Every signed-in write is pushed up automatically, and every read
+// MERGES the server copy with this device's local copy — a union that never
+// drops records — so data can never get stranded on a single device again.
+const STORE_KEY = 'quotex-store'
 let _initial = null // cached promise for the first GET
 
-// The persisted store loads at module-import time — before the global fetch
-// helper installs — so it must attach the session token itself. Without this,
-// the very first /api/store read is unauthenticated (401) and the app silently
-// falls back to this device's stale localStorage, which is what makes one
-// device (e.g. a phone) show different data than another.
+function _token() {
+  try { return localStorage.getItem('qx_token') } catch { return null }
+}
 function _authHeaders(extra = {}) {
-  let token = null
-  try { token = localStorage.getItem('qx_token') } catch {}
+  const token = _token()
   return token ? { ...extra, Authorization: `Bearer ${token}` } : { ...extra }
+}
+
+// Fire-and-forget push of the full persisted state to the shared server.
+function _pushToServer(value) {
+  if (!_token()) return // not signed in — nothing to push to
+  fetch('/api/store', {
+    method: 'POST',
+    headers: _authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ value }),
+  }).catch(() => {})
+}
+
+// Most-recent timestamp on a proposal, used to resolve same-id conflicts.
+function _score(p) {
+  let m = 0
+  for (const k of ['updatedAt', 'closedAt', 'sentAt', 'createdAt']) {
+    const t = p && p[k] ? Date.parse(p[k]) : 0
+    if (t && t > m) m = t
+  }
+  return m
+}
+function _unionById(a = [], b = [], newerWins = false) {
+  const map = new Map()
+  for (const it of (a || [])) if (it && it.id != null) map.set(it.id, it)
+  for (const it of (b || [])) {
+    if (!it || it.id == null) continue
+    const ex = map.get(it.id)
+    if (!ex) { map.set(it.id, it); continue }
+    map.set(it.id, newerWins ? (_score(it) >= _score(ex) ? it : ex) : it)
+  }
+  return [...map.values()]
+}
+
+// Merge two persisted store strings ({state, version}) into one. Union of all
+// record lists (proposals newest-wins), max of id counters. Never loses data.
+export function mergeStoreStrings(serverStr, localStr) {
+  let S, L
+  try { S = JSON.parse(serverStr) } catch { return localStr }
+  try { L = JSON.parse(localStr) } catch { return serverStr }
+  const s = S.state || {}, l = L.state || {}
+  const merged = { ...s, ...l } // local wins for scalar settings (branding, theme…)
+  merged.proposals        = _unionById(s.proposals, l.proposals, true)
+  merged.catalog          = _unionById(s.catalog, l.catalog)
+  merged.templates        = _unionById(s.templates, l.templates)
+  merged.scopeTemplates   = _unionById(s.scopeTemplates, l.scopeTemplates)
+  merged.paymentSchedules = _unionById(s.paymentSchedules, l.paymentSchedules)
+  merged.subcontractors   = _unionById(s.subcontractors, l.subcontractors)
+  merged.jobCosts         = { ...(s.jobCosts || {}), ...(l.jobCosts || {}) }
+  for (const k of ['nextCatalogId', 'nextProposalId', 'nextTemplateId', 'nextScopeTemplateId', 'nextPaymentScheduleId', 'nextSubId']) {
+    const v = Math.max(Number(s[k]) || 0, Number(l[k]) || 0)
+    if (v) merged[k] = v
+  }
+  return JSON.stringify({ state: merged, version: Math.max(Number(S.version) || 0, Number(L.version) || 0) })
+}
+
+function _proposalCount(str) {
+  try { return (JSON.parse(str).state?.proposals || []).length } catch { return 0 }
 }
 
 function _fetchInitial() {
   if (!_initial) {
     _initial = fetch('/api/store', { headers: _authHeaders(), signal: AbortSignal.timeout(6000) })
       .then(async r => {
-        // 401 = signed out / token not ready. Treat as "no answer yet" and use
-        // local so we never overwrite the server copy, but don't cache a bad
-        // read permanently — a reload after login will pick up the real data.
-        if (!r.ok) return { mode: 'local', data: null, unauthorized: r.status === 401 }
+        if (!r.ok) return { reachable: false, data: null } // offline / not signed in
         const text = await r.text()
-        return { mode: 'file', data: (text && text !== 'null') ? text : null }
+        return { reachable: true, data: (text && text !== 'null') ? text : null }
       })
-      .catch(() => ({ mode: 'local', data: null }))
+      .catch(() => ({ reachable: false, data: null }))
   }
   return _initial
 }
 
 const smartStorage = {
   getItem: async (name) => {
-    const { mode, data } = await _fetchInitial()
-    if (mode === 'file') {
-      // File exists and has data — use it
-      if (data !== null) return data
-      // File is empty — migrate any existing localStorage data into the file
-      const local = localStorage.getItem(name)
-      if (local) {
-        fetch('/api/store', {
-          method: 'POST',
-          headers: _authHeaders({ 'Content-Type': 'application/json' }),
-          body: JSON.stringify({ value: local }),
-        }).catch(() => {})
-        return local
-      }
-      return null
-    }
-    return localStorage.getItem(name)
+    const { reachable, data: serverStr } = await _fetchInitial()
+    let localStr = null
+    try { localStr = localStorage.getItem(name) } catch {}
+
+    // Couldn't reach or authenticate with the server — use local only, and never
+    // touch the server (we can't tell if it holds data we simply couldn't read).
+    if (!reachable) return localStr
+
+    if (!localStr)  return serverStr                       // nothing local → server wins
+    if (!serverStr) { _pushToServer(localStr); return localStr } // server empty → seed it from local
+
+    // Both have data → merge. Union never drops records, so a device holding
+    // more history heals the server automatically instead of being overwritten.
+    const merged = mergeStoreStrings(serverStr, localStr)
+    if (_proposalCount(merged) > _proposalCount(serverStr)) _pushToServer(merged)
+    try { localStorage.setItem(name, merged) } catch {}
+    return merged
   },
 
   setItem: async (name, value) => {
-    const { mode } = await _fetchInitial()
-    if (mode === 'file') {
-      // Fire-and-forget — don't block the UI while saving
-      fetch('/api/store', {
-        method: 'POST',
-        headers: _authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ value }),
-      }).catch(() => localStorage.setItem(name, value))
-      return
-    }
-    // Local mode (offline or not signed in): keep a device-local copy only.
-    // Never auto-push local data to the server here — if this device loaded a
-    // stale copy, pushing it would overwrite the good server data.
-    localStorage.setItem(name, value)
+    try { localStorage.setItem(name, value) } catch {} // fast local cache + offline copy
+    _pushToServer(value) // always sync the full current state up when signed in
   },
 
   removeItem: (name) => localStorage.removeItem(name),
+}
+
+// Manual merge-up used by the Settings "Push to server" button: pulls the
+// current server copy, unions this browser's data into it, and saves the
+// result — so it merges rather than overwrites.
+export async function syncThisDeviceUp() {
+  const token = _token()
+  if (!token) throw new Error('Please sign in first.')
+  let localStr = null
+  try { localStr = localStorage.getItem(STORE_KEY) } catch {}
+  if (!localStr) throw new Error('No data found in this browser to sync.')
+
+  let serverStr = null
+  try {
+    const r = await fetch('/api/store', { headers: { Authorization: `Bearer ${token}` } })
+    if (r.ok) { const t = await r.text(); serverStr = (t && t !== 'null') ? t : null }
+  } catch {}
+
+  const merged = serverStr ? mergeStoreStrings(serverStr, localStr) : localStr
+  const res = await fetch('/api/store', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ value: merged }),
+  })
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}))
+    throw new Error(d.error || `Server returned ${res.status}. Try signing out and back in.`)
+  }
+  return { count: _proposalCount(merged) }
 }
 
 const SEED_CATALOG = [
