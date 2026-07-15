@@ -903,6 +903,14 @@ export default function ProposalTracker() {
   const [tab, setTab] = useState('list')
   const [filterStatus, setFilterStatus] = useState('All')
   const [periodFilter, setPeriodFilter] = useState('all-time')
+  const [statsHidden, setStatsHidden] = useState(() => {
+    try { return localStorage.getItem('qx_tracker_stats_hidden') === '1' } catch { return false }
+  })
+  const toggleStats = () => setStatsHidden(v => {
+    const n = !v
+    try { localStorage.setItem('qx_tracker_stats_hidden', n ? '1' : '0') } catch {}
+    return n
+  })
   const [winLossTarget, setWinLossTarget] = useState(null)
   const [reminderProposalId, setReminderProposalId] = useState(null)
   const [reminderDate, setReminderDate] = useState('')
@@ -1029,16 +1037,23 @@ export default function ProposalTracker() {
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Proposal Tracker</h2>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Manage your pipeline from quote to close.</p>
         </div>
-        {dueCount > 0 && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-300 rounded-lg text-sm font-medium text-amber-800">
-            <Bell size={15} className="text-[var(--brand-500)]" />
-            {dueCount} follow-up{dueCount !== 1 ? 's' : ''} due
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {dueCount > 0 && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-300 rounded-lg text-sm font-medium text-amber-800">
+              <Bell size={15} className="text-[var(--brand-500)]" />
+              {dueCount} follow-up{dueCount !== 1 ? 's' : ''} due
+            </div>
+          )}
+          <button onClick={toggleStats}
+            className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-500 hover:bg-gray-50 transition-colors">
+            {statsHidden ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
+            {statsHidden ? 'Show stats' : 'Hide stats'}
+          </button>
+        </div>
       </div>
 
       {/* Stats strip */}
-      {(() => {
+      {!statsHidden && (() => {
         const now = new Date()
         const inPeriod = (p) => {
           const d = new Date(p.closedAt || p.createdAt || p.sentAt || Date.now())

@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FileText, BookOpen, ClipboardList, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon, Sun, Moon, Users, FileSignature, LogOut, TrendingUp, Menu, HardHat, Wrench, CalendarDays, Kanban, PieChart } from 'lucide-react'
+import { LayoutDashboard, FileText, BookOpen, ClipboardList, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon, Sun, Moon, Users, FileSignature, LogOut, TrendingUp, Menu, HardHat, Wrench, CalendarDays, PieChart } from 'lucide-react'
 import { Component, useEffect, useState, useRef } from 'react'
 import Dashboard from './pages/Dashboard'
 import Analyze from './pages/Analyze'
@@ -21,7 +21,6 @@ import SignPage from './pages/SignPage'
 import COSignPage from './pages/COSignPage'
 import ContractViewFull from './pages/ContractViewFull'
 import ProfitabilityTracker from './pages/ProfitabilityTracker'
-import Pipeline from './pages/Pipeline'
 import Jobs from './pages/Jobs'
 import Subcontractors from './pages/Subcontractors'
 import Scheduler from './pages/Scheduler'
@@ -41,7 +40,6 @@ const NAV = [
   { to: '/quote',      label: 'Build Quote',      icon: ClipboardList },
   { to: '/tracker',   label: 'Proposal Tracker', icon: BarChart2 },
   { to: '/analytics', label: 'Analytics',         icon: PieChart },
-  { to: '/pipeline',  label: 'Pipeline',         icon: Kanban },
   { to: '/contracts',    label: 'Contracts',       icon: FileSignature },
   { to: '/jobs',         label: 'Job Management', icon: HardHat },
   { to: '/subs',         label: 'Subcontractors', icon: Wrench },
@@ -364,7 +362,8 @@ function AppShell() {
             <Route path="/subs"          element={<Gated path="/subs"><Subcontractors /></Gated>} />
             <Route path="/scheduler"     element={<Gated path="/scheduler"><Scheduler /></Gated>} />
             <Route path="/profitability" element={<Gated path="/profitability"><ProfitabilityTracker /></Gated>} />
-            <Route path="/pipeline"      element={<Gated path="/pipeline"><Pipeline /></Gated>} />
+            {/* Pipeline folded into the Proposal Tracker's Pipeline tab */}
+            <Route path="/pipeline"      element={<Navigate to="/tracker" replace />} />
           </Routes>
         </main>
       </div>
