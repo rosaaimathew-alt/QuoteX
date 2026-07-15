@@ -64,6 +64,7 @@ export function mergeStoreStrings(serverStr, localStr) {
   merged.standaloneChangeOrders = _unionById(s.standaloneChangeOrders, l.standaloneChangeOrders, true)
   merged.todos            = _unionById(s.todos, l.todos, true)
   merged.plannedProjects  = _unionById(s.plannedProjects, l.plannedProjects, true)
+  merged.emailTemplates   = _unionById(s.emailTemplates, l.emailTemplates)
   merged.jobCosts         = { ...(s.jobCosts || {}), ...(l.jobCosts || {}) }
   for (const k of ['nextCatalogId', 'nextProposalId', 'nextTemplateId', 'nextScopeTemplateId', 'nextPaymentScheduleId', 'nextSubId']) {
     const v = Math.max(Number(s[k]) || 0, Number(l[k]) || 0)
@@ -161,6 +162,14 @@ const SEED_CATALOG = [
 ]
 
 export const PROPOSAL_STATUSES = ['Draft', 'Sent', 'Followed Up', 'Negotiating', 'Won', 'Lost', 'MIA']
+
+// Starter follow-up email templates. {client} is replaced with the customer name.
+export const DEFAULT_EMAIL_TEMPLATES = [
+  { id: 1, name: 'Gentle nudge', body: "Hi {client},\n\nJust circling back on the proposal I sent over — did you have any questions? Happy to walk through anything or adjust the scope to fit your needs.\n\nTalk soon!" },
+  { id: 2, name: 'Ready to schedule', body: "Hi {client},\n\nWe have a few openings coming up and I'd love to get your project on the calendar. A 20% deposit locks in your start date. Want me to send over the next steps?\n\nThanks!" },
+  { id: 3, name: 'Last check-in', body: "Hi {client},\n\nWanted to check in one more time before I close out your file. Are you still interested in moving forward? Just reply and let me know either way — no pressure.\n\nAppreciate it!" },
+  { id: 4, name: 'Thanks for your time', body: "Hi {client},\n\nThank you for taking the time to meet with us. It was great learning about your project. Your proposal is attached — reach out anytime with questions.\n\nBest," },
+]
 
 // Fill in any branding fields missing from an older persisted install. Existing
 // installs (which predate the plan/color fields) are treated as the owner's own
@@ -920,6 +929,15 @@ export const useStore = create(
             : [...s.calendarHiddenJobs, id],
         })),
 
+      // ── One-click follow-up email templates ──────────────────────────────────
+      emailTemplates: DEFAULT_EMAIL_TEMPLATES,
+      addEmailTemplate: (t) =>
+        set((s) => ({ emailTemplates: [...s.emailTemplates, { id: Date.now(), ...t }] })),
+      updateEmailTemplate: (id, changes) =>
+        set((s) => ({ emailTemplates: s.emailTemplates.map((t) => (t.id === id ? { ...t, ...changes } : t)) })),
+      deleteEmailTemplate: (id) =>
+        set((s) => ({ emailTemplates: s.emailTemplates.filter((t) => t.id !== id) })),
+
       // ── Daily to-do list ─────────────────────────────────────────────────────
       todos: [],
       todoPin: 'off', // 'off' | 'right' — pins the list as a side panel
@@ -1056,6 +1074,7 @@ export const useStore = create(
           role:               persisted?.role               || 'manager',
           plannedProjects:    persisted?.plannedProjects    || [],
           calendarHiddenJobs: persisted?.calendarHiddenJobs || [],
+          emailTemplates:     persisted?.emailTemplates     || DEFAULT_EMAIL_TEMPLATES,
           theme:              persisted?.theme              || 'light',
           branding:           normalizeBranding(persisted?.branding),
           scopeExamples:      persisted?.scopeExamples      || [],
