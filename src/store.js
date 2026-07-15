@@ -63,6 +63,7 @@ export function mergeStoreStrings(serverStr, localStr) {
   merged.subcontractors   = _unionById(s.subcontractors, l.subcontractors)
   merged.standaloneChangeOrders = _unionById(s.standaloneChangeOrders, l.standaloneChangeOrders, true)
   merged.todos            = _unionById(s.todos, l.todos, true)
+  merged.plannedProjects  = _unionById(s.plannedProjects, l.plannedProjects, true)
   merged.jobCosts         = { ...(s.jobCosts || {}), ...(l.jobCosts || {}) }
   for (const k of ['nextCatalogId', 'nextProposalId', 'nextTemplateId', 'nextScopeTemplateId', 'nextPaymentScheduleId', 'nextSubId']) {
     const v = Math.max(Number(s[k]) || 0, Number(l[k]) || 0)
@@ -903,6 +904,22 @@ export const useStore = create(
       role: 'manager',
       setRole: (role) => set({ role }),
 
+      // ── PM calendar: tentative projects + which jobs are hidden ───────────────
+      plannedProjects: [],
+      addPlannedProject: (proj) =>
+        set((s) => ({ plannedProjects: [{ id: Date.now(), color: '#2563eb', ...proj }, ...s.plannedProjects] })),
+      updatePlannedProject: (id, changes) =>
+        set((s) => ({ plannedProjects: s.plannedProjects.map((p) => (p.id === id ? { ...p, ...changes } : p)) })),
+      deletePlannedProject: (id) =>
+        set((s) => ({ plannedProjects: s.plannedProjects.filter((p) => p.id !== id) })),
+      calendarHiddenJobs: [],
+      toggleCalendarHiddenJob: (id) =>
+        set((s) => ({
+          calendarHiddenJobs: s.calendarHiddenJobs.includes(id)
+            ? s.calendarHiddenJobs.filter((x) => x !== id)
+            : [...s.calendarHiddenJobs, id],
+        })),
+
       // ── Daily to-do list ─────────────────────────────────────────────────────
       todos: [],
       todoPin: 'off', // 'off' | 'right' — pins the list as a side panel
@@ -1037,6 +1054,8 @@ export const useStore = create(
           todos:              persisted?.todos              || [],
           todoPin:            persisted?.todoPin            || 'off',
           role:               persisted?.role               || 'manager',
+          plannedProjects:    persisted?.plannedProjects    || [],
+          calendarHiddenJobs: persisted?.calendarHiddenJobs || [],
           theme:              persisted?.theme              || 'light',
           branding:           normalizeBranding(persisted?.branding),
           scopeExamples:      persisted?.scopeExamples      || [],

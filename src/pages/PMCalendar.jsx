@@ -1,0 +1,277 @@
+import { useState, useMemo } from 'react'
+import { useStore } from '../store'
+import {
+  ChevronLeft, ChevronRight, Plus, X, Eye, EyeOff, Trash2, CalendarDays,
+  MapPin, HardHat, Circle,
+} from 'lucide-react'
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const PLAN_COLORS = ['#2563eb', '#0d9488', '#7c3aed', '#c0603f', '#b45309', '#be123c', '#4b5563']
+
+const key = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const parseKey = (s) => { const [y, m, dd] = s.split('-').map(Number); return new Date(y, m - 1, dd) }
+const todayKey = () => key(new Date())
+const fmtRange = (a, b) => {
+  const s = parseKey(a), e = parseKey(b)
+  const o = { month: 'short', day: 'numeric' }
+  return a === b ? s.toLocaleDateString('en-US', o) : `${s.toLocaleDateString('en-US', o)} – ${e.toLocaleDateString('en-US', o)}`
+}
+
+// Build the events list from won jobs + planned projects.
+function useCalendarEvents() {
+  const proposals          = useStore(s => s.proposals)
+  const plannedProjects    = useStore(s => s.plannedProjects) || []
+  const calendarHiddenJobs = useStore(s => s.calendarHiddenJobs) || []
+
+  return useMemo(() => {
+    const jobs = proposals
+      .filter(p => p.status === 'Won')
+      .map(p => {
+        const start = p.jobData?.startDate || null
+        const end   = p.jobData?.targetDate || start
+        return {
+          id: `job-${p.id}`, kind: 'job', proposalId: p.id,
+          title: p.client || 'Job', address: p.address || '',
+          start, end: end || start,
+          hidden: calendarHiddenJobs.includes(p.id),
+          color: '#0f766e',
+        }
+      })
+    const planned = plannedProjects.map(pp => ({
+      id: `plan-${pp.id}`, kind: 'planned', planId: pp.id,
+      title: pp.title || 'Planned', address: pp.client || '',
+      start: pp.startDate, end: pp.endDate || pp.startDate,
+      hidden: false, color: pp.color || '#2563eb',
+    }))
+    const scheduled   = [...jobs, ...planned].filter(e => e.start && !e.hidden)
+    const unscheduled = jobs.filter(e => !e.start)
+    const hidden      = jobs.filter(e => e.hidden)
+    return { scheduled, unscheduled, hidden }
+  }, [proposals, plannedProjects, calendarHiddenJobs])
+}
+
+function EventEditor({ event, onClose }) {
+  const updateJobData          = useStore(s => s.updateJobData)
+  const toggleCalendarHiddenJob = useStore(s => s.toggleCalendarHiddenJob)
+  const addPlannedProject      = useStore(s => s.addPlannedProject)
+  const updatePlannedProject   = useStore(s => s.updatePlannedProject)
+  const deletePlannedProject   = useStore(s => s.deletePlannedProject)
+  const isJob  = event.kind === 'job'
+  const isNew  = !isJob && event.planId == null
+
+  const [start, setStart] = useState(event.start || '')
+  const [end, setEnd]     = useState(event.end || event.start || '')
+  const [title, setTitle] = useState(event.title || '')
+  const [client, setClient] = useState(event.address || '')
+  const [color, setColor] = useState(event.color || '#2563eb')
+
+  const save = () => {
+    if (isJob) {
+      updateJobData(event.proposalId, { startDate: start || null, targetDate: end || start || null })
+    } else if (isNew) {
+      if (title.trim() || client.trim()) addPlannedProject({ title, client, startDate: start, endDate: end || start, color })
+    } else {
+      updatePlannedProject(event.planId, { title, client, startDate: start, endDate: end || start, color })
+    }
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <p className="font-semibold text-gray-900 flex items-center gap-2">
+            {isJob ? <HardHat size={16} className="text-teal-600" /> : <Circle size={12} style={{ color }} fill={color} />}
+            {isJob ? 'Job' : 'Planned project'}
+          </p>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={17} /></button>
+        </div>
+        <div className="p-5 space-y-3">
+          {isJob ? (
+            <div>
+              <p className="text-sm font-semibold text-gray-800">{event.title}</p>
+              {event.address && <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5"><MapPin size={11} /> {event.address}</p>}
+            </div>
+          ) : (
+            <>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Project</label>
+                <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Potential deck — Smith"
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Client / note</label>
+                <input value={client} onChange={e => setClient(e.target.value)} placeholder="optional"
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Color</label>
+                <div className="flex gap-2">
+                  {PLAN_COLORS.map(c => (
+                    <button key={c} onClick={() => setColor(c)}
+                      className={`w-6 h-6 rounded-full transition-transform ${color === c ? 'ring-2 ring-offset-1 ring-gray-400 scale-110' : 'hover:scale-105'}`}
+                      style={{ background: c }} />
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Start</label>
+              <input type="date" value={start} onChange={e => setStart(e.target.value)}
+                className="w-full text-sm border border-gray-200 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">End</label>
+              <input type="date" value={end} onChange={e => setEnd(e.target.value)}
+                className="w-full text-sm border border-gray-200 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+            </div>
+          </div>
+        </div>
+        <div className="px-5 py-4 border-t border-gray-100 flex items-center gap-2">
+          {isJob ? (
+            <button onClick={() => { toggleCalendarHiddenJob(event.proposalId); onClose() }}
+              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">
+              <EyeOff size={13} /> Hide from calendar
+            </button>
+          ) : !isNew ? (
+            <button onClick={() => { deletePlannedProject(event.planId); onClose() }}
+              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border border-red-200 text-red-500 hover:bg-red-50">
+              <Trash2 size={13} /> Delete
+            </button>
+          ) : null}
+          <button onClick={save} className="ml-auto px-5 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700">Save</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function PMCalendar() {
+  const toggleCalendarHiddenJob = useStore(s => s.toggleCalendarHiddenJob)
+  const { scheduled, unscheduled, hidden } = useCalendarEvents()
+
+  const now = new Date()
+  const [view, setView] = useState({ year: now.getFullYear(), month: now.getMonth() })
+  const [editing, setEditing] = useState(null)
+  const [showHidden, setShowHidden] = useState(false)
+
+  const monthStart = new Date(view.year, view.month, 1)
+  const monthLabel = monthStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+
+  // 6-week grid starting on the Sunday on/before the 1st
+  const gridStart = new Date(monthStart)
+  gridStart.setDate(1 - monthStart.getDay())
+  const days = Array.from({ length: 42 }, (_, i) => { const d = new Date(gridStart); d.setDate(gridStart.getDate() + i); return d })
+
+  const eventsOn = (d) => {
+    const k = key(d)
+    return scheduled.filter(e => e.start <= k && k <= (e.end || e.start))
+  }
+
+  const shift = (n) => setView(v => { const d = new Date(v.year, v.month + n, 1); return { year: d.getFullYear(), month: d.getMonth() } })
+  const goToday = () => setView({ year: now.getFullYear(), month: now.getMonth() })
+
+  const addOnDay = (d) => {
+    const k = key(d)
+    setEditing({ kind: 'planned', planId: null, start: k, end: k, title: '', address: '', color: '#2563eb' })
+  }
+
+  const tKey = todayKey()
+
+  return (
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto">
+      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <CalendarDays size={22} className="text-teal-600" /> Job Calendar
+          </h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">All open jobs across the board — click a day to plan, click a job to reschedule.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={goToday} className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50">Today</button>
+          <div className="flex items-center gap-1">
+            <button onClick={() => shift(-1)} className="p-1.5 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50"><ChevronLeft size={16} /></button>
+            <span className="text-sm font-semibold text-gray-800 w-36 text-center">{monthLabel}</span>
+            <button onClick={() => shift(1)} className="p-1.5 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50"><ChevronRight size={16} /></button>
+          </div>
+        </div>
+      </div>
+
+      {/* Unscheduled jobs strip */}
+      {unscheduled.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
+          <p className="text-xs font-semibold text-amber-800 mb-2">Jobs needing a date ({unscheduled.length}) — tap to schedule</p>
+          <div className="flex gap-2 flex-wrap">
+            {unscheduled.map(e => (
+              <button key={e.id} onClick={() => setEditing(e)}
+                className="flex items-center gap-1.5 text-xs bg-white border border-amber-200 rounded-lg px-2.5 py-1.5 hover:border-amber-400">
+                <HardHat size={12} className="text-teal-600" /> {e.title}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Calendar grid */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="grid grid-cols-7 border-b border-gray-100 bg-gray-50">
+          {WEEKDAYS.map(w => <div key={w} className="px-2 py-2 text-center text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{w}</div>)}
+        </div>
+        <div className="grid grid-cols-7">
+          {days.map((d, i) => {
+            const inMonth = d.getMonth() === view.month
+            const k = key(d)
+            const evts = eventsOn(d)
+            return (
+              <div key={i}
+                className={`min-h-[92px] border-b border-r border-gray-50 p-1.5 flex flex-col gap-1 group ${inMonth ? 'bg-white' : 'bg-gray-50/60'}`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-xs font-medium ${k === tKey ? 'bg-teal-600 text-white w-5 h-5 rounded-full flex items-center justify-center' : inMonth ? 'text-gray-600' : 'text-gray-300'}`}>
+                    {d.getDate()}
+                  </span>
+                  <button onClick={() => addOnDay(d)} title="Add a planned project"
+                    className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-teal-600 transition-opacity"><Plus size={13} /></button>
+                </div>
+                <div className="flex flex-col gap-0.5 overflow-hidden">
+                  {evts.slice(0, 3).map(e => (
+                    <button key={e.id} onClick={() => setEditing(e)}
+                      className="text-left text-[11px] leading-tight px-1.5 py-0.5 rounded truncate text-white hover:opacity-90"
+                      style={{ background: e.color }} title={e.title}>
+                      {e.title}
+                    </button>
+                  ))}
+                  {evts.length > 3 && <span className="text-[10px] text-gray-400 px-1">+{evts.length - 3} more</span>}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Legend + hidden jobs */}
+      <div className="flex items-center gap-4 mt-3 flex-wrap text-xs text-gray-500">
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded" style={{ background: '#0f766e' }} /> Jobs</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded" style={{ background: '#2563eb' }} /> Planned</span>
+        {hidden.length > 0 && (
+          <button onClick={() => setShowHidden(v => !v)} className="flex items-center gap-1 hover:text-gray-700 ml-auto">
+            <EyeOff size={12} /> {hidden.length} hidden {showHidden ? '▲' : '▼'}
+          </button>
+        )}
+      </div>
+      {showHidden && hidden.length > 0 && (
+        <div className="mt-2 bg-gray-50 border border-gray-200 rounded-xl p-3 flex gap-2 flex-wrap">
+          {hidden.map(e => (
+            <button key={e.id} onClick={() => toggleCalendarHiddenJob(e.proposalId)}
+              className="flex items-center gap-1.5 text-xs bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 hover:border-teal-400 text-gray-600">
+              <Eye size={12} /> {e.title}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {editing && <EventEditor event={editing} onClose={() => setEditing(null)} />}
+    </div>
+  )
+}

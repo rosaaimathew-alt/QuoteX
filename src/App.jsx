@@ -16,6 +16,7 @@ import ContractView from './pages/ContractView'
 import ContractsList from './pages/ContractsList'
 import Login from './pages/Login'
 import Landing from './pages/Landing'
+import PMCalendar from './pages/PMCalendar'
 import SignPage from './pages/SignPage'
 import COSignPage from './pages/COSignPage'
 import ContractViewFull from './pages/ContractViewFull'
@@ -164,6 +165,12 @@ function GlobalSearch() {
       )}
     </div>
   )
+}
+
+// The home screen ('/') depends on role: PMs get the job calendar.
+function RoleHome() {
+  const role = useStore(s => s.role || 'manager')
+  return role === 'pm' ? <PMCalendar /> : <Dashboard />
 }
 
 // Blocks a route the current plan OR role can't reach, redirecting home.
@@ -340,7 +347,7 @@ function AppShell() {
         {/* Page content */}
         <main className="flex-1 overflow-auto print:overflow-visible print:h-auto">
           <Routes>
-            <Route path="/"         element={<Gated path="/"><Dashboard /></Gated>} />
+            <Route path="/"         element={<Gated path="/"><RoleHome /></Gated>} />
             <Route path="/analyze"  element={<Gated path="/analyze"><Analyze /></Gated>} />
             <Route path="/ai"       element={<Gated path="/ai"><AiChat /></Gated>} />
             <Route path="/catalog"  element={<Gated path="/catalog"><ItemCatalog /></Gated>} />
