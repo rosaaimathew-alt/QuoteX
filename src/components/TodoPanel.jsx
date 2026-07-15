@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useStore } from '../store'
 import {
-  Plus, X, ListChecks, Pin, ChevronLeft, ChevronRight, Trash2, CheckCircle2, Circle,
+  Plus, X, ListChecks, Pin, ChevronRight, Trash2, CheckCircle2, Circle,
 } from 'lucide-react'
 
 // Shared checklist body — the input + open/done items. Used by both the inline
@@ -119,7 +119,8 @@ export function TodoDock() {
   const [collapsed, setCollapsed] = useState(false)
   if (todoPin !== 'left' && todoPin !== 'right') return null
 
-  const side = todoPin
+  // Right-only — coerce any legacy 'left' value so old saved state still renders.
+  const side = 'right'
   const openCount = todos.filter(t => !t.done).length
 
   // Collapsed → a small tab on the pinned edge
@@ -147,14 +148,9 @@ export function TodoDock() {
           <ListChecks size={15} className="text-[var(--brand-500)]" /> To-Do{openCount > 0 && <span className="text-xs font-normal text-gray-400">· {openCount}</span>}
         </p>
         <div className="flex items-center gap-0.5">
-          <button onClick={() => setTodoPin(side === 'left' ? 'right' : 'left')}
-            title={`Move to ${side === 'left' ? 'right' : 'left'}`}
-            className="p-1 rounded text-gray-400 hover:text-[var(--brand-600)] hover:bg-gray-50">
-            {side === 'left' ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
-          </button>
           <button onClick={() => setCollapsed(true)} title="Collapse"
             className="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-50">
-            {side === 'left' ? <ChevronLeft size={15} /> : <ChevronRight size={15} />}
+            <ChevronRight size={15} />
           </button>
           <button onClick={() => setTodoPin('off')} title="Unpin"
             className="p-1 rounded text-gray-400 hover:text-red-500 hover:bg-gray-50">

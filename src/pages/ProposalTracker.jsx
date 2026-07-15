@@ -411,12 +411,18 @@ function bestInGroup(all) {
   return all.reduce((b, p) => (STATUS_RANK[p.status] || 0) > (STATUS_RANK[b.status] || 0) ? p : b)
 }
 
+// Appointment date for a proposal: when the estimate/appointment happened.
+const apptDate = (p) => p?.createdAt || p?.sentAt || p?.closedAt || null
+
 function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onOpen, onRevise, onGenerateContract }) {
   const { deleteProposal, detachProposal, mergeProposalGroups } = useStore()
   const [expandedLog, setExpandedLog] = useState(null)   // proposal id with activity log open
   const [expandedAlts, setExpandedAlts] = useState(null) // root id with alts expanded
   const [followUpProposal, setFollowUpProposal] = useState(null)
   const [mergeSource, setMergeSource] = useState(null)   // group {root, revisions} being merged
+  // Default: most recent appointment first. Any column header can be clicked to re-sort.
+  const [sortKey, setSortKey] = useState('date')
+  const [sortDir, setSortDir] = useState('desc')
 
   const handleDetach = (id) => {
     if (window.confirm('Separate this proposal into its own client file? It will no longer be grouped as an alternative.')) {
@@ -424,12 +430,30 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
     }
   }
 
+  const toggleSort = (key) => {
+    if (key === sortKey) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))
+    else { setSortKey(key); setSortDir(key === 'client' ? 'asc' : 'desc') }
+  }
+
   const allGroups = buildGroups(proposals)
-  const groups = filterStatus === 'All'
+  const filteredGroups = filterStatus === 'All'
     ? allGroups
     : allGroups.filter(({ root, revisions }) =>
         [root, ...revisions].some(p => p.status === filterStatus)
       )
+
+  // Resolve the primary (best-status) proposal per group once, then sort by it.
+  const groups = filteredGroups
+    .map(g => ({ ...g, primary: bestInGroup([g.root, ...g.revisions]) }))
+    .sort((a, b) => {
+      let av, bv
+      if (sortKey === 'client') { av = (a.primary.client || '').toLowerCase(); bv = (b.primary.client || '').toLowerCase() }
+      else if (sortKey === 'total') { av = Number(a.primary.total) || 0; bv = Number(b.primary.total) || 0 }
+      else if (sortKey === 'status') { av = STATUS_RANK[a.primary.status] || 0; bv = STATUS_RANK[b.primary.status] || 0 }
+      else { av = apptDate(a.primary) ? new Date(apptDate(a.primary)).getTime() : 0; bv = apptDate(b.primary) ? new Date(apptDate(b.primary)).getTime() : 0 }
+      const cmp = av < bv ? -1 : av > bv ? 1 : 0
+      return sortDir === 'asc' ? cmp : -cmp
+    })
 
   const ProposalRow = ({ p, altCount, showAltToggle, onDetach, onMerge }) => {
     const isAltExpanded = expandedAlts === p.id
@@ -550,18 +574,29 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
         <table className="w-full text-sm min-w-[640px]">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Client</th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider w-28">Total</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-36">Status</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-28">Date</th>
+              {[
+                { key: 'client', label: 'Client', align: 'text-left' },
+                { key: 'total', label: 'Total', align: 'text-right', w: 'w-28' },
+                { key: 'status', label: 'Status', align: 'text-left', w: 'w-36' },
+                { key: 'date', label: 'Date', align: 'text-left', w: 'w-28' },
+              ].map(col => (
+                <th key={col.key}
+                  onClick={() => toggleSort(col.key)}
+                  className={`px-4 py-3 ${col.align} text-xs font-semibold text-gray-500 uppercase tracking-wider ${col.w || ''} cursor-pointer select-none hover:text-gray-800 transition-colors`}
+                >
+                  <span className="inline-flex items-center gap-1">
+                    {col.label}
+                    {sortKey === col.key && (sortDir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
+                  </span>
+                </th>
+              ))}
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Follow-ups</th>
               <th className="px-4 py-3 w-28"></th>
             </tr>
           </thead>
           <tbody>
-            {groups.map(({ root, revisions }) => {
+            {groups.map(({ root, revisions, primary }) => {
               const all = [root, ...revisions]
-              const primary = bestInGroup(all)
               const alts = all.filter(p => p.id !== primary.id)
               const isAltExpanded = expandedAlts === primary.id
               return (

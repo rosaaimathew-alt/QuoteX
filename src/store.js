@@ -901,7 +901,7 @@ export const useStore = create(
 
       // ── Daily to-do list ─────────────────────────────────────────────────────
       todos: [],
-      todoPin: 'off', // 'off' | 'left' | 'right' — pins the list as a side panel
+      todoPin: 'off', // 'off' | 'right' — pins the list as a side panel
       addTodo: (text) =>
         set((s) => ({ todos: [{ id: Date.now(), text, done: false, createdAt: new Date().toISOString() }, ...s.todos] })),
       toggleTodo: (id) =>
