@@ -3,6 +3,7 @@ import { Upload, Trash2, CheckCircle, RefreshCw, Palette, Building2, Eye, Downlo
 import { useStore, syncThisDeviceUp } from '../store'
 import { extractDominantColor, generatePalette, applyBrandStyles, DEFAULT_BRAND_COLOR, FREE_PRIMARY_COLOR, FREE_SIDEBAR_COLOR, BRAND_PRESETS } from '../brand'
 import { canCustomizeBranding, PLAN_ORDER, PLAN_META } from '../plans'
+import { ROLE_ORDER, ROLE_META } from '../roles'
 
 const PRESET_COLORS = [
   { label: 'Sky Blue',    hex: '#0369a1' },
@@ -476,6 +477,8 @@ export default function Settings() {
   }
 
   const setPlan = (p) => updateBranding({ plan: p })
+  const role    = useStore(s => s.role || 'manager')
+  const setRole = useStore(s => s.setRole)
 
   return (
     <div className="p-6 max-w-5xl">
@@ -583,6 +586,30 @@ export default function Settings() {
             )}
           </div>
           )}
+
+          {/* Role / view */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <div className="flex items-center gap-2 mb-1">
+              <Building2 size={16} className="text-gray-400" />
+              <h3 className="font-semibold text-gray-800 text-sm">Role &amp; View</h3>
+            </div>
+            <p className="text-xs text-gray-400 mb-4">Switches the whole app between the Sales, Project Manager, and Manager experiences.</p>
+            <div className="grid grid-cols-3 gap-2">
+              {ROLE_ORDER.map(key => {
+                const active = role === key
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setRole(key)}
+                    className={`text-left rounded-lg border p-3 transition-colors ${active ? 'border-[var(--brand-500)] bg-[var(--brand-50)]' : 'border-gray-200 hover:border-gray-300'}`}
+                  >
+                    <p className={`text-sm font-semibold ${active ? 'text-[var(--brand-700)]' : 'text-gray-700'}`}>{ROLE_META[key].label}</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5 leading-snug">{ROLE_META[key].blurb}</p>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
 
           {/* Plan / subscription tier */}
           <div className="bg-white rounded-xl border border-gray-200 p-5">

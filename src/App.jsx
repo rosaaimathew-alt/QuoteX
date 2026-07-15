@@ -28,6 +28,7 @@ import AuthGuard, { logout } from './components/AuthGuard'
 import { useStore } from './store'
 import { applyBrandStyles, applyTheme, DEFAULT_BRAND_COLOR } from './brand'
 import { canAccessRoute, landingRoute } from './plans'
+import { canRoleAccess, roleLanding } from './roles'
 import { TodoDock } from './components/TodoPanel'
 
 const NAV = [
@@ -165,10 +166,12 @@ function GlobalSearch() {
   )
 }
 
-// Blocks a route the current plan can't reach, redirecting to their home page.
+// Blocks a route the current plan OR role can't reach, redirecting home.
 function Gated({ path, children }) {
   const plan = useStore(s => s.branding?.plan || 'enterprise')
+  const role = useStore(s => s.role || 'manager')
   if (!canAccessRoute(plan, path)) return <Navigate to={landingRoute(plan)} replace />
+  if (!canRoleAccess(role, path))  return <Navigate to={roleLanding(role)} replace />
   return children
 }
 
@@ -186,6 +189,7 @@ function AppShell() {
   const closeSidebar = () => setSidebarOpen(false)
 
   const plan = branding?.plan || 'enterprise'
+  const role = useStore(s => s.role || 'manager')
 
   useEffect(() => {
     applyBrandStyles(branding?.primaryColor || DEFAULT_BRAND_COLOR, {
@@ -258,7 +262,7 @@ function AppShell() {
 
         {/* Nav links */}
         <nav className="flex-1 py-4 space-y-0.5 px-2 overflow-y-auto">
-          {NAV.filter(({ to }) => canAccessRoute(plan, to)).map(({ to, label, icon: Icon }) => (
+          {NAV.filter(({ to }) => canAccessRoute(plan, to) && canRoleAccess(role, to)).map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}

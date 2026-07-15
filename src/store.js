@@ -899,6 +899,10 @@ export const useStore = create(
       theme: 'light',
       setTheme: (theme) => set({ theme }),
 
+      // ── Active role view (sales | pm | manager) ──────────────────────────────
+      role: 'manager',
+      setRole: (role) => set({ role }),
+
       // ── Daily to-do list ─────────────────────────────────────────────────────
       todos: [],
       todoPin: 'off', // 'off' | 'right' — pins the list as a side panel
@@ -1032,6 +1036,7 @@ export const useStore = create(
           readMessageIds:     persisted?.readMessageIds     || [],
           todos:              persisted?.todos              || [],
           todoPin:            persisted?.todoPin            || 'off',
+          role:               persisted?.role               || 'manager',
           theme:              persisted?.theme              || 'light',
           branding:           normalizeBranding(persisted?.branding),
           scopeExamples:      persisted?.scopeExamples      || [],
