@@ -43,7 +43,7 @@ function useCalendarEvents() {
       if (calendarHiddenJobs.includes(p.id)) return
       const dates = p.jobData?.stageDates || {}
       const completed = p.jobData?.completedStages || []
-      getStages(p).forEach(st => {
+      ;(getStages(p) || []).forEach(st => {
         const d = dates[st.key]
         if (!d) return
         const done = completed.includes(st.key)
@@ -142,7 +142,7 @@ function EventEditor({ event, onClose }) {
     onClose()
   }
 
-  const stages     = isJob && proposal ? getStages(proposal) : []
+  const stages     = isJob && proposal ? (getStages(proposal) || []) : []
   const completed  = proposal?.jobData?.completedStages || []
   const stageDates = proposal?.jobData?.stageDates || {}
 
