@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import {
   Search, Edit2, Trash2, Plus, Check, X, GripVertical,
   ChevronDown, ChevronRight, LayoutList, Rows3,
-  Sparkles, Loader, MoveRight, Settings2, Pencil,
+  Sparkles, Loader, MoveRight, Settings2, Pencil, Lock, Unlock,
 } from 'lucide-react'
 import { useStore } from '../store'
 import { getModel } from '../gemini'
@@ -157,7 +157,9 @@ function MoveTo({ item, onMove }) {
 function EditRow({ item, onSave, onCancel }) {
   const [form, setForm] = useState({ ...item })
   const CATEGORIES = useStore(s => s.catalogCategories)
+  const isManager  = useStore(s => (s.role || 'manager') === 'manager')
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const priceLocked = form.locked && !isManager
   return (
     <>
       <tr className="bg-blue-50">
@@ -175,7 +177,15 @@ function EditRow({ item, onSave, onCancel }) {
         </td>
         <td className="px-4 py-2">
           <div className="flex items-center gap-0.5"><span className="text-gray-400">$</span>
-            <input type="number" min="0" className="w-20 text-sm border border-blue-300 rounded px-2 py-1 focus:outline-none" value={form.unitPrice} onChange={e => set('unitPrice', parseFloat(e.target.value) || 0)} />
+            <input type="number" min="0" disabled={priceLocked}
+              className={`w-20 text-sm border rounded px-2 py-1 focus:outline-none ${priceLocked ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed' : 'border-blue-300'}`}
+              value={form.unitPrice} onChange={e => set('unitPrice', parseFloat(e.target.value) || 0)} />
+            {isManager ? (
+              <button onClick={() => set('locked', !form.locked)} title={form.locked ? 'Price locked — click to unlock' : 'Lock price so sales can’t edit it'}
+                className={`p-1 rounded ${form.locked ? 'text-amber-600' : 'text-gray-300 hover:text-amber-600'}`}>
+                {form.locked ? <Lock size={13} /> : <Unlock size={13} />}
+              </button>
+            ) : form.locked ? <Lock size={12} className="text-amber-500 ml-0.5" title="Price locked by manager" /> : null}
           </div>
         </td>
         <td className="px-4 py-2 text-sm text-gray-500">${form.minPrice} – ${form.maxPrice}</td>
@@ -226,6 +236,8 @@ function EditRow({ item, onSave, onCancel }) {
 // ── Table view ─────────────────────────────────────────────────────────────
 function TableView({ filtered, editId, setEditId, onSave, onDelete, onMove, addingNew, newForm, setNewForm, saveNew, setAddingNew }) {
   const dragItem = useRef(null)
+  const isManager        = useStore(s => (s.role || 'manager') === 'manager')
+  const updateCatalogItem = useStore(s => s.updateCatalogItem)
 
   const Th = ({ k, label, sortKey, sortAsc, toggleSort }) => (
     <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-800 select-none whitespace-nowrap"
@@ -303,7 +315,10 @@ function TableView({ filtered, editId, setEditId, onSave, onDelete, onMove, addi
                   <td className="px-4 py-2.5"><span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{item.category}</span></td>
                   <td className="px-4 py-2.5 text-gray-500">{item.unit}</td>
                   <td className="px-4 py-2.5">
-                    <p className="font-semibold text-gray-900">${fmt(item.unitPrice)}</p>
+                    <p className="font-semibold text-gray-900 flex items-center gap-1">
+                      ${fmt(item.unitPrice)}
+                      {item.locked && <Lock size={11} className="text-amber-500" title="Price locked by manager" />}
+                    </p>
                     {((item.costMaterials || 0) + (item.costSub || 0)) > 0 && (
                       <p className="text-[10px] text-amber-600 mt-0.5">cost ${fmt((item.costMaterials||0)+(item.costSub||0))}</p>
                     )}
@@ -314,6 +329,13 @@ function TableView({ filtered, editId, setEditId, onSave, onDelete, onMove, addi
                   <td className="px-4 py-2.5">
                     <div className="flex gap-1">
                       <MoveTo item={item} onMove={onMove} />
+                      {isManager && (
+                        <button onClick={() => updateCatalogItem(item.id, { locked: !item.locked })}
+                          className={`p-1 rounded hover:bg-amber-50 ${item.locked ? 'text-amber-600' : 'text-gray-400 hover:text-amber-600'}`}
+                          title={item.locked ? 'Unlock price' : 'Lock price so sales can’t edit it'}>
+                          {item.locked ? <Lock size={14} /> : <Unlock size={14} />}
+                        </button>
+                      )}
                       <button onClick={() => setEditId(item.id)} className="p-1 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50"><Edit2 size={14} /></button>
                       <button onClick={() => onDelete(item.id)} className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
                     </div>
