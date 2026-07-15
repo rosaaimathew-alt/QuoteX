@@ -183,7 +183,7 @@ const JOB_TYPE_OPTIONS = [
   'Gazebo',
 ]
 
-function getStages(proposal) {
+export function getStages(proposal) {
   // Manual override set in the job card takes priority
   const override = proposal.jobData?.projectTypeOverride
   if (override) {

@@ -690,6 +690,18 @@ export const useStore = create(
           ),
         })),
 
+      // Schedule (or clear) a single job stage on the PM calendar.
+      setJobStageDate: (proposalId, stageKey, date) =>
+        set((s) => ({
+          proposals: s.proposals.map((p) => {
+            if (p.id !== proposalId) return p
+            const stageDates = { ...((p.jobData?.stageDates) || {}) }
+            if (date) stageDates[stageKey] = date
+            else delete stageDates[stageKey]
+            return { ...p, jobData: { ...(p.jobData || {}), stageDates } }
+          }),
+        })),
+
       toggleJobStage: (proposalId, stageKey) =>
         set((s) => ({
           proposals: s.proposals.map((p) => {
