@@ -21,15 +21,15 @@ export const PLAN_META = {
 const ALL_ROUTES = [
   '/', '/analyze', '/ai', '/catalog', '/quote', '/analytics', '/proposal',
   '/clients', '/tracker', '/inbox', '/settings', '/contracts', '/contract',
-  '/jobs', '/subs', '/scheduler', '/profitability', '/pipeline',
+  '/jobs', '/subs', '/scheduler', '/profitability', '/pipeline', '/finance',
 ]
 
 // Entry tier: proposals, item catalog, proposal builder, proposal tracker.
 // Settings stays reachable (for account/data) but branding is locked.
 const STARTER_ROUTES = ['/catalog', '/quote', '/tracker', '/proposal', '/settings']
 
-// Pro tier is everything minus the contracts and job-management sections.
-const PRO_BLOCKED = ['/contracts', '/contract', '/jobs']
+// Pro tier is everything minus the contracts, job-management, and finance.
+const PRO_BLOCKED = ['/contracts', '/contract', '/jobs', '/finance']
 
 export function allowedRoutes(plan) {
   if (plan === 'starter') return new Set(STARTER_ROUTES)

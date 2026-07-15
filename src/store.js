@@ -65,6 +65,8 @@ export function mergeStoreStrings(serverStr, localStr) {
   merged.todos            = _unionById(s.todos, l.todos, true)
   merged.plannedProjects  = _unionById(s.plannedProjects, l.plannedProjects, true)
   merged.emailTemplates   = _unionById(s.emailTemplates, l.emailTemplates)
+  merged.financeCards     = _unionById(s.financeCards, l.financeCards)
+  merged.expenses         = _unionById(s.expenses, l.expenses, true)
   merged.jobCosts         = { ...(s.jobCosts || {}), ...(l.jobCosts || {}) }
   for (const k of ['nextCatalogId', 'nextProposalId', 'nextTemplateId', 'nextScopeTemplateId', 'nextPaymentScheduleId', 'nextSubId']) {
     const v = Math.max(Number(s[k]) || 0, Number(l[k]) || 0)
@@ -929,6 +931,30 @@ export const useStore = create(
             : [...s.calendarHiddenJobs, id],
         })),
 
+      // ── Finance: cards + expenses (manager / accounting side) ────────────────
+      financeCards: [],
+      addFinanceCard: (c) =>
+        set((s) => ({ financeCards: [...s.financeCards, { id: Date.now(), color: '#0f766e', ...c }] })),
+      updateFinanceCard: (id, changes) =>
+        set((s) => ({ financeCards: s.financeCards.map((c) => (c.id === id ? { ...c, ...changes } : c)) })),
+      deleteFinanceCard: (id) =>
+        set((s) => ({ financeCards: s.financeCards.filter((c) => c.id !== id) })),
+
+      expenses: [],
+      addExpense: (e) =>
+        set((s) => ({ expenses: [{ id: Date.now(), createdAt: new Date().toISOString(), ...e }, ...s.expenses] })),
+      addExpenses: (arr) =>
+        set((s) => ({
+          expenses: [
+            ...arr.map((e, i) => ({ id: Date.now() + i, createdAt: new Date().toISOString(), ...e })),
+            ...s.expenses,
+          ],
+        })),
+      updateExpense: (id, changes) =>
+        set((s) => ({ expenses: s.expenses.map((e) => (e.id === id ? { ...e, ...changes } : e)) })),
+      deleteExpense: (id) =>
+        set((s) => ({ expenses: s.expenses.filter((e) => e.id !== id) })),
+
       // ── One-click follow-up email templates ──────────────────────────────────
       emailTemplates: DEFAULT_EMAIL_TEMPLATES,
       addEmailTemplate: (t) =>
@@ -1075,6 +1101,8 @@ export const useStore = create(
           plannedProjects:    persisted?.plannedProjects    || [],
           calendarHiddenJobs: persisted?.calendarHiddenJobs || [],
           emailTemplates:     persisted?.emailTemplates     || DEFAULT_EMAIL_TEMPLATES,
+          financeCards:       persisted?.financeCards       || [],
+          expenses:           persisted?.expenses           || [],
           theme:              persisted?.theme              || 'light',
           branding:           normalizeBranding(persisted?.branding),
           scopeExamples:      persisted?.scopeExamples      || [],

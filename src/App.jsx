@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FileText, BookOpen, ClipboardList, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon, Sun, Moon, Users, FileSignature, LogOut, TrendingUp, Menu, HardHat, Wrench, CalendarDays, PieChart } from 'lucide-react'
+import { LayoutDashboard, FileText, BookOpen, ClipboardList, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon, Sun, Moon, Users, FileSignature, LogOut, TrendingUp, Menu, HardHat, Wrench, CalendarDays, PieChart, Wallet } from 'lucide-react'
 import { Component, useEffect, useState, useRef } from 'react'
 import Dashboard from './pages/Dashboard'
 import Analyze from './pages/Analyze'
@@ -17,6 +17,7 @@ import ContractsList from './pages/ContractsList'
 import Login from './pages/Login'
 import Landing from './pages/Landing'
 import PMCalendar from './pages/PMCalendar'
+import Finance from './pages/Finance'
 import SignPage from './pages/SignPage'
 import COSignPage from './pages/COSignPage'
 import ContractViewFull from './pages/ContractViewFull'
@@ -45,6 +46,7 @@ const NAV = [
   { to: '/subs',         label: 'Subcontractors', icon: Wrench },
   { to: '/scheduler',   label: 'Scheduler',      icon: CalendarDays },
   { to: '/profitability',label: 'Profitability',  icon: TrendingUp },
+  { to: '/finance',      label: 'Finance',        icon: Wallet },
   { to: '/inbox',        label: 'Inbox',          icon: Inbox },
 ]
 
@@ -362,6 +364,7 @@ function AppShell() {
             <Route path="/subs"          element={<Gated path="/subs"><Subcontractors /></Gated>} />
             <Route path="/scheduler"     element={<Gated path="/scheduler"><Scheduler /></Gated>} />
             <Route path="/profitability" element={<Gated path="/profitability"><ProfitabilityTracker /></Gated>} />
+            <Route path="/finance"       element={<Gated path="/finance"><Finance /></Gated>} />
             {/* Pipeline folded into the Proposal Tracker's Pipeline tab */}
             <Route path="/pipeline"      element={<Navigate to="/tracker" replace />} />
           </Routes>
