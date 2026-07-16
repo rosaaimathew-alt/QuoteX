@@ -898,10 +898,20 @@ function ChangeOrdersTab({ proposal }) {
               </button>
             </div>
           )}
-          {co.signedAt && co.status === 'Approved' && (
-            <p className="text-xs text-green-700 mt-1.5 flex items-center gap-1">
-              <CheckCircle2 size={11} /> Signed {fmtDate(co.signedAt)}
-            </p>
+          {co.status === 'Approved' && (
+            <div className="mt-1.5 flex items-center gap-3 flex-wrap">
+              {co.signedAt && (
+                <span className="text-xs text-green-700 flex items-center gap-1">
+                  <CheckCircle2 size={11} /> Signed {fmtDate(co.signedAt)}
+                </span>
+              )}
+              {co.signLink && (
+                <a href={co.signLink} target="_blank" rel="noreferrer"
+                  className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1">
+                  <ExternalLink size={11} /> View signed copy
+                </a>
+              )}
+            </div>
           )}
           {co.notes && <p className="text-xs text-gray-500 mt-1">{co.notes}</p>}
         </div>

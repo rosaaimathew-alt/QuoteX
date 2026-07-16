@@ -102,26 +102,23 @@ export default function COSignPage() {
   const docStyle = { fontFamily: 'Georgia,"Times New Roman",serif', fontSize: '10.5pt', lineHeight: '1.55', color: '#1a1a1a' }
   const todayStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 
-  if (done || alreadySigned) {
+  if (done) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full text-center">
           <CheckCircle2 size={48} className="text-green-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 mb-2">
-            {alreadySigned && !done ? 'Already Signed' : 'Change Order Signed!'}
-          </h2>
-          <p className="text-sm text-gray-500">
-            {alreadySigned && !done
-              ? `You have already signed this change order as ${ROLE_LABEL[role]}.`
-              : `Thank you, ${printedName}. Your signature has been recorded.`}
-          </p>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Change Order Signed!</h2>
+          <p className="text-sm text-gray-500">Thank you, {printedName}. Your signature has been recorded.</p>
           <p className="text-xs text-gray-400 mt-4">Contract #{contractNum} · {coNumber}</p>
+          <button onClick={() => window.location.reload()} className="mt-5 text-sm text-blue-600 font-medium hover:underline">View signed copy →</button>
         </div>
       </div>
     )
   }
 
   const existingSig = signatures?.[role]
+  // When already signed, show the completed document (read-only) instead of the form.
+  const viewOnly = !!alreadySigned
 
   return (
     <div className="min-h-screen bg-gray-100 pb-12" style={docStyle}>
@@ -130,10 +127,14 @@ export default function COSignPage() {
         <div className="max-w-3xl mx-auto flex justify-between items-center">
           <div>
             <p className="text-sm font-bold text-gray-900">{coNumber} — Change Order</p>
-            <p className="text-xs text-gray-400">Contract #{contractNum} · Signing as: <strong>{ROLE_LABEL[role]}</strong></p>
+            <p className="text-xs text-gray-400">
+              Contract #{contractNum} · {viewOnly
+                ? <span className="text-green-600 font-semibold">✓ Signed</span>
+                : <>Signing as: <strong>{ROLE_LABEL[role]}</strong></>}
+            </p>
           </div>
           <button onClick={() => window.print()} className="flex items-center gap-2 px-3 py-1.5 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-700">
-            <Printer size={13} /> Print
+            <Printer size={13} /> {viewOnly ? 'Print / Save PDF' : 'Print'}
           </button>
         </div>
       </div>
@@ -240,6 +241,26 @@ export default function COSignPage() {
             </p>
 
             {/* Signature section */}
+            {viewOnly ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 mt-4">
+                {['client', 'builder'].map(r => {
+                  const sig = signatures[r]
+                  return (
+                    <div key={r}>
+                      <p className="font-bold text-[10pt] mb-2">{ROLE_LABEL[r]}</p>
+                      <div className="border-b border-gray-500 pb-6 relative min-h-[52px]">
+                        {sig?.signatureDataUrl && <img src={sig.signatureDataUrl} alt="sig" className="absolute left-0 bottom-0.5 h-10 object-contain" />}
+                      </div>
+                      <p className="text-[10px] text-gray-500 mt-1">
+                        {sig
+                          ? `${sig.printedName || ''}${sig.signedAt ? ' · ' + new Date(sig.signedAt).toLocaleDateString() : ''}`
+                          : 'Awaiting signature'}
+                      </p>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
             <div className="no-print">
               {masterSig ? (
                 <div className="border border-green-200 bg-green-50 rounded-xl p-4 mb-4">
@@ -276,9 +297,10 @@ export default function COSignPage() {
                 {submitting ? 'Submitting…' : `Sign Change Order — ${ROLE_LABEL[role]}`}
               </button>
             </div>
+            )}
 
-            {/* Print-only signature blocks */}
-            <div className="print-only mt-4 grid grid-cols-2 gap-8">
+            {/* Print-only signature blocks (hidden on screen; viewOnly shows them above) */}
+            <div className={`${viewOnly ? 'hidden' : 'print-only'} mt-4 grid grid-cols-2 gap-8`}>
               {['client', 'builder'].map(r => {
                 const sig = signatures[r]
                 return (
