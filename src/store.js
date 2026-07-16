@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
+import { supabase } from './supabase'
 
 // Smart storage: the shared server (Vercel KV via /api/store) is the source of
 // truth. Every signed-in write is pushed up automatically, and every read
@@ -10,6 +11,27 @@ let _initial = null // cached promise for the first GET
 
 function _token() {
   try { return localStorage.getItem('qx_token') } catch { return null }
+}
+
+// ── Supabase per-organization data ─────────────────────────────────────────
+// When the user has a Supabase session, their org's data document (org_stores)
+// is the source of truth. Without a session, everything falls back to the
+// legacy KV/localStorage path below — so the app is unchanged until sign-in.
+let _orgIdCache = null
+export function _resetOrgCache() { _orgIdCache = null }
+
+async function _orgContext() {
+  if (!supabase) return null
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return null
+    if (_orgIdCache) return _orgIdCache
+    const { data } = await supabase.from('memberships').select('org_id').eq('user_id', session.user.id).maybeSingle()
+    _orgIdCache = data?.org_id || null
+    return _orgIdCache
+  } catch {
+    return null
+  }
 }
 function _authHeaders(extra = {}) {
   const token = _token()
@@ -94,6 +116,33 @@ function _fetchInitial() {
 
 const smartStorage = {
   getItem: async (name) => {
+    // ── Supabase org path (active only when signed in) ──
+    const orgId = await _orgContext()
+    if (orgId) {
+      try {
+        const { data: row } = await supabase.from('org_stores').select('data').eq('org_id', orgId).maybeSingle()
+        const stored = row?.data
+        if (stored && Object.keys(stored).length > 0) return JSON.stringify(stored)
+        // Org document is empty → one-time migration: seed it from this device's
+        // existing local data (never deletes anything).
+        let seed = null
+        try { seed = localStorage.getItem(name) } catch {}
+        if (seed) {
+          try {
+            const parsed = JSON.parse(seed)
+            if ((parsed?.state?.proposals?.length || 0) > 0) {
+              await supabase.from('org_stores').upsert({ org_id: orgId, data: parsed, updated_at: new Date().toISOString() })
+              return seed
+            }
+          } catch {}
+        }
+        return null // fresh org, nothing to seed yet
+      } catch {
+        // fall through to legacy on transient error
+      }
+    }
+
+    // ── Legacy path (KV + localStorage) ──
     const { reachable, data: serverStr } = await _fetchInitial()
     let localStr = null
     try { localStr = localStorage.getItem(name) } catch {}
@@ -115,7 +164,14 @@ const smartStorage = {
 
   setItem: async (name, value) => {
     try { localStorage.setItem(name, value) } catch {} // fast local cache + offline copy
-    _pushToServer(value) // always sync the full current state up when signed in
+    const orgId = await _orgContext()
+    if (orgId) {
+      try {
+        await supabase.from('org_stores').upsert({ org_id: orgId, data: JSON.parse(value), updated_at: new Date().toISOString() })
+        return
+      } catch { /* fall through to legacy */ }
+    }
+    _pushToServer(value) // legacy shared-KV sync
   },
 
   removeItem: (name) => localStorage.removeItem(name),
