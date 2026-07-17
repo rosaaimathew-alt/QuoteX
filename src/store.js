@@ -69,6 +69,39 @@ function _unionById(a = [], b = [], newerWins = false) {
   return [...map.values()]
 }
 
+// How much nested content a proposal carries — used to break merge ties when
+// dates are equal (adding a change order/stage/note doesn't change the top-level
+// date, so without this a stale copy would win and the change wouldn't sync).
+function _richness(p) {
+  const j = p?.jobData || {}
+  return (p?.lines?.length || 0)
+    + (p?.activities?.length || 0)
+    + (p?.reminders?.length || 0)
+    + (j.changeOrders?.length || 0)
+    + (j.completedStages?.length || 0)
+    + (j.dailyLogs?.length || 0)
+    + (j.warrantyItems?.length || 0)
+    + Object.keys(j.stageDates || {}).length
+    + (j.startDate ? 1 : 0) + (j.targetDate ? 1 : 0)
+}
+
+// Merge proposal lists: newest by date wins; on a date tie, the copy with more
+// nested content wins (so change orders, stages and notes propagate reliably).
+function _mergeProposals(server = [], local = []) {
+  const map = new Map()
+  for (const p of (server || [])) if (p && p.id != null) map.set(p.id, p)
+  for (const p of (local || [])) {
+    if (!p || p.id == null) continue
+    const ex = map.get(p.id)
+    if (!ex) { map.set(p.id, p); continue }
+    const sp = _score(p), se = _score(ex)
+    if (sp > se) map.set(p.id, p)
+    else if (sp === se && _richness(p) >= _richness(ex)) map.set(p.id, p)
+    // otherwise keep the existing (server) copy
+  }
+  return [...map.values()]
+}
+
 // Merge two persisted store strings ({state, version}) into one. Union of all
 // record lists (proposals newest-wins), max of id counters. Never loses data.
 export function mergeStoreStrings(serverStr, localStr) {
@@ -77,7 +110,7 @@ export function mergeStoreStrings(serverStr, localStr) {
   try { L = JSON.parse(localStr) } catch { return serverStr }
   const s = S.state || {}, l = L.state || {}
   const merged = { ...s, ...l } // local wins for scalar settings (branding, theme…)
-  merged.proposals        = _unionById(s.proposals, l.proposals, true)
+  merged.proposals        = _mergeProposals(s.proposals, l.proposals)
   merged.catalog          = _unionById(s.catalog, l.catalog)
   merged.templates        = _unionById(s.templates, l.templates)
   merged.scopeTemplates   = _unionById(s.scopeTemplates, l.scopeTemplates)
@@ -154,10 +187,12 @@ const smartStorage = {
     if (!localStr)  return serverStr                       // nothing local → server wins
     if (!serverStr) { _pushToServer(localStr); return localStr } // server empty → seed it from local
 
-    // Both have data → merge. Union never drops records, so a device holding
-    // more history heals the server automatically instead of being overwritten.
+    // Both have data → merge. The merge keeps the richer/newer copy of every
+    // record, so `merged` is always a superset — pushing it heals the server
+    // whenever this device holds something the server was missing (e.g. a change
+    // order added on another device that hadn't synced up).
     const merged = mergeStoreStrings(serverStr, localStr)
-    if (_proposalCount(merged) > _proposalCount(serverStr)) _pushToServer(merged)
+    if (merged !== serverStr) _pushToServer(merged)
     try { localStorage.setItem(name, merged) } catch {}
     return merged
   },
