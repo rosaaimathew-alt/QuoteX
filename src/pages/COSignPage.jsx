@@ -236,8 +236,13 @@ export default function COSignPage() {
             )}
 
             {/* Agreement line */}
-            <p className="text-[10pt] mb-4 text-justify">
+            <p className="text-[10pt] mb-3 text-justify">
               By signing below, both parties agree to the scope of work and payment schedule modifications described in this Change Order. All other terms of the original contract remain in full effect.
+            </p>
+
+            {/* Special-order materials & cancellation clause */}
+            <p className="text-[10pt] mb-4 text-justify">
+              <strong>Special-Order Materials &amp; Cancellation.</strong> If items in this Change Order require special-order, custom, or made-to-order materials that are non-returnable and non-refundable once purchased, PURCHASER acknowledges and agrees that if the items are later rescinded or canceled, or PURCHASER elects not to proceed with this Change Order after it has been signed, the PURCHASER remains responsible for the full cost of any special-order or non-returnable materials already purchased, along with any labor performed, up to the value of this Change Order. Any such amount becomes due upon notice of cancellation.
             </p>
 
             {/* Signature section */}
