@@ -261,8 +261,20 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
     const src = existingCo?.scopeLines || proposal.contractDraft?.scopeLines || []
     return src.map(l => typeof l === 'string' ? l : (l?.text || l?.name || '')).filter(Boolean).join('\n')
   }
-  const initPayments = () =>
-    (existingCo?.payments || proposal.contractDraft?.payments || []).map(p => ({ ...p }))
+  // Pre-fill the payment schedule so you don't rebuild it: use this CO's own
+  // schedule when editing, otherwise the most recent (non-rejected) change
+  // order's schedule, falling back to the original contract's.
+  const initPayments = () => {
+    if (existingCo?.payments?.length) return existingCo.payments.map(p => ({ ...p }))
+    const cos = proposal.jobData?.changeOrders || []
+    const scope = existingCo
+      ? cos.slice(0, Math.max(0, cos.findIndex(c => c.id === existingCo.id)))
+      : cos
+    const withPay = scope.filter(c => c.status !== 'Rejected' && c.payments?.length)
+    const latest = withPay.length ? withPay[withPay.length - 1] : null
+    const src = latest?.payments?.length ? latest.payments : (proposal.contractDraft?.payments || [])
+    return src.map(p => ({ ...p }))
+  }
 
   const [description, setDescription] = useState(existingCo?.description || '')
   const [lines, setLines]             = useState(existingCo?.lines || [])
