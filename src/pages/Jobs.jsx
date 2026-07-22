@@ -417,7 +417,8 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
                         className="text-sm border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-300 w-full" />
                       <input type="number" min="0" value={l.qty} onChange={e => updateLine(l.id, 'qty', e.target.value)}
                         className="text-sm border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-300 w-full" />
-                      <input type="number" min="0" step="0.01" value={l.unitPrice} onChange={e => updateLine(l.id, 'unitPrice', e.target.value)}
+                      <input type="number" step="0.01" value={l.unitPrice} onChange={e => updateLine(l.id, 'unitPrice', e.target.value)}
+                        placeholder="0.00 (use − to credit)"
                         className="text-sm border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-300 w-full" />
                       <span className="text-sm font-medium text-gray-700 text-right">${fmtDol((Number(l.qty)||0)*(Number(l.unitPrice)||0))}</span>
                       <button onClick={() => removeLine(l.id)} className="text-gray-300 hover:text-red-500 flex justify-center"><Trash2 size={13} /></button>
@@ -433,7 +434,7 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
             </div>
 
             {/* Financial summary */}
-            {total > 0 && (
+            {total !== 0 && (
               <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 grid grid-cols-3 gap-2 text-center">
                 <div>
                   <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Current Total</p>
@@ -444,7 +445,9 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
                 </div>
                 <div>
                   <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">This Change Order</p>
-                  <p className="text-sm font-bold text-blue-700">+${fmtDol(total)}</p>
+                  <p className={`text-sm font-bold ${total < 0 ? 'text-red-600' : 'text-blue-700'}`}>
+                    {total < 0 ? '−' : '+'}${fmtDol(Math.abs(total))}
+                  </p>
                 </div>
                 <div>
                   <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">New Contract Total</p>
