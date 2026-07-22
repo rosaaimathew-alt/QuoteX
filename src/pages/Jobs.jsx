@@ -232,6 +232,20 @@ const CO_STATUS_STYLE = {
   Rejected:             'bg-red-100 text-red-700',
 }
 
+// Running contract total a new/edited change order builds on: the original
+// contract plus every prior (non-rejected) change order — so each CO picks up
+// where the last one left off instead of resetting to the original price.
+function baseTotalForCO(proposal, existingCo) {
+  const base = Number(proposal.total) || 0
+  const cos = proposal.jobData?.changeOrders || []
+  const prior = existingCo
+    ? cos.slice(0, Math.max(0, cos.findIndex(c => c.id === existingCo.id)))
+    : cos
+  return base + prior
+    .filter(c => c.status !== 'Rejected')
+    .reduce((s, c) => s + Number(c.amount || 0), 0)
+}
+
 // ── CO Builder Modal ──────────────────────────────────────────────────────────
 function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
   const catalog  = useStore(s => s.catalog)
@@ -269,7 +283,8 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
   })
 
   const total = lines.reduce((s, l) => s + (Number(l.qty) || 0) * (Number(l.unitPrice) || 0), 0)
-  const newTotal = Number(proposal.total) + total
+  const baseTotal = baseTotalForCO(proposal, existingCo)  // original + prior change orders
+  const newTotal = baseTotal + total
   const paymentSum = coPayments.reduce((s, p) => s + Number(p.amount || 0), 0)
 
   const addFromCatalog = (item) => {
@@ -312,6 +327,8 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
       coNumber,
       scopeLines,
       payments: paymentsWithPct,
+      originalTotal: baseTotal,   // running total this CO builds on
+      newTotal,
       branding: {
         logo:        branding?.logo || null,
         companyName: branding?.companyName || 'Ebony Outdoor Living',
@@ -419,8 +436,11 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
             {total > 0 && (
               <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 grid grid-cols-3 gap-2 text-center">
                 <div>
-                  <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Original Contract</p>
-                  <p className="text-sm font-bold text-gray-800">${fmtDol(proposal.total)}</p>
+                  <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Current Total</p>
+                  <p className="text-sm font-bold text-gray-800">${fmtDol(baseTotal)}</p>
+                  {baseTotal !== Number(proposal.total) && (
+                    <p className="text-[9px] text-gray-400 mt-0.5">incl. prior change orders</p>
+                  )}
                 </div>
                 <div>
                   <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">This Change Order</p>
@@ -428,7 +448,7 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
                 </div>
                 <div>
                   <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">New Contract Total</p>
-                  <p className="text-sm font-bold text-green-700">${fmtDol(Number(proposal.total) + total)}</p>
+                  <p className="text-sm font-bold text-green-700">${fmtDol(newTotal)}</p>
                 </div>
               </div>
             )}
@@ -673,6 +693,7 @@ function ChangeOrdersTab({ proposal }) {
 
     if (sendForSig) {
       try {
+        const coBase = coData.originalTotal != null ? Number(coData.originalTotal) : Number(proposal.total)
         const coPayload = {
           coNumber:      coData.coNumber,
           contractNum,
@@ -680,8 +701,8 @@ function ChangeOrdersTab({ proposal }) {
           lines:         coData.lines,
           scopeLines:    coData.scopeLines || [],
           payments:      coData.payments   || [],
-          originalTotal: Number(proposal.total),
-          newTotal:      Number(proposal.total) + Number(coData.amount),
+          originalTotal: coBase,
+          newTotal:      coData.newTotal != null ? Number(coData.newTotal) : coBase + Number(coData.amount),
           client:        proposal.client,
           address:       proposal.address,
           branding:      coData.branding || {},
@@ -723,6 +744,7 @@ function ChangeOrdersTab({ proposal }) {
   const sendForSignature = async (co) => {
     setSendingId(co.id)
     try {
+      const coBase = co.originalTotal != null ? Number(co.originalTotal) : baseTotalForCO(proposal, co)
       const coPayload = {
         coNumber:      co.coNumber,
         contractNum,
@@ -730,8 +752,8 @@ function ChangeOrdersTab({ proposal }) {
         lines:         co.lines || [],
         scopeLines:    co.scopeLines || [],
         payments:      co.payments  || [],
-        originalTotal: Number(proposal.total),
-        newTotal:      Number(proposal.total) + Number(co.amount || 0),
+        originalTotal: coBase,
+        newTotal:      co.newTotal != null ? Number(co.newTotal) : coBase + Number(co.amount || 0),
         client:        proposal.client,
         address:       proposal.address,
         branding:      { logo: branding?.logo || null, companyName: branding?.companyName || 'Ebony Outdoor Living' },
