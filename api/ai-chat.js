@@ -1,44 +1,76 @@
 /**
- * /api/ai-chat — server-side Claude proxy.
+ * /api/ai-chat — server-side AI proxy (Google Gemini, free tier).
  *
- * All browser AI (catalog assistant, scope generation, estimate analysis)
- * routes through here so the Anthropic API key stays on the server and is
- * never shipped in the frontend bundle.
+ * All browser AI (catalog assistant, scope generation, estimate analysis,
+ * Sales Suggest, statement import) routes through here so the API key stays on
+ * the server and is never shipped in the frontend bundle.
  *
- * Requires env var: ANTHROPIC_API_KEY
+ * Uses GEMINI_API_KEY (free from Google AI Studio). Falls back to
+ * ANTHROPIC_API_KEY (Claude) if that's what's configured instead.
  *
  * Body: { system?: string, messages: [{role, content}], maxTokens?: number }
- *   content may be a plain string or an Anthropic content array (for vision).
+ *   content may be a plain string or a content array (for vision/images).
  */
-import Anthropic from '@anthropic-ai/sdk'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import { requireAuth } from './_auth.js'
 
 export const config = { api: { bodyParser: { sizeLimit: '10mb' } } }
 
+// Convert our Anthropic-style messages into Gemini "contents".
+function toGeminiContents(messages) {
+  return messages.map(m => {
+    const role = m.role === 'assistant' ? 'model' : 'user'
+    if (typeof m.content === 'string') return { role, parts: [{ text: m.content }] }
+    const parts = (m.content || []).map(part => {
+      if (part?.type === 'text') return { text: part.text || '' }
+      if (part?.type === 'image' && part.source?.data) {
+        return { inlineData: { mimeType: part.source.media_type || 'image/jpeg', data: part.source.data } }
+      }
+      return { text: '' }
+    })
+    return { role, parts }
+  })
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   if (!requireAuth(req, res)) return
-
-  const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) {
-    return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured on the server.' })
-  }
 
   const { system, messages, maxTokens } = req.body || {}
   if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: 'messages required' })
   }
 
+  const geminiKey = process.env.GEMINI_API_KEY
+  const anthropicKey = process.env.ANTHROPIC_API_KEY
+
   try {
-    const anthropic = new Anthropic({ apiKey })
-    const resp = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: maxTokens || 4096,
-      system: system || undefined,
-      messages,
-    })
-    const text = resp.content?.[0]?.text || ''
-    return res.status(200).json({ text })
+    if (geminiKey) {
+      const genAI = new GoogleGenerativeAI(geminiKey)
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-1.5-flash',
+        systemInstruction: system || undefined,
+      })
+      const result = await model.generateContent({
+        contents: toGeminiContents(messages),
+        generationConfig: { maxOutputTokens: maxTokens || 4096 },
+      })
+      return res.status(200).json({ text: result.response.text() || '' })
+    }
+
+    if (anthropicKey) {
+      const { default: Anthropic } = await import('@anthropic-ai/sdk')
+      const anthropic = new Anthropic({ apiKey: anthropicKey })
+      const resp = await anthropic.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: maxTokens || 4096,
+        system: system || undefined,
+        messages,
+      })
+      return res.status(200).json({ text: resp.content?.[0]?.text || '' })
+    }
+
+    return res.status(500).json({ error: 'No AI key configured. Add a free GEMINI_API_KEY on the server.' })
   } catch (err) {
     return res.status(500).json({ error: err.message })
   }
