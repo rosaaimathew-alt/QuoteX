@@ -1,7 +1,10 @@
 import { useState, useRef, lazy, Suspense } from 'react'
+import * as pdfjsLib from 'pdfjs-dist'
 import { getAnalyzeModel } from '../gemini'
 import { Upload, FileText, Image, File, Trash2, CheckCircle, AlertCircle, Save, RefreshCw } from 'lucide-react'
 import { useStore } from '../store'
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString()
 
 const ANALYZE_SYSTEM_PROMPT = `You are a construction estimating assistant. Extract ONLY priced line items from the estimate.
 
@@ -151,16 +154,19 @@ function AnalyzeTab() {
   })
 
   const extractPdfText = async (f) => {
-    const base64 = await fileToBase64(f)
-    const res = await fetch('/api/extract-pdf', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: base64 }),
-    })
-    if (!res.ok) throw new Error('Could not extract text from this PDF. Try a JPG or PNG screenshot instead.')
-    const { text, error } = await res.json()
-    if (error) throw new Error(error)
-    return text || ''
+    try {
+      const buf = await f.arrayBuffer()
+      const pdf = await pdfjsLib.getDocument({ data: buf }).promise
+      let text = ''
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i)
+        const content = await page.getTextContent()
+        text += content.items.map(it => it.str).join(' ') + '\n'
+      }
+      return text
+    } catch {
+      throw new Error('Could not read this PDF (it may be a scan). Try a JPG or PNG screenshot instead.')
+    }
   }
 
   const handleAnalyze = async () => {

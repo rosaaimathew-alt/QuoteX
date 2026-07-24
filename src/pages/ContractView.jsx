@@ -704,31 +704,26 @@ export default function ContractView() {
           }\n\nWrite the new bullets in this SAME style.`
         : ''
 
-      const res = await fetch('/api/ai/chat/completions', {
+      const res = await fetch('/api/ai-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'mistral',
+          system: `You are a professional scope of work writer for Ebony Outdoor Living, an outdoor construction company specializing in decks, porches, pergolas, sunrooms, and outdoor structures. Write clear, professional, complete scope of work bullet points.${projectTag ? ` This is a ${projectTag} project.` : ''}${styleContext}`,
           messages: [
-            {
-              role: 'system',
-              content: `You are a professional scope of work writer for Ebony Outdoor Living, an outdoor construction company specializing in decks, porches, pergolas, sunrooms, and outdoor structures. Write clear, professional, complete scope of work bullet points.${projectTag ? ` This is a ${projectTag} project.` : ''}${styleContext}`,
-            },
             {
               role: 'user',
               content: `Below are line items from an accepted proposal. For each item, write ONE professional scope of work bullet point describing the work to be performed. Use complete sentences and professional construction language. Be specific about materials and installation methods where relevant.\n\nReturn ONLY the bullet points, one per line, starting with "- ". Output exactly ${(data.lines || []).length} bullets in the same order.\n\nProposal line items:\n${itemList}`,
             },
           ],
-          stream: false,
+          maxTokens: 4096,
         }),
       })
-      if (res.status === 503) throw new Error('Ollama is not running — open the Ollama app or run "ollama serve" in Terminal.')
       if (!res.ok) {
         const err = await res.text().catch(() => res.statusText)
         throw new Error(`AI error (${res.status}): ${err}`)
       }
       const aiData = await res.json()
-      const text   = aiData.choices[0].message.content
+      const text   = aiData.text || ''
       const bullets = text.split('\n')
         .map(l => l.replace(/^[-•*\d.]+\s*/, '').trim())
         .filter(l => l.length > 0)
