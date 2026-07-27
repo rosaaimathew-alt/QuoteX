@@ -382,7 +382,12 @@ export default function ContractView() {
     )
   }
 
-  const { client, email, phone, address, total, projectTypes = [], contractNumber, salesperson } = data
+  const { client, email, phone, address, projectTypes = [], contractNumber, salesperson } = data
+  // Contract total = sum of the selected/priced scope items, so an à la carte
+  // contract reflects the items actually chosen — not the full proposal value.
+  // Falls back to the proposal total if there are no priced lines.
+  const scopeTotal = (scopeLines || []).reduce((s, l) => s + (Number(l.price) || 0), 0)
+  const total = scopeTotal > 0 ? scopeTotal : Number(data.total || 0)
   const logo = branding?.logo || null
   const companyName = branding?.companyName || 'Ebony Outdoor Living'
   const now    = new Date()
@@ -444,6 +449,7 @@ export default function ContractView() {
         .filter(Boolean)
       const contractData = {
         ...data,
+        total,                             // selected-items total — overrides the proposal total
         scopeBullets:      scopeStrings,
         scopeLines:        scopeLines,     // full objects w/ prices for pricing table
         payments,
