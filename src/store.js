@@ -560,7 +560,15 @@ export const useStore = create(
             proposals: s.proposals.map((p) => {
               if (p.id === id) {
                 const closed = status === 'Won' || status === 'Lost'
-                return { ...p, status, closedAt: closed ? new Date().toISOString() : p.closedAt }
+                // Stamp the change so any manual status action resets the
+                // 90-day stale-Sent clock (e.g. reviving an MIA back to Sent).
+                return {
+                  ...p,
+                  status,
+                  statusChangedAt: new Date().toISOString(),
+                  autoMIA: false,
+                  closedAt: closed ? new Date().toISOString() : p.closedAt,
+                }
               }
               if (siblingIds.has(p.id)) return { ...p, status: 'Archived' }
               return p
@@ -820,6 +828,43 @@ export const useStore = create(
               }
             }),
           }
+        }),
+
+      // Auto-flag stale proposals: a 'Sent' proposal that has gone 90 days with
+      // no newer iteration, no logged activity, and no status change becomes
+      // 'MIA' (missing in action). Uses the most recent touch across the whole
+      // customer group, so making another revision anywhere in the group keeps
+      // all its proposals alive. Idempotent — safe to call on every app load.
+      autoExpireStaleSent: () =>
+        set((s) => {
+          const NINETY_DAYS = 90 * 24 * 60 * 60 * 1000
+          const now = Date.now()
+          const lastTouch = (p) => {
+            const ts = [p.sentAt, p.createdAt, p.updatedAt, p.statusChangedAt,
+              ...((p.activities || []).map((a) => a.createdAt))]
+              .filter(Boolean)
+              .map((t) => new Date(t).getTime())
+              .filter((n) => !Number.isNaN(n))
+            return ts.length ? Math.max(...ts) : 0
+          }
+          // Most recent touch per customer group (root id).
+          const groupTouch = {}
+          for (const p of s.proposals) {
+            const root = p.parentId || p.id
+            groupTouch[root] = Math.max(groupTouch[root] || 0, lastTouch(p))
+          }
+          let changed = false
+          const proposals = s.proposals.map((p) => {
+            if (p.status !== 'Sent') return p
+            const root = p.parentId || p.id
+            const touch = groupTouch[root] || lastTouch(p)
+            if (touch && now - touch >= NINETY_DAYS) {
+              changed = true
+              return { ...p, status: 'MIA', autoMIA: true, statusChangedAt: new Date().toISOString() }
+            }
+            return p
+          })
+          return changed ? { proposals } : {}
         }),
 
       // ── Job Management (stages, notes, dates per won proposal) ──────────
@@ -1347,6 +1392,11 @@ export const useStore = create(
             ? persistedState.catalog
             : currentState.catalog,
         }
+      },
+      // Storage is async (KV), so run the stale-Sent → MIA sweep once hydration
+      // actually completes, not just on component mount.
+      onRehydrateStorage: () => (state) => {
+        try { state?.autoExpireStaleSent?.() } catch {}
       },
     }
   )

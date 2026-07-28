@@ -197,6 +197,11 @@ function AppShell() {
 
   const plan = branding?.plan || 'enterprise'
   const role = useStore(s => s.role || 'manager')
+  const autoExpireStaleSent = useStore(s => s.autoExpireStaleSent)
+
+  // Flag proposals that have sat in 'Sent' for 90+ days (no new iteration,
+  // activity, or status change) as MIA. Runs once per app load.
+  useEffect(() => { autoExpireStaleSent() }, [autoExpireStaleSent])
 
   useEffect(() => {
     applyBrandStyles(branding?.primaryColor || DEFAULT_BRAND_COLOR, {
