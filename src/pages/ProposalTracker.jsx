@@ -455,7 +455,12 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
       return sortDir === 'asc' ? cmp : -cmp
     })
 
-  const ProposalRow = ({ p, altCount, showAltToggle, onDetach, onMerge }) => {
+  // Render helper (NOT a component): called inline as renderProposalRow(...) so
+  // its rows stay part of ListView's own element tree. Defining it as a nested
+  // component and mounting it via <ProposalRow/> gave it a new identity on every
+  // ListView render, so toggling a row remounted the whole table and threw the
+  // scroll position back to the top. It uses no hooks, so calling it is safe.
+  const renderProposalRow = ({ p, altCount, showAltToggle, onDetach, onMerge }) => {
     const isAltExpanded = expandedAlts === p.id
     return (
       <>
@@ -601,12 +606,12 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
               const isAltExpanded = expandedAlts === primary.id
               return (
                 <React.Fragment key={root.id}>
-                  <ProposalRow
-                    p={primary}
-                    altCount={alts.length}
-                    onDetach={handleDetach}
-                    onMerge={() => setMergeSource({ root, revisions })}
-                  />
+                  {renderProposalRow({
+                    p: primary,
+                    altCount: alts.length,
+                    onDetach: handleDetach,
+                    onMerge: () => setMergeSource({ root, revisions }),
+                  })}
                   {isAltExpanded && alts.map(alt => (
                     <tr key={alt.id} className="border-t border-purple-50 bg-purple-50/40 align-top">
                       <td className="px-4 py-2.5 pl-8">
