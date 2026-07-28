@@ -11,6 +11,7 @@ import {
   GitMerge, Unlink, Search,
 } from 'lucide-react'
 import { getPeriodRange, shiftPeriod, isCurrentPeriod } from '../periodUtils'
+import { wonRevenueOf } from '../contractTotal'
 
 // Group proposals into root → revisions trees
 function buildGroups(proposals) {
@@ -747,7 +748,7 @@ function AnalyticsView({ proposals: allProposals }) {
   const uniqueClients = outcomes.length
 
   const avgWon = won.length > 0
-    ? won.reduce((s, p) => s + (p.total || 0), 0) / won.length
+    ? won.reduce((s, p) => s + wonRevenueOf(p), 0) / won.length
     : null
   const avgLost = lost.length > 0
     ? lost.reduce((s, p) => s + (p.total || 0), 0) / lost.length
@@ -761,7 +762,7 @@ function AnalyticsView({ proposals: allProposals }) {
     : null
 
   const pipelineValue = active.reduce((s, p) => s + (p.total || 0), 0)
-  const wonRevenue = won.reduce((s, p) => s + (p.total || 0), 0)
+  const wonRevenue = won.reduce((s, p) => s + wonRevenueOf(p), 0)
 
   // Win/Loss reason breakdown — only count proposals currently in Won or Lost status
   // (a proposal previously marked Lost then changed back to Sent still has winLossReason set)
@@ -778,7 +779,9 @@ function AnalyticsView({ proposals: allProposals }) {
   const statusCounts = PROPOSAL_STATUSES.map(s => ({
     status: s,
     count: proposals.filter(p => p.status === s).length,
-    value: proposals.filter(p => p.status === s).reduce((sum, p) => sum + (p.total || 0), 0),
+    // Won bucket reflects true won revenue (sold value + signed change orders)
+    // so it matches the Won Revenue KPI; other statuses use proposal face value.
+    value: proposals.filter(p => p.status === s).reduce((sum, p) => sum + (s === 'Won' ? wonRevenueOf(p) : (p.total || 0)), 0),
   }))
   const maxCount = Math.max(...statusCounts.map(s => s.count), 1)
 

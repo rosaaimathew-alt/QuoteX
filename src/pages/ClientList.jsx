@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store'
-import { contractTotalOf } from '../contractTotal'
+import { wonRevenueOf } from '../contractTotal'
 import {
   Users, ChevronDown, ChevronRight, Phone, Mail, MapPin,
   FileText, DollarSign, Calendar, Plus,
@@ -114,7 +114,7 @@ export default function ClientList() {
           {filtered.map(client => {
             const isOpen = expanded[client.name]
             const totalValue = client.proposals.reduce((s, p) => s + (p.total || 0), 0)
-            const wonValue   = client.proposals.filter(p => p.status === 'Won').reduce((s, p) => s + contractTotalOf(p), 0)
+            const wonValue   = client.proposals.filter(p => p.status === 'Won').reduce((s, p) => s + wonRevenueOf(p), 0)
             const status     = bestStatus(client.proposals)
             const latest     = client.proposals[client.proposals.length - 1]
 

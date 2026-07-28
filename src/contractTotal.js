@@ -17,3 +17,22 @@ export function contractTotalOf(proposal) {
   }
   return Number(proposal?.total || 0)
 }
+
+// Sum of every SIGNED change order (addendum) on a job. When a customer signs a
+// CO it's marked 'Approved' with a signedAt; its amount may be negative (a
+// deduction) and nets in accordingly.
+export function approvedChangeOrderTotal(proposal) {
+  const cos = proposal?.jobData?.changeOrders || []
+  return cos
+    .filter((co) => co.status === 'Approved')
+    .reduce((s, co) => s + (Number(co.amount) || 0), 0)
+}
+
+// THE won-revenue number for a deal: the sold contract value PLUS every signed
+// change order. This is what "Won Revenue" must show everywhere — the same
+// figure on the Dashboard, Proposal Tracker, Analytics, and per-client views —
+// so a signed addendum raises revenue in place instead of hiding in a separate
+// bucket.
+export function wonRevenueOf(proposal) {
+  return contractTotalOf(proposal) + approvedChangeOrderTotal(proposal)
+}

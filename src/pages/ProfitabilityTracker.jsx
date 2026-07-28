@@ -6,7 +6,7 @@ import {
   Package, Users, Hammer, MoreHorizontal,
 } from 'lucide-react'
 import { useStore } from '../store'
-import { contractTotalOf } from '../contractTotal'
+import { wonRevenueOf } from '../contractTotal'
 
 const fmt   = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const fmtSh = (n) => {
@@ -43,7 +43,7 @@ function CostEditor({ proposal, existing, onSave, onDelete, onClose }) {
 
   const totalCost = ['materials', 'labor', 'subcontractors', 'other']
     .reduce((s, k) => s + (Number(form[k]) || 0), 0)
-  const revenue = contractTotalOf(proposal)
+  const revenue = wonRevenueOf(proposal)
   const profit  = revenue - totalCost
   const margin  = revenue > 0 ? (profit / revenue) * 100 : 0
 
@@ -153,7 +153,7 @@ function MonthlyChart({ jobs, jobCosts }) {
       const d = new Date(p.closedAt || p.createdAt)
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
       if (!map[key]) map[key] = { label: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }), revenue: 0, cost: 0, profit: 0 }
-      const rev  = contractTotalOf(p)
+      const rev  = wonRevenueOf(p)
       const cost = jobCosts[p.id]
         ? ['materials', 'labor', 'subcontractors', 'other'].reduce((s, k) => s + (Number(jobCosts[p.id][k]) || 0), 0)
         : 0
@@ -223,7 +223,7 @@ export default function ProfitabilityTracker() {
 
   // Derived per-job metrics
   const jobs = useMemo(() => wonJobs.map(p => {
-    const rev  = contractTotalOf(p)
+    const rev  = wonRevenueOf(p)
     const costs = jobCosts[p.id]
     const totalCost = costs
       ? ['materials', 'labor', 'subcontractors', 'other'].reduce((s, k) => s + (Number(costs[k]) || 0), 0)

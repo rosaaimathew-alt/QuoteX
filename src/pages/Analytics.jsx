@@ -1,6 +1,6 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
 import { useStore } from '../store'
-import { contractTotalOf } from '../contractTotal'
+import { wonRevenueOf } from '../contractTotal'
 import { TrendingUp, DollarSign, Award, XCircle, Target, Plus, ChevronDown, ChevronUp, Trash2, Clock, MapPin, Settings2, Pencil, Check, X } from 'lucide-react'
 
 // ── Sales Heat Map ────────────────────────────────────────────────────────────
@@ -156,7 +156,7 @@ function SalesHeatMap({ proposals }) {
     const city = (raw && raw.length > 2 && !/^[A-Z]{2}$/.test(raw)) ? raw : '— Address needs city —'
     if (!cityMap[city]) cityMap[city] = { city, count: 0, won: 0, revenue: 0, active: 0 }
     cityMap[city].count++
-    if (p.status === 'Won') { cityMap[city].won++; cityMap[city].revenue += contractTotalOf(p) }
+    if (p.status === 'Won') { cityMap[city].won++; cityMap[city].revenue += wonRevenueOf(p) }
     else if (p.status !== 'Lost' && p.status !== 'MIA' && !p.closedAt) cityMap[city].active++
   })
   const cities   = Object.values(cityMap).sort((a, b) => b.count - a.count)
@@ -904,7 +904,7 @@ export default function Analytics() {
 
     // Use the actual contract value (à la carte = items sold), not the full
     // proposal menu, so declined options don't inflate won revenue.
-    const totalRevenue = won.reduce((s, p) => s + contractTotalOf(p), 0)
+    const totalRevenue = won.reduce((s, p) => s + wonRevenueOf(p), 0)
     const avgDeal = won.length ? totalRevenue / won.length : 0
 
     // Project type breakdown (all time)
@@ -916,7 +916,7 @@ export default function Analytics() {
       types.forEach(t => {
         if (!typeMap[t]) typeMap[t] = { count: 0, revenue: 0 }
         typeMap[t].count += 1
-        typeMap[t].revenue += contractTotalOf(p) / types.length
+        typeMap[t].revenue += wonRevenueOf(p) / types.length
       })
     })
     const typeRows = Object.entries(typeMap)
@@ -962,7 +962,7 @@ export default function Analytics() {
       const d = new Date(p.closedAt || p.createdAt || p.sentAt || Date.now())
       const m = months.find(m => m.year === d.getFullYear() && m.month === d.getMonth())
       if (!m) return
-      const rev = contractTotalOf(p)
+      const rev = wonRevenueOf(p)
       m.total += rev
       m.jobCount += 1
       const types = p.contractDraft?.projectTypes?.length
