@@ -259,6 +259,7 @@ export default function ContractsList() {
       address:        p.address,
       total:          contractTotalOf(p),
       lines:          p.lines || [],
+      isAlaCarte:     !!p.isAlaCarte,
       projectTypes:   p.projectTypes || [],
       projectSummary: p.projectSummary || '',
       contractNumber,
