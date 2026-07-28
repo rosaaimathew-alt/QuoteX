@@ -254,7 +254,11 @@ const SEED_CATALOG = [
   { id: 10, name: 'Concrete Footing (per post)', description: 'Pour concrete footing for fence post, including excavation.', unit: 'EA', unitPrice: 28, minPrice: 22, maxPrice: 35, count: 20, category: 'Materials', confidence: 96 },
 ]
 
-export const PROPOSAL_STATUSES = ['Draft', 'Sent', 'Followed Up', 'Negotiating', 'Won', 'Lost', 'MIA']
+export const PROPOSAL_STATUSES = ['Draft', 'Sent', 'Followed Up', 'Negotiating', 'Won', 'Lost', 'MIA', 'Archived']
+
+// 'Archived' = an earlier revision the customer didn't move forward with, but
+// the deal was won on a different version. Kept in the system and grouped under
+// the customer, but neutral in analytics: excluded from won, lost, and pipeline.
 
 // Starter follow-up email templates. {client} is replaced with the customer name.
 export const DEFAULT_EMAIL_TEMPLATES = [
@@ -532,17 +536,37 @@ export const useStore = create(
         })),
 
       updateProposalStatus: (id, status) =>
-        set((s) => ({
-          proposals: s.proposals.map((p) => {
-            if (p.id !== id) return p
-            const closed = status === 'Won' || status === 'Lost'
-            return {
-              ...p,
-              status,
-              closedAt: closed ? new Date().toISOString() : p.closedAt,
-            }
-          }),
-        })),
+        set((s) => {
+          const target = s.proposals.find((p) => p.id === id)
+          // When a proposal is Won, the other revisions in the same customer's
+          // group weren't lost — they were superseded by the winning version.
+          // Auto-archive those siblings (unless already Won/Lost/Archived) so
+          // they stay in the system without distorting win/loss/pipeline stats.
+          const rootId = target ? (target.parentId || target.id) : null
+          const siblingIds =
+            status === 'Won' && rootId != null
+              ? new Set(
+                  s.proposals
+                    .filter(
+                      (p) =>
+                        p.id !== id &&
+                        (p.parentId || p.id) === rootId &&
+                        !['Won', 'Lost', 'Archived'].includes(p.status)
+                    )
+                    .map((p) => p.id)
+                )
+              : new Set()
+          return {
+            proposals: s.proposals.map((p) => {
+              if (p.id === id) {
+                const closed = status === 'Won' || status === 'Lost'
+                return { ...p, status, closedAt: closed ? new Date().toISOString() : p.closedAt }
+              }
+              if (siblingIds.has(p.id)) return { ...p, status: 'Archived' }
+              return p
+            }),
+          }
+        }),
 
       setWinLossReason: (id, reason) =>
         set((s) => ({

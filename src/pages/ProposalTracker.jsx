@@ -30,7 +30,9 @@ function clientOutcomes(proposals) {
   return groups.map(({ root, revisions }) => {
     const all = [root, ...revisions]
     const isWon = all.some(p => p.status === 'Won')
-    const isLost = !isWon && all.every(p => p.status === 'Lost')
+    // Archived = superseded revision of a won deal; neutral, not a loss.
+    const live = all.filter(p => p.status !== 'Archived')
+    const isLost = !isWon && live.length > 0 && live.every(p => p.status === 'Lost')
     return { all, isWon, isLost }
   })
 }
@@ -48,6 +50,7 @@ const STATUS_STYLES = {
   Won:           'bg-green-100 text-green-700',
   Lost:          'bg-red-100 text-red-700',
   MIA:           'bg-slate-100 text-slate-500',
+  Archived:      'bg-zinc-100 text-zinc-500',
 }
 
 const STATUS_COLORS = {
@@ -58,6 +61,7 @@ const STATUS_COLORS = {
   Won:           'border-green-200 bg-green-50',
   Lost:          'border-red-200 bg-red-50',
   MIA:           'border-slate-200 bg-slate-50',
+  Archived:      'border-zinc-200 bg-zinc-50',
 }
 
 const ACTIVITY_ICONS = { Call: Phone, Email: Mail, Meeting: Users, 'Follow-up': Bell, Note: MessageSquare }
