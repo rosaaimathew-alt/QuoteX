@@ -9,6 +9,13 @@ import { supabase } from './supabase'
 const STORE_KEY = 'quotex-store'
 let _initial = null // cached promise for the first GET
 
+// Persistence is BLOCKED until the initial load (hydration) completes. This is
+// a hard safety net: before real data arrives the store holds its empty startup
+// state, and without this guard any early write would save that emptiness over
+// the real data in both localStorage and the KV server. Flipped true in
+// persist's onRehydrateStorage callback, which fires after hydration finishes.
+let _hydrated = false
+
 function _token() {
   try { return localStorage.getItem('qx_token') } catch { return null }
 }
@@ -198,6 +205,9 @@ const smartStorage = {
   },
 
   setItem: async (name, value) => {
+    // Never persist before hydration completes — otherwise the empty startup
+    // state could overwrite real data locally and on the server.
+    if (!_hydrated) return
     try { localStorage.setItem(name, value) } catch {} // fast local cache + offline copy
     const orgId = await _orgContext()
     if (orgId) {
@@ -835,37 +845,46 @@ export const useStore = create(
       // 'MIA' (missing in action). Uses the most recent touch across the whole
       // customer group, so making another revision anywhere in the group keeps
       // all its proposals alive. Idempotent — safe to call on every app load.
-      autoExpireStaleSent: () =>
-        set((s) => {
-          const NINETY_DAYS = 90 * 24 * 60 * 60 * 1000
-          const now = Date.now()
-          const lastTouch = (p) => {
-            const ts = [p.sentAt, p.createdAt, p.updatedAt, p.statusChangedAt,
-              ...((p.activities || []).map((a) => a.createdAt))]
-              .filter(Boolean)
-              .map((t) => new Date(t).getTime())
-              .filter((n) => !Number.isNaN(n))
-            return ts.length ? Math.max(...ts) : 0
+      //
+      // CRITICAL: this reads state via get() and only calls set() when something
+      // actually changes. It must NEVER write on an empty/unhydrated store —
+      // otherwise, if it runs before async data has loaded, persist would save
+      // the empty startup state over the real data (in localStorage AND the KV
+      // server). The `proposals.length === 0` guard and the change check ensure
+      // no write happens unless there is real, loaded data with a stale 'Sent'.
+      autoExpireStaleSent: () => {
+        const s = get()
+        const list = s.proposals || []
+        if (list.length === 0) return   // unhydrated or genuinely empty → never write
+        const NINETY_DAYS = 90 * 24 * 60 * 60 * 1000
+        const now = Date.now()
+        const lastTouch = (p) => {
+          const ts = [p.sentAt, p.createdAt, p.updatedAt, p.statusChangedAt,
+            ...((p.activities || []).map((a) => a.createdAt))]
+            .filter(Boolean)
+            .map((t) => new Date(t).getTime())
+            .filter((n) => !Number.isNaN(n))
+          return ts.length ? Math.max(...ts) : 0
+        }
+        // Most recent touch per customer group (root id).
+        const groupTouch = {}
+        for (const p of list) {
+          const root = p.parentId || p.id
+          groupTouch[root] = Math.max(groupTouch[root] || 0, lastTouch(p))
+        }
+        let changed = false
+        const proposals = list.map((p) => {
+          if (p.status !== 'Sent') return p
+          const root = p.parentId || p.id
+          const touch = groupTouch[root] || lastTouch(p)
+          if (touch && now - touch >= NINETY_DAYS) {
+            changed = true
+            return { ...p, status: 'MIA', autoMIA: true, statusChangedAt: new Date().toISOString() }
           }
-          // Most recent touch per customer group (root id).
-          const groupTouch = {}
-          for (const p of s.proposals) {
-            const root = p.parentId || p.id
-            groupTouch[root] = Math.max(groupTouch[root] || 0, lastTouch(p))
-          }
-          let changed = false
-          const proposals = s.proposals.map((p) => {
-            if (p.status !== 'Sent') return p
-            const root = p.parentId || p.id
-            const touch = groupTouch[root] || lastTouch(p)
-            if (touch && now - touch >= NINETY_DAYS) {
-              changed = true
-              return { ...p, status: 'MIA', autoMIA: true, statusChangedAt: new Date().toISOString() }
-            }
-            return p
-          })
-          return changed ? { proposals } : {}
-        }),
+          return p
+        })
+        if (changed) set({ proposals })   // only write when a real change occurred
+      },
 
       // ── Job Management (stages, notes, dates per won proposal) ──────────
       updateJobData: (proposalId, changes) =>
@@ -1393,10 +1412,13 @@ export const useStore = create(
             : currentState.catalog,
         }
       },
-      // Storage is async (KV), so run the stale-Sent → MIA sweep once hydration
-      // actually completes, not just on component mount.
-      onRehydrateStorage: () => (state) => {
-        try { state?.autoExpireStaleSent?.() } catch {}
+      // Storage is async (KV). Mark hydration complete FIRST so writes are now
+      // allowed, then run the stale-Sent → MIA sweep. Fires after hydration
+      // whether it succeeded or errored, so persistence is never permanently
+      // blocked.
+      onRehydrateStorage: () => (state, error) => {
+        _hydrated = true
+        if (!error) { try { state?.autoExpireStaleSent?.() } catch {} }
       },
     }
   )
