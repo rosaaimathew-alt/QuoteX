@@ -164,6 +164,7 @@ export default function ContractsList() {
   const proposals            = useStore(s => s.proposals)
   const markContractSigned   = useStore(s => s.markContractSigned)
   const saveContractDraft    = useStore(s => s.saveContractDraft)
+  const markSignedOffPlatform = useStore(s => s.markContractsSignedOffPlatform)
 
   const [filter, setFilter]  = useState('All')
   const [query,  setQuery]   = useState('')
@@ -236,6 +237,22 @@ export default function ContractsList() {
     'In Progress': wonProposals.filter(p => getContractStatus(p) === 'in-progress').length,
     Signed:      wonProposals.filter(p => getContractStatus(p) === 'signed').length,
     'Not Started': wonProposals.filter(p => getContractStatus(p) === 'not-started').length,
+  }
+
+  // Contracts that have never been started — these are the pre-existing deals
+  // signed outside the software that were imported as won proposals.
+  const notStartedProposals = wonProposals.filter(p => getContractStatus(p) === 'not-started')
+
+  const handleBulkSignOffPlatform = () => {
+    const ids = notStartedProposals.map(p => p.id)
+    if (ids.length === 0) return
+    const ok = window.confirm(
+      `Mark ${ids.length} contract${ids.length !== 1 ? 's' : ''} as already signed (signed off-platform)?\n\n` +
+      `Use this only for deals that were signed on paper or before the software. ` +
+      `They'll move to the Signed section, tagged as signed off-platform.`
+    )
+    if (!ok) return
+    markSignedOffPlatform(ids)
   }
 
   const openContract = (p) => {
@@ -327,6 +344,26 @@ export default function ContractsList() {
         </div>
       </div>
 
+      {/* One-time backfill: mark pre-existing (off-platform) signed deals.
+          Self-removes once nothing is left in Not Started. */}
+      {notStartedProposals.length > 0 && (
+        <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <div className="flex items-start gap-2 text-sm text-amber-800">
+            <FileSignature size={16} className="shrink-0 mt-0.5" />
+            <span>
+              <span className="font-semibold">{notStartedProposals.length}</span> contract{notStartedProposals.length !== 1 ? 's' : ''} not started.
+              Already signed off-platform? Move {notStartedProposals.length !== 1 ? 'them' : 'it'} straight to Signed.
+            </span>
+          </div>
+          <button
+            onClick={handleBulkSignOffPlatform}
+            className="shrink-0 self-start sm:self-auto px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold hover:bg-amber-700 transition-colors whitespace-nowrap"
+          >
+            Mark all as signed (off-platform)
+          </button>
+        </div>
+      )}
+
       {/* Empty state */}
       {wonProposals.length === 0 && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center justify-center py-20 text-center">
@@ -391,8 +428,9 @@ export default function ContractsList() {
                     <p className="text-xs text-gray-500 mt-0.5 truncate">{p.address}</p>
                     <div className="flex items-center gap-4 mt-1 flex-wrap">
                       <span className="text-xs font-semibold text-[var(--brand-700)]">${fmt(contractTotalOf(p))}</span>
-                      {status === 'signed' && signedAt && (
-                        <span className="text-xs text-gray-400">Signed {fmtDate(signedAt)}</span>
+                      {status === 'signed' && (draft.signedOffPlatform
+                        ? <span className="text-xs text-gray-400">Signed off-platform</span>
+                        : signedAt && <span className="text-xs text-gray-400">Signed {fmtDate(signedAt)}</span>
                       )}
                       {status === 'in-progress' && lastSaved && (
                         <span className="text-xs text-gray-400">Last saved {fmtDate(lastSaved)}</span>

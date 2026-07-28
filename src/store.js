@@ -795,6 +795,33 @@ export const useStore = create(
           ),
         })),
 
+      // Bulk-mark contracts that were signed OUTSIDE the software (paper /
+      // pre-existing deals imported into the app). Marks each given proposal's
+      // contract as signed and tags it signedOffPlatform so it's clear these
+      // weren't e-signed here. Gives them a contract number if missing so they
+      // sit correctly in the Signed section.
+      markContractsSignedOffPlatform: (ids) =>
+        set((s) => {
+          const idSet = new Set(ids)
+          const now = new Date().toISOString()
+          return {
+            proposals: s.proposals.map((p) => {
+              if (!idSet.has(p.id)) return p
+              const existing = p.contractDraft || {}
+              return {
+                ...p,
+                contractDraft: {
+                  ...existing,
+                  contractNum: existing.contractNum || `EOL${String(70000 + p.id).padStart(6, '0')}`,
+                  signed: true,
+                  signedAt: existing.signedAt || now,
+                  signedOffPlatform: true,
+                },
+              }
+            }),
+          }
+        }),
+
       // ── Job Management (stages, notes, dates per won proposal) ──────────
       updateJobData: (proposalId, changes) =>
         set((s) => ({
