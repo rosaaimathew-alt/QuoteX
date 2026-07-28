@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store'
+import { contractTotalOf } from '../contractTotal'
 import { ChevronLeft, ChevronRight, CalendarDays, MapPin, DollarSign } from 'lucide-react'
 
 const fmt = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
@@ -194,7 +195,7 @@ export default function Scheduler() {
                         </p>
                       )}
                       <p className="text-xs text-gray-500 flex items-center gap-1">
-                        <DollarSign size={10} /> ${fmt(job.total)}
+                        <DollarSign size={10} /> ${fmt(contractTotalOf(job))}
                       </p>
                       {job.jobData?.startDate && (
                         <p className="text-xs text-gray-400 mt-0.5">
@@ -217,7 +218,7 @@ export default function Scheduler() {
                   <div key={job.id} onClick={() => navigate('/jobs')}
                     className="cursor-pointer">
                     <p className="text-xs font-medium text-gray-800 hover:text-blue-600 transition-colors">{job.client}</p>
-                    <p className="text-xs text-gray-400">${fmt(job.total)}</p>
+                    <p className="text-xs text-gray-400">${fmt(contractTotalOf(job))}</p>
                   </div>
                 ))}
               </div>

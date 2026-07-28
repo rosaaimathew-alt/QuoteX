@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store'
-import { contractTotalOf } from '../contractTotal'
+import { contractTotalOf, approvedChangeOrderTotal } from '../contractTotal'
 import {
   CheckCircle2, Circle, ChevronDown, ChevronUp, CalendarDays,
   FileSignature, ClipboardList, MapPin, DollarSign, X, Plus,
@@ -1170,7 +1170,7 @@ function PaymentReminderModal({ proposal, onClose }) {
   const schedule       = getPaymentSchedule(proposal)
   const contractBase   = contractTotalOf(proposal)
   const approvedCOs    = (proposal.jobData?.changeOrders || []).filter(co => co.status === 'Approved')
-  const approvedCOTotal = approvedCOs.reduce((s, co) => s + Number(co.amount || 0), 0)
+  const approvedCOTotal = approvedChangeOrderTotal(proposal)  // single source of truth
   const pendingCOs     = (proposal.jobData?.changeOrders || []).filter(co => co.status === 'Pending')
 
   const [selectedIdx, setSelectedIdx] = useState(null)

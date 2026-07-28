@@ -174,7 +174,9 @@ export default function Dashboard() {
   const statusCounts = PROPOSAL_STATUSES.map(s => ({
     status: s,
     count: proposals.filter(p => p.status === s).length,
-    value: proposals.filter(p => p.status === s).reduce((sum, p) => sum + (p.total || 0), 0),
+    // Won bucket = true won revenue (sold + signed COs) to match the KPI;
+    // other statuses show proposal face value.
+    value: proposals.filter(p => p.status === s).reduce((sum, p) => sum + (s === 'Won' ? wonRevenueOf(p) : (p.total || 0)), 0),
   })).filter(s => s.count > 0)
   const maxCount = Math.max(...statusCounts.map(s => s.count), 1)
 

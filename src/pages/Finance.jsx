@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef } from 'react'
 import * as pdfjsLib from 'pdfjs-dist'
 import { useStore } from '../store'
+import { wonRevenueOf } from '../contractTotal'
 import { getModel } from '../gemini'
 import {
   Upload, Plus, X, Trash2, Pencil, CreditCard, DollarSign, Loader,
@@ -305,7 +306,7 @@ export default function Finance() {
 
   const perCard = cards.map(c => ({ ...c, spent: expenses.filter(e => e.cardId === c.id).reduce((s, e) => s + Number(e.amount || 0), 0) }))
   const perJob = jobs
-    .map(j => ({ id: j.id, client: j.client || `Job #${j.id}`, revenue: Number(j.total || 0), cost: expenses.filter(e => e.jobId === j.id).reduce((s, e) => s + Number(e.amount || 0), 0) }))
+    .map(j => ({ id: j.id, client: j.client || `Job #${j.id}`, revenue: wonRevenueOf(j), cost: expenses.filter(e => e.jobId === j.id).reduce((s, e) => s + Number(e.amount || 0), 0) }))
     .filter(j => j.cost > 0)
     .sort((a, b) => b.cost - a.cost)
 

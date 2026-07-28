@@ -78,7 +78,7 @@ function SalesHeatMap({ proposals }) {
       const addr = p.address || p.contractDraft?.address
       const c = cache[addr]
       if (!c) return null
-      return { lat: c.lat, lng: c.lng, zip: c.zip || extractZip(addr), city: extractCity(addr), revenue: Number(p.total||0), status: p.status, isHistorical: !!p.isHistorical, client: p.client || p.contractDraft?.client || '' }
+      return { lat: c.lat, lng: c.lng, zip: c.zip || extractZip(addr), city: extractCity(addr), revenue: p.status === 'Won' ? wonRevenueOf(p) : Number(p.total||0), status: p.status, isHistorical: !!p.isHistorical, client: p.client || p.contractDraft?.client || '' }
     }
     setPoints(withAddr.map(toPoint).filter(Boolean))
     const uncached = withAddr.filter(p => !cache[p.address || p.contractDraft?.address])
@@ -94,7 +94,7 @@ function SalesHeatMap({ proposals }) {
             const zip = data[0].address?.postcode?.slice(0,5) || extractZip(addr)
             cache[addr] = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), zip }
             saveGeo(cache)
-            setPoints(prev => [...prev, { lat: cache[addr].lat, lng: cache[addr].lng, zip, city: extractCity(addr), revenue: Number(p.total||0), status: p.status, isHistorical: !!p.isHistorical, client: p.client || p.contractDraft?.client || '' }])
+            setPoints(prev => [...prev, { lat: cache[addr].lat, lng: cache[addr].lng, zip, city: extractCity(addr), revenue: p.status === 'Won' ? wonRevenueOf(p) : Number(p.total||0), status: p.status, isHistorical: !!p.isHistorical, client: p.client || p.contractDraft?.client || '' }])
           }
         } catch {}
         await new Promise(r => setTimeout(r, 1100))
@@ -405,7 +405,7 @@ function PastJobPanel() {
                     ))}
                   </div>
                   <p className="text-xs text-gray-400 mt-2">
-                    Total: <strong className="text-gray-700">${wonHistorical.reduce((s, p) => s + Number(p.total || 0), 0).toLocaleString()}</strong>
+                    Total: <strong className="text-gray-700">${wonHistorical.reduce((s, p) => s + wonRevenueOf(p), 0).toLocaleString()}</strong>
                   </p>
                 </div>
               )}
