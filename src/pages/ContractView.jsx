@@ -80,6 +80,14 @@ function ScopeBullet({ line, updateLine, removeLine }) {
 
 const fmt = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
+// A line's price: qty × unitPrice, falling back to a stored price/amount/total
+// field so no item is dropped when it stores its value differently.
+const linePrice = (l) => {
+  const byUnit = (Number(l.qty) || 1) * (Number(l.unitPrice) || 0)
+  if (byUnit) return byUnit
+  return Number(l.price) || Number(l.amount) || Number(l.total) || 0
+}
+
 const PROJECT_TYPES = [
   'Open Deck',
   'Screen Porches',
@@ -322,7 +330,7 @@ export default function ContractView() {
       setScopeLines(draft.scopeLines ?? (d.lines || []).map((l, i) => ({
         id: l.id ?? i, name: l.name,
         text: l.description ? `${l.name} — ${l.description}` : l.name,
-        price: (l.qty || 1) * (l.unitPrice || 0),
+        price: linePrice(l),
       })))
       setCeilingFanNote(draft.ceilingFanNote ?? 'Homeowner to provide 1 ceiling fan with downrod')
       setSavedAt(draft.savedAt ?? null)
@@ -351,7 +359,7 @@ export default function ContractView() {
           (d.lines || []).map((l, i) => ({
             id: l.id ?? i, name: l.name,
             text: l.description ? `${l.name} — ${l.description}` : l.name,
-            price: (l.qty || 1) * (l.unitPrice || 0),
+            price: linePrice(l),
           }))
         )
       }
@@ -853,7 +861,7 @@ export default function ContractView() {
               {(data.lines || []).map((line, i) => {
                 const id = line.id ?? i
                 const checked = pickerSelection.has(id)
-                const price = (line.qty || 1) * (line.unitPrice || 0)
+                const price = linePrice(line)
                 return (
                   <label key={id} className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-colors ${checked ? 'bg-blue-50 border border-blue-100' : 'bg-gray-50 border border-transparent hover:bg-gray-100'}`}>
                     <input
@@ -896,7 +904,7 @@ export default function ContractView() {
                   setScopeLines(selected.map((l, i) => ({
                     id: l.id ?? i, name: l.name,
                     text: l.description ? `${l.name} — ${l.description}` : l.name,
-                    price: (l.qty || 1) * (l.unitPrice || 0),
+                    price: linePrice(l),
                   })))
                   setShowItemPicker(false)
                 }}

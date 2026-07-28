@@ -5,6 +5,17 @@ import { useStore } from '../store'
 
 const fmt = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
+// The contract's actual total = sum of the selected scope-line prices saved on
+// the contract draft. Falls back to the proposal total before a contract exists.
+const contractTotalOf = (p) => {
+  const sl = p.contractDraft?.scopeLines
+  if (Array.isArray(sl) && sl.length) {
+    const sum = sl.reduce((s, l) => s + (Number(l.price) || 0), 0)
+    if (sum > 0) return sum
+  }
+  return Number(p.total || 0)
+}
+
 const fmtDate = (iso) => {
   if (!iso) return '—'
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -246,7 +257,7 @@ export default function ContractsList() {
       email:          p.email,
       phone:          p.phone,
       address:        p.address,
-      total:          p.total || 0,
+      total:          contractTotalOf(p),
       lines:          p.lines || [],
       projectTypes:   p.projectTypes || [],
       projectSummary: p.projectSummary || '',
@@ -388,7 +399,7 @@ export default function ContractsList() {
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5 truncate">{p.address}</p>
                     <div className="flex items-center gap-4 mt-1 flex-wrap">
-                      <span className="text-xs font-semibold text-[var(--brand-700)]">${fmt(p.total || 0)}</span>
+                      <span className="text-xs font-semibold text-[var(--brand-700)]">${fmt(contractTotalOf(p))}</span>
                       {status === 'signed' && signedAt && (
                         <span className="text-xs text-gray-400">Signed {fmtDate(signedAt)}</span>
                       )}
