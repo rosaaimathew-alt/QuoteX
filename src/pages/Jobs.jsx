@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store'
+import { contractTotalOf } from '../contractTotal'
 import {
   CheckCircle2, Circle, ChevronDown, ChevronUp, CalendarDays,
   FileSignature, ClipboardList, MapPin, DollarSign, X, Plus,
@@ -236,7 +237,7 @@ const CO_STATUS_STYLE = {
 // contract plus every prior (non-rejected) change order — so each CO picks up
 // where the last one left off instead of resetting to the original price.
 function baseTotalForCO(proposal, existingCo) {
-  const base = Number(proposal.total) || 0
+  const base = contractTotalOf(proposal)
   const cos = proposal.jobData?.changeOrders || []
   const prior = existingCo
     ? cos.slice(0, Math.max(0, cos.findIndex(c => c.id === existingCo.id)))
@@ -451,7 +452,7 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
                 <div>
                   <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Current Total</p>
                   <p className="text-sm font-bold text-gray-800">${fmtDol(baseTotal)}</p>
-                  {baseTotal !== Number(proposal.total) && (
+                  {baseTotal !== contractTotalOf(proposal) && (
                     <p className="text-[9px] text-gray-400 mt-0.5">incl. prior change orders</p>
                   )}
                 </div>
@@ -557,7 +558,17 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
 // ── Budget tab ────────────────────────────────────────────────────────────────
 function BudgetTab({ proposal }) {
   const fmtD = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  const lines = proposal.lines || []
+  // Budget/P&L must reflect only the items actually in the contract. For an à la
+  // carte job the contract covers a subset of the proposal lines, so filter down
+  // to the lines whose ids are in the signed scope (cost data lives on the
+  // proposal lines, which the scope entries don't carry). Falls back to all
+  // lines when there's no contract draft yet, or if ids don't line up.
+  const allLines = proposal.lines || []
+  const scopeIds = Array.isArray(proposal.contractDraft?.scopeLines) && proposal.contractDraft.scopeLines.length
+    ? new Set(proposal.contractDraft.scopeLines.map(l => String(l.id)))
+    : null
+  const scoped = scopeIds ? allLines.filter(l => scopeIds.has(String(l.id))) : allLines
+  const lines = scoped.length ? scoped : allLines
   const hasCostData = lines.some(l => (l.costMaterials || 0) + (l.costSub || 0) > 0)
 
   const rows = lines.map(l => {
@@ -708,7 +719,7 @@ function ChangeOrdersTab({ proposal }) {
 
     if (sendForSig) {
       try {
-        const coBase = coData.originalTotal != null ? Number(coData.originalTotal) : Number(proposal.total)
+        const coBase = coData.originalTotal != null ? Number(coData.originalTotal) : contractTotalOf(proposal)
         const coPayload = {
           coNumber:      coData.coNumber,
           contractNum,
@@ -1146,7 +1157,7 @@ const PM_UNDER20K = [
 function getPaymentSchedule(proposal) {
   const saved = proposal.contractDraft?.payments
   if (Array.isArray(saved) && saved.length > 0) return saved
-  const base = proposal.total || 0
+  const base = contractTotalOf(proposal)
   return (base < 20000 ? PM_UNDER20K : PM_STANDARD).map(m => ({ ...m, amount: base * m.pct }))
 }
 
@@ -1157,7 +1168,7 @@ function PaymentReminderModal({ proposal, onClose }) {
   const projectTypes = (draft.projectTypes || []).join(', ') || ''
 
   const schedule       = getPaymentSchedule(proposal)
-  const contractBase   = proposal.total || 0
+  const contractBase   = contractTotalOf(proposal)
   const approvedCOs    = (proposal.jobData?.changeOrders || []).filter(co => co.status === 'Approved')
   const approvedCOTotal = approvedCOs.reduce((s, co) => s + Number(co.amount || 0), 0)
   const pendingCOs     = (proposal.jobData?.changeOrders || []).filter(co => co.status === 'Pending')
@@ -1572,7 +1583,7 @@ function JobCard({ proposal }) {
           </div>
           <div className="flex items-center gap-3 mt-0.5 flex-wrap text-xs text-gray-500">
             <span className="flex items-center gap-1"><MapPin size={10} />{proposal.address || '—'}</span>
-            <span className="flex items-center gap-1"><DollarSign size={10} />${fmt(proposal.total)}</span>
+            <span className="flex items-center gap-1"><DollarSign size={10} />${fmt(contractTotalOf(proposal))}</span>
             <span>{projectTypes}</span>
           </div>
           <div className="mt-1.5 h-1 bg-gray-100 rounded-full overflow-hidden w-full max-w-xs">

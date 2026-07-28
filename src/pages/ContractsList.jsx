@@ -2,19 +2,9 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FileSignature, FilePen, CheckCircle2, Clock, Search, X, FileX, ExternalLink, Eye, Loader2, Copy } from 'lucide-react'
 import { useStore } from '../store'
+import { contractTotalOf } from '../contractTotal'
 
 const fmt = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-
-// The contract's actual total = sum of the selected scope-line prices saved on
-// the contract draft. Falls back to the proposal total before a contract exists.
-const contractTotalOf = (p) => {
-  const sl = p.contractDraft?.scopeLines
-  if (Array.isArray(sl) && sl.length) {
-    const sum = sl.reduce((s, l) => s + (Number(l.price) || 0), 0)
-    if (sum > 0) return sum
-  }
-  return Number(p.total || 0)
-}
 
 const fmtDate = (iso) => {
   if (!iso) return '—'
