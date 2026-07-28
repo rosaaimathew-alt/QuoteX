@@ -1,6 +1,7 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
 import { useStore } from '../store'
-import { TrendingUp, DollarSign, Award, XCircle, Target, Plus, ChevronDown, ChevronUp, Trash2, Clock, MapPin, Settings2, Pencil, Check, X } from 'lucide-react'
+import { contractTotalOf } from '../contractTotal'
+import { TrendingUp, DollarSign, Award, XCircle, Target, Plus, ChevronDown, ChevronUp, Trash2, Clock, MapPin, Settings2, Pencil, Check, X, ListChecks } from 'lucide-react'
 
 // ── Sales Heat Map ────────────────────────────────────────────────────────────
 const GEO_CACHE_KEY = 'quotex-geo-cache'
@@ -155,7 +156,7 @@ function SalesHeatMap({ proposals }) {
     const city = (raw && raw.length > 2 && !/^[A-Z]{2}$/.test(raw)) ? raw : '— Address needs city —'
     if (!cityMap[city]) cityMap[city] = { city, count: 0, won: 0, revenue: 0, active: 0 }
     cityMap[city].count++
-    if (p.status === 'Won') { cityMap[city].won++; cityMap[city].revenue += Number(p.total||0) }
+    if (p.status === 'Won') { cityMap[city].won++; cityMap[city].revenue += contractTotalOf(p) }
     else if (p.status !== 'Lost' && p.status !== 'MIA' && !p.closedAt) cityMap[city].active++
   })
   const cities   = Object.values(cityMap).sort((a, b) => b.count - a.count)
@@ -880,6 +881,256 @@ function TrendChart({ months, activeTypes, allTypes }) {
   )
 }
 
+// ── Won Revenue Reconciliation ────────────────────────────────────────────────
+// Cross-references your own list of real won customers against every deal the
+// system counts toward Won Revenue, so a phantom/duplicate deal (extra revenue)
+// or an à la carte deal counted at full menu price stands out.
+const MONTHS = new Set(['january','february','march','april','may','june','july','august','september','october','november','december'])
+const NAME_STOP = new Set(['and','the','addendum','addedum','adddendum','kitchen','addd'])
+
+function normTokens(s) {
+  return (s || '')
+    .toLowerCase()
+    .replace(/\(.*?\)/g, ' ')        // drop parentheticals like (BRENO), (addendum)
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9 ]/g, ' ')     // strip punctuation
+    .split(/\s+/)
+    .filter(t => t.length >= 3 && !NAME_STOP.has(t))
+}
+
+// Two names match if they share a strong token (equal, or same first 4 letters
+// to tolerate typos like Rivera/Riveria).
+function tokensMatch(a, b) {
+  for (const x of a) for (const y of b) {
+    if (x === y) return true
+    if (x.length >= 4 && y.length >= 4 && x.slice(0, 4) === y.slice(0, 4)) return true
+  }
+  return false
+}
+
+const DEFAULT_EXPECTED = `January
+Christian Hunt
+Jennifer & Carl Rizzo
+Ducan And Samantha Dorris
+February
+John & Shipra Rybarczyk
+Steve Lane
+Nate Haddox
+Girish
+Drew Crawford- Kitchen (BRENO)
+March
+George Cooper (BRENO)
+Kate Milane Addedum
+VJ farrow
+Rodney Hughs
+Jonathan
+Sherrie Reardon (BRENO)
+Paul & Quinn Braneky
+Jenny and Brian
+David and Kate Plonk
+Eddie and Susan Neel
+April
+AJ & Jerrika Godbolt
+Artie Van Sciver
+Sarath
+Jim Gray
+Maribeth Wooten
+Brittnay Adamo
+Bryan Weynand
+Terrel Davis
+Fatios Liberatos
+May
+Trish
+Christopher Chavez
+April Pike
+Amy Rowe
+Claire and Paul Hockman
+Gary and Patricia
+Brian Wetzel
+Jarrod C
+Wiliam little
+Brian Frindly
+Elizabeth (Breno)
+Ben and Robin Hahn (addendum)
+Girish
+Rodney Hughs
+June
+Arthur and Eddyce Hobson
+Phil Seguin
+Lisa Turnage
+Josh and Erin Baker
+William Little
+VJ farrow
+July
+Andre Miller
+Rob And Jan Newman
+Kathy & AJ Slazar
+Angel & Amber Riveria`
+
+function WonReconciliation({ proposals }) {
+  const [open, setOpen] = useState(false)
+  const [expected, setExpected] = useState(DEFAULT_EXPECTED)
+
+  const wonDeals = useMemo(() => proposals
+    .filter(p => p.status === 'Won')
+    .map(p => ({
+      id: p.id,
+      client: p.client || p.contractDraft?.client || '(no name)',
+      value: Number(p.total || 0),
+      contractValue: contractTotalOf(p),
+      isAlaCarte: !!p.isAlaCarte,
+      hasContract: !!p.contractDraft,
+      isHistorical: !!p.isHistorical,
+      tokens: normTokens(p.client || p.contractDraft?.client || ''),
+    }))
+    .sort((a, b) => a.client.localeCompare(b.client)),
+    [proposals])
+
+  const expectedNames = useMemo(() => expected
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l && !MONTHS.has(l.toLowerCase()))
+    .map(name => ({ name, tokens: normTokens(name) })),
+    [expected])
+
+  const result = useMemo(() => {
+    const matchedExpected = new Set()
+    const dealMatchCount = new Map()     // expected index -> how many system deals matched it
+    const deals = wonDeals.map(d => {
+      let matchIdx = -1
+      for (let i = 0; i < expectedNames.length; i++) {
+        if (tokensMatch(d.tokens, expectedNames[i].tokens)) { matchIdx = i; break }
+      }
+      if (matchIdx >= 0) {
+        matchedExpected.add(matchIdx)
+        dealMatchCount.set(matchIdx, (dealMatchCount.get(matchIdx) || 0) + 1)
+      }
+      return { ...d, matchIdx }
+    })
+    const extraInSystem = deals.filter(d => d.matchIdx < 0)             // counted, but not on your list
+    const missingFromSystem = expectedNames                            // on your list, no system deal
+      .map((e, i) => ({ ...e, i }))
+      .filter(e => !matchedExpected.has(e.i))
+    const dupMatched = deals.filter(d => d.matchIdx >= 0 && dealMatchCount.get(d.matchIdx) > 1)
+
+    const systemTotal   = wonDeals.reduce((s, d) => s + d.value, 0)
+    const contractTotal = wonDeals.reduce((s, d) => s + d.contractValue, 0)
+    const alaOvercount  = wonDeals.reduce((s, d) => s + Math.max(0, d.value - d.contractValue), 0)
+    const extraTotal    = extraInSystem.reduce((s, d) => s + d.value, 0)
+
+    return { deals, extraInSystem, missingFromSystem, dupMatched, systemTotal, contractTotal, alaOvercount, extraTotal }
+  }, [wonDeals, expectedNames])
+
+  const money = n => `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 mb-6">
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-5 py-4 text-left">
+        <div className="flex items-center gap-2">
+          <ListChecks size={16} className="text-indigo-600" />
+          <span className="font-semibold text-gray-900 text-sm">Won Revenue Reconciliation</span>
+          <span className="text-xs text-gray-400">· cross-check the total against your own records</span>
+        </div>
+        {open ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+      </button>
+
+      {open && (
+        <div className="px-5 pb-5 space-y-4 border-t border-gray-100 pt-4">
+          {/* Totals */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+              <p className="text-[11px] text-gray-400">System Won Revenue</p>
+              <p className="text-sm font-bold text-gray-900">{money(result.systemTotal)}</p>
+              <p className="text-[10px] text-gray-400">{wonDeals.length} deals counted</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+              <p className="text-[11px] text-gray-400">At contract value</p>
+              <p className="text-sm font-bold text-gray-900">{money(result.contractTotal)}</p>
+              <p className="text-[10px] text-gray-400">à la carte = items sold</p>
+            </div>
+            <div className="bg-amber-50 rounded-lg px-3 py-2 border border-amber-100">
+              <p className="text-[11px] text-amber-600">À la carte overcount</p>
+              <p className="text-sm font-bold text-amber-700">{money(result.alaOvercount)}</p>
+              <p className="text-[10px] text-amber-500">full menu − sold</p>
+            </div>
+            <div className="bg-red-50 rounded-lg px-3 py-2 border border-red-100">
+              <p className="text-[11px] text-red-600">Extra vs. your list</p>
+              <p className="text-sm font-bold text-red-700">{money(result.extraTotal)}</p>
+              <p className="text-[10px] text-red-500">{result.extraInSystem.length} deal(s) not on list</p>
+            </div>
+          </div>
+
+          {/* Extra in system (the prime suspects) */}
+          <div>
+            <p className="text-xs font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5">
+              <XCircle size={13} className="text-red-500" /> Counted by the system, but NOT on your list ({result.extraInSystem.length})
+            </p>
+            {result.extraInSystem.length === 0
+              ? <p className="text-xs text-gray-400 italic">None — every counted deal matched a name on your list.</p>
+              : <div className="space-y-1">
+                  {result.extraInSystem.map(d => (
+                    <div key={d.id} className="flex items-center justify-between text-xs bg-red-50/50 rounded px-2.5 py-1.5">
+                      <span className="text-gray-700 truncate">{d.client}
+                        {d.isHistorical && <span className="ml-1.5 text-[10px] text-gray-400">(historical entry)</span>}
+                        {!d.hasContract && !d.isHistorical && <span className="ml-1.5 text-[10px] text-amber-500">(no contract on file)</span>}
+                      </span>
+                      <span className="font-semibold text-gray-800 shrink-0">{money(d.value)}</span>
+                    </div>
+                  ))}
+                </div>}
+          </div>
+
+          {/* Duplicate matches (double-counted revisions) */}
+          {result.dupMatched.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5">
+                <ListChecks size={13} className="text-amber-500" /> Multiple counted deals matched the same customer ({result.dupMatched.length}) — possible double-count
+              </p>
+              <div className="space-y-1">
+                {result.dupMatched.map(d => (
+                  <div key={d.id} className="flex items-center justify-between text-xs bg-amber-50/60 rounded px-2.5 py-1.5">
+                    <span className="text-gray-700 truncate">{d.client}</span>
+                    <span className="font-semibold text-gray-800 shrink-0">{money(d.value)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Missing from system */}
+          <div>
+            <p className="text-xs font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5">
+              <Plus size={13} className="text-blue-500" /> On your list, but NOT found as a Won deal ({result.missingFromSystem.length})
+            </p>
+            {result.missingFromSystem.length === 0
+              ? <p className="text-xs text-gray-400 italic">None — every name on your list matched a system deal.</p>
+              : <div className="flex flex-wrap gap-1.5">
+                  {result.missingFromSystem.map(e => (
+                    <span key={e.i} className="text-xs bg-blue-50 text-blue-700 rounded px-2 py-0.5">{e.name}</span>
+                  ))}
+                </div>}
+          </div>
+
+          {/* Editable list */}
+          <div>
+            <p className="text-xs text-gray-400 mb-1">Your won-customer list (month headers are ignored). Edit to re-run the match:</p>
+            <textarea
+              value={expected}
+              onChange={e => setExpected(e.target.value)}
+              rows={6}
+              className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 font-mono resize-y focus:outline-none focus:ring-2 focus:ring-indigo-200"
+            />
+          </div>
+          <p className="text-[11px] text-gray-400 leading-relaxed">
+            Name matching is fuzzy (tolerates typos and drops "(BRENO)", "(addendum)", etc.), so double-check any single-name matches.
+            "Extra vs. your list" plus "À la carte overcount" is where your gap most likely lives.
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Analytics() {
   const proposals    = useStore(s => s.proposals)
   const PROJECT_TYPES = useStore(s => s.projectTypes)
@@ -901,7 +1152,9 @@ export default function Analytics() {
     })
     const winRate = groups.length > 0 ? (groups.filter(Boolean).length / groups.length) * 100 : 0
 
-    const totalRevenue = won.reduce((s, p) => s + Number(p.total || 0), 0)
+    // Use the actual contract value (à la carte = items sold), not the full
+    // proposal menu, so declined options don't inflate won revenue.
+    const totalRevenue = won.reduce((s, p) => s + contractTotalOf(p), 0)
     const avgDeal = won.length ? totalRevenue / won.length : 0
 
     // Project type breakdown (all time)
@@ -913,7 +1166,7 @@ export default function Analytics() {
       types.forEach(t => {
         if (!typeMap[t]) typeMap[t] = { count: 0, revenue: 0 }
         typeMap[t].count += 1
-        typeMap[t].revenue += Number(p.total || 0) / types.length
+        typeMap[t].revenue += contractTotalOf(p) / types.length
       })
     })
     const typeRows = Object.entries(typeMap)
@@ -959,7 +1212,7 @@ export default function Analytics() {
       const d = new Date(p.closedAt || p.createdAt || p.sentAt || Date.now())
       const m = months.find(m => m.year === d.getFullYear() && m.month === d.getMonth())
       if (!m) return
-      const rev = Number(p.total || 0)
+      const rev = contractTotalOf(p)
       m.total += rev
       m.jobCount += 1
       const types = p.contractDraft?.projectTypes?.length
@@ -995,6 +1248,8 @@ export default function Analytics() {
       </div>
 
       <PastJobPanel />
+
+      <WonReconciliation proposals={proposals} />
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">

@@ -7,6 +7,7 @@ import {
   ChevronLeft,
 } from 'lucide-react'
 import { useStore } from '../store'
+import { contractTotalOf } from '../contractTotal'
 import { TodoCard } from '../components/TodoPanel'
 import { getPeriodRange, shiftPeriod, getPeriodSegments, isCurrentPeriod } from '../periodUtils'
 
@@ -142,7 +143,7 @@ export default function Dashboard() {
   const lostClients  = outcomes.filter(o => !o.isWon)
   const won          = periodProps.filter(p => p.status === 'Won')
   const active       = proposals.filter(p => ['Sent', 'Followed Up', 'Negotiating'].includes(p.status))
-  const wonRevenue   = won.reduce((s, p) => s + (p.total || 0), 0)
+  const wonRevenue   = won.reduce((s, p) => s + contractTotalOf(p), 0)
   const pipeline     = active.reduce((s, p) => s + (p.total || 0), 0)
   const winRate      = outcomes.length > 0 ? Math.round(wonClients.length / outcomes.length * 100) : null
   const periodTotal = periodProps.reduce((s, p) => s + (p.total || 0), 0)
@@ -158,7 +159,7 @@ export default function Dashboard() {
       label:     seg.label,
       isCurrent: seg.isCurrent,
       total:     sps.reduce((s, p) => s + (p.total || 0), 0),
-      won:       sps.filter(p => p.status === 'Won').reduce((s, p) => s + (p.total || 0), 0),
+      won:       sps.filter(p => p.status === 'Won').reduce((s, p) => s + contractTotalOf(p), 0),
       count:     sps.length,
     }
   })
