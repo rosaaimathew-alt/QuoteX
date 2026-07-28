@@ -1087,7 +1087,9 @@ export default function ProposalTracker() {
         ]
         const clientCount = buildGroups(proposals).length
         const wonInPeriod = proposals.filter(p => p.status === 'Won' && inPeriod(p))
-        const wonRevenue  = wonInPeriod.reduce((s, p) => s + (p.total || 0), 0)
+        // Same won-revenue basis as everywhere else: sold contract value (à la
+        // carte = items chosen) plus signed change orders — not the full menu.
+        const wonRevenue  = wonInPeriod.reduce((s, p) => s + wonRevenueOf(p), 0)
         const pipeline    = proposals.filter(p => ['Sent','Followed Up','Negotiating'].includes(p.status)).reduce((s, p) => s + (p.total || 0), 0)
         const stats = [
           { label: 'Won Revenue', value: `$${fmt(wonRevenue)}`, icon: DollarSign, color: 'text-green-500' },
