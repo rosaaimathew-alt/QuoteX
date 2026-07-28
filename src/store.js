@@ -1417,8 +1417,13 @@ export const useStore = create(
       // whether it succeeded or errored, so persistence is never permanently
       // blocked.
       onRehydrateStorage: () => (state, error) => {
+        // Fail CLOSED: only enable persistence after a clean load. If hydration
+        // threw, the store holds its empty default — leaving writes blocked means
+        // an in-memory-only session (changes won't save this load) rather than
+        // risking the empty default overwriting real data. Non-destructive.
+        if (error) return
         _hydrated = true
-        if (!error) { try { state?.autoExpireStaleSent?.() } catch {} }
+        try { state?.autoExpireStaleSent?.() } catch {}
       },
     }
   )
