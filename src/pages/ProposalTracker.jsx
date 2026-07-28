@@ -944,7 +944,7 @@ export default function ProposalTracker() {
     return next
   })
 
-  const launchContract = (proposal, lines) => {
+  const launchContract = (proposal, lines, freshSelection = false) => {
     const contractNumber = `EOL${String(70000 + proposal.id).padStart(6, '0')}`
     sessionStorage.setItem('contract', JSON.stringify({
       proposalId: proposal.id,
@@ -957,6 +957,9 @@ export default function ProposalTracker() {
       projectTypes: proposal.projectTypes || [],
       projectSummary: proposal.projectSummary || '',
       isAlaCarte: false,
+      // Signals ContractView to rebuild the scope/pricing from THESE lines even
+      // if a stale contract draft exists — so a re-selection of items is honored.
+      freshSelection,
       contractNumber,
       salesperson: 'Mathew Rosa',
     }))
@@ -1227,7 +1230,7 @@ export default function ProposalTracker() {
                   onClick={() => {
                     const selected = (aLaCarteProposal.lines || []).filter(l => selectedLineIds.has(l.id))
                     setALaCarteProposal(null)
-                    launchContract(aLaCarteProposal, selected)
+                    launchContract(aLaCarteProposal, selected, true)
                   }}
                   className="flex-1 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700 disabled:opacity-40 transition-colors"
                 >

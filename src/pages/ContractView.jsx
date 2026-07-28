@@ -327,11 +327,28 @@ export default function ContractView() {
         { id: 'heater',    label: 'Provide and Install Innova Heater with Decorative Guard', qty: '' },
       ])
       setProjectSummary(draft.projectSummary ?? d.projectSummary ?? '')
-      setScopeLines(draft.scopeLines ?? (d.lines || []).map((l, i) => ({
-        id: l.id ?? i, name: l.name,
-        text: l.description ? `${l.name} — ${l.description}` : l.name,
-        price: linePrice(l),
-      })))
+      // If the user just (re)selected items in the à la carte picker, rebuild the
+      // scope/pricing from THOSE lines so every selected item is present and the
+      // total matches the selection — but keep any previously-edited scope text
+      // for items that carry over, matched by id. Otherwise restore the draft.
+      if (d.freshSelection && (d.lines || []).length) {
+        const prevById = new Map((draft.scopeLines || []).map(l => [String(l.id), l]))
+        setScopeLines((d.lines || []).map((l, i) => {
+          const id = l.id ?? i
+          const prev = prevById.get(String(id))
+          return {
+            id, name: l.name,
+            text: prev?.text ?? (l.description ? `${l.name} — ${l.description}` : l.name),
+            price: linePrice(l),
+          }
+        }))
+      } else {
+        setScopeLines(draft.scopeLines ?? (d.lines || []).map((l, i) => ({
+          id: l.id ?? i, name: l.name,
+          text: l.description ? `${l.name} — ${l.description}` : l.name,
+          price: linePrice(l),
+        })))
+      }
       setCeilingFanNote(draft.ceilingFanNote ?? 'Homeowner to provide 1 ceiling fan with downrod')
       setSavedAt(draft.savedAt ?? null)
       const hs  = draft.isHardscape ?? false
