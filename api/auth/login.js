@@ -6,17 +6,32 @@ export default async function handler(req, res) {
   const { email, password } = req.body || {}
   const secret = process.env.SESSION_SECRET || 'dev-secret-change-me'
 
-  // Build list of valid users from env vars
+  // Build list of valid users from env vars.
   const users = [
     { email: process.env.ADMIN_EMAIL,  password: process.env.ADMIN_PASSWORD },
     { email: process.env.OFFICE_EMAIL, password: process.env.OFFICE_PASSWORD },
-  ].filter(u => u.email && u.password)
+  ]
 
-  if (users.length === 0) {
+  // Additional teammates come from a single JSON env var so you can add/remove
+  // people by editing ONE Vercel setting — no code change. Format:
+  //   QUOTEX_USERS = [{"email":"jane@company.com","password":"theirPassword"}, ...]
+  // Malformed or unset → ignored, so the core logins above always keep working.
+  try {
+    const extra = JSON.parse(process.env.QUOTEX_USERS || '[]')
+    if (Array.isArray(extra)) {
+      for (const u of extra) {
+        if (u && u.email && u.password) users.push({ email: u.email, password: u.password })
+      }
+    }
+  } catch { /* ignore malformed QUOTEX_USERS — never break login */ }
+
+  const validUsers = users.filter(u => u.email && u.password)
+
+  if (validUsers.length === 0) {
     return res.status(500).json({ error: 'Auth not configured on server' })
   }
 
-  const matched = users.find(
+  const matched = validUsers.find(
     u => u.email.toLowerCase() === email?.toLowerCase() && u.password === password
   )
 
