@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store'
 import { contractTotalOf } from '../contractTotal'
-import { ChevronLeft, ChevronRight, CalendarDays, MapPin, DollarSign, HardHat, Search, ChevronDown } from 'lucide-react'
+import { getStages } from './Jobs'
+import { ChevronLeft, ChevronRight, CalendarDays, MapPin, DollarSign, HardHat, Search, ChevronDown, ChevronUp } from 'lucide-react'
 
 const fmt = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 
@@ -59,6 +60,11 @@ export default function Scheduler() {
   const [selected, setSelected] = useState(null) // date key string
   const [showUnsched, setShowUnsched]   = useState(false)
   const [unschedQuery, setUnschedQuery] = useState('')
+  const [showStats, setShowStats]       = useState(true)
+  const [expandedStages, setExpandedStages] = useState(new Set())
+  const toggleStage = (label) => setExpandedStages(prev => {
+    const next = new Set(prev); next.has(label) ? next.delete(label) : next.add(label); return next
+  })
 
   const wonJobs = proposals
     .filter(p => p.status === 'Won' && (p.jobData?.startDate || p.jobData?.targetDate))
@@ -100,6 +106,23 @@ export default function Scheduler() {
   const filteredUnsched = unschedQuery
     ? noDateJobs.filter(j => (j.client || '').toLowerCase().includes(unschedQuery.toLowerCase()))
     : noDateJobs
+
+  // All active (won, not closed) jobs grouped by their current stage
+  const activeJobs = proposals.filter(p =>
+    p.status === 'Won' && !(p.jobData?.completedStages || []).includes('closed'))
+  const stageGroups = (() => {
+    const map = new Map()
+    activeJobs.forEach(job => {
+      const stages = getStages(job) || []
+      const completed = job.jobData?.completedStages || []
+      const label = stages.length === 0
+        ? 'Needs setup'
+        : (stages.find(s => !completed.includes(s.key))?.label || 'Ready to close')
+      if (!map.has(label)) map.set(label, [])
+      map.get(label).push(job)
+    })
+    return [...map.entries()].map(([label, jobs]) => ({ label, jobs })).sort((a, b) => b.jobs.length - a.jobs.length)
+  })()
 
   return (
     <div className="p-4 sm:p-6 max-w-5xl mx-auto">
@@ -146,6 +169,51 @@ export default function Scheduler() {
           )}
         </div>
       </div>
+
+      {/* Active-jobs stats — collapsible, per-stage with jobs listed */}
+      {activeJobs.length > 0 && (
+        <div className="mb-5 bg-white rounded-xl border border-gray-200 shadow-sm">
+          <button onClick={() => setShowStats(o => !o)} className="w-full flex items-center justify-between px-5 py-3.5">
+            <span className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+              Active Jobs <span className="text-xs font-medium text-gray-500 bg-gray-100 rounded-full px-2 py-0.5">{activeJobs.length}</span>
+            </span>
+            {showStats ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+          </button>
+          {showStats && (
+            <div className="border-t border-gray-100 px-3 py-2">
+              {stageGroups.map(({ label, jobs }) => {
+                const open = expandedStages.has(label)
+                return (
+                  <div key={label}>
+                    <button onClick={() => toggleStage(label)}
+                      className="w-full flex items-center justify-between px-2 py-2 rounded-lg hover:bg-gray-50 transition-colors">
+                      <span className="flex items-center gap-2 text-sm text-gray-700">
+                        {open ? <ChevronDown size={14} className="text-gray-300" /> : <ChevronRight size={14} className="text-gray-300" />}
+                        {label}
+                      </span>
+                      <span className="text-xs font-semibold px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">{jobs.length}</span>
+                    </button>
+                    {open && (
+                      <div className="pl-7 pr-2 pb-2 space-y-0.5">
+                        {jobs.map(job => (
+                          <button key={job.id} onClick={() => navigate('/jobs')}
+                            className="w-full flex items-center justify-between text-left px-1 py-1 rounded hover:bg-gray-50 transition-colors">
+                            <span className="flex items-center gap-2 min-w-0">
+                              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${colorMap[job.id] || 'bg-gray-300'}`} />
+                              <span className="text-sm text-gray-600 truncate">{job.client}</span>
+                            </span>
+                            <span className="text-xs text-gray-400 shrink-0">${fmt(contractTotalOf(job))}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
 
@@ -268,20 +336,6 @@ export default function Scheduler() {
         </div>
       </div>
 
-      {/* Compact footer — active jobs legend */}
-      {wonJobs.length > 0 && (
-        <div className="mt-4 bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-3">
-          <div className="flex items-center gap-x-4 gap-y-2 flex-wrap">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Active jobs</span>
-            {wonJobs.map(job => (
-              <div key={job.id} className="flex items-center gap-1.5">
-                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${colorMap[job.id]}`} />
-                <span className="text-xs text-gray-700 truncate max-w-[160px]">{job.client}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   )
 }
