@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store'
 import { contractTotalOf } from '../contractTotal'
-import { ChevronLeft, ChevronRight, CalendarDays, MapPin, DollarSign, HardHat } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CalendarDays, MapPin, DollarSign, HardHat, Search, ChevronDown } from 'lucide-react'
 
 const fmt = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 
@@ -57,6 +57,8 @@ export default function Scheduler() {
   const [year,  setYear]  = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
   const [selected, setSelected] = useState(null) // date key string
+  const [showUnsched, setShowUnsched]   = useState(false)
+  const [unschedQuery, setUnschedQuery] = useState('')
 
   const wonJobs = proposals
     .filter(p => p.status === 'Won' && (p.jobData?.startDate || p.jobData?.targetDate))
@@ -95,32 +97,55 @@ export default function Scheduler() {
     !(p.jobData?.completedStages || []).includes('closed') &&
     !p.jobData?.startDate && !p.jobData?.targetDate
   )
+  const filteredUnsched = unschedQuery
+    ? noDateJobs.filter(j => (j.client || '').toLowerCase().includes(unschedQuery.toLowerCase()))
+    : noDateJobs
 
   return (
     <div className="p-4 sm:p-6 max-w-5xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Job Scheduler</h1>
-        <p className="text-xs sm:text-sm text-gray-500 mt-1">
-          Set start &amp; target dates in Job Management to plot jobs here
-        </p>
-      </div>
-
-      {/* Unscheduled jobs strip — actionable */}
-      {noDateJobs.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-5">
-          <p className="text-xs font-semibold text-amber-800 mb-2">Jobs needing a date ({noDateJobs.length}) — add dates in Job Management</p>
-          <div className="flex gap-2 flex-wrap">
-            {noDateJobs.map(job => (
-              <button key={job.id} onClick={() => navigate('/jobs')}
-                className="flex items-center gap-1.5 text-xs bg-white border border-amber-200 rounded-lg px-2.5 py-1.5 hover:border-amber-400 transition-colors">
-                <HardHat size={12} className="text-[var(--brand-600)]" />
-                <span className="font-medium text-gray-800">{job.client}</span>
-                <span className="text-gray-400">${fmt(contractTotalOf(job))}</span>
-              </button>
-            ))}
-          </div>
+      <div className="flex items-start justify-between mb-6 gap-3 flex-wrap">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Scheduler</h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">{MONTH_NAMES[month]} {year} · jobs by start date</p>
         </div>
-      )}
+
+        {/* Unscheduled jobs — searchable dropdown */}
+        <div className="relative">
+          <button onClick={() => setShowUnsched(o => !o)}
+            className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+            <HardHat size={14} className="text-[var(--brand-600)]" />
+            Unscheduled <span className="text-gray-400 font-medium">{noDateJobs.length}</span>
+            <ChevronDown size={14} className="text-gray-400" />
+          </button>
+          {showUnsched && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setShowUnsched(false)} />
+              <div className="absolute right-0 top-full mt-1 w-72 bg-white border border-gray-200 rounded-xl shadow-lg z-20 p-2">
+                <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-2.5 py-1.5 mb-2">
+                  <Search size={13} className="text-gray-400 shrink-0" />
+                  <input autoFocus value={unschedQuery} onChange={e => setUnschedQuery(e.target.value)}
+                    placeholder="Search unscheduled jobs…" className="flex-1 text-sm bg-transparent outline-none placeholder:text-gray-400" />
+                </div>
+                <div className="max-h-64 overflow-y-auto">
+                  {filteredUnsched.length === 0 ? (
+                    <p className="text-xs text-gray-400 px-2 py-4 text-center">{noDateJobs.length === 0 ? 'All jobs are scheduled.' : 'No matches.'}</p>
+                  ) : filteredUnsched.map(job => (
+                    <button key={job.id} onClick={() => navigate('/jobs')}
+                      className="w-full flex items-center justify-between gap-2 px-2 py-2 rounded-lg hover:bg-gray-50 text-left transition-colors">
+                      <span className="flex items-center gap-2 min-w-0">
+                        <HardHat size={12} className="text-[var(--brand-600)] shrink-0" />
+                        <span className="text-sm font-medium text-gray-800 truncate">{job.client}</span>
+                      </span>
+                      <span className="text-xs text-gray-400 shrink-0">${fmt(contractTotalOf(job))}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-gray-400 px-2 pt-2 border-t border-gray-100 mt-1">Open a job to set its start &amp; target dates.</p>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
 
@@ -151,7 +176,7 @@ export default function Scheduler() {
           {/* Calendar grid */}
           <div className="grid grid-cols-7">
             {cells.map((date, i) => {
-              if (!date) return <div key={`empty-${i}`} className="min-h-[88px] bg-gray-50/60 border-r border-b border-gray-50" />
+              if (!date) return <div key={`empty-${i}`} className="min-h-[74px] bg-gray-50/40 border-r border-b border-gray-100" />
               const key       = toKey(date)
               const jobs      = dayJobs[key] || []
               const isToday   = key === todayKey
@@ -160,7 +185,7 @@ export default function Scheduler() {
                 <div
                   key={key}
                   onClick={() => setSelected(isSelected ? null : key)}
-                  className={`min-h-[88px] p-1.5 border-r border-b border-gray-50 cursor-pointer transition-colors ${
+                  className={`min-h-[74px] p-1.5 border-r border-b border-gray-100 cursor-pointer transition-colors ${
                     isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'
                   }`}
                 >
