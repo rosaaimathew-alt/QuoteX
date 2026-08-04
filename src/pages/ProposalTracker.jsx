@@ -66,6 +66,38 @@ const STATUS_COLORS = {
   Archived:      'border-zinc-200 bg-zinc-50',
 }
 
+const STATUS_DOT = {
+  Draft:         'bg-gray-400',
+  Sent:          'bg-blue-500',
+  'Followed Up': 'bg-purple-500',
+  Negotiating:   'bg-amber-500',
+  Won:           'bg-green-500',
+  Lost:          'bg-red-500',
+  MIA:           'bg-slate-400',
+  Archived:      'bg-zinc-400',
+}
+
+// Status control styled like the prototype: a colored dot + label pill, with the
+// native <select> overlaid transparently so clicking still changes the status.
+function StatusSelect({ value, onChange }) {
+  return (
+    <div className="relative inline-flex items-center">
+      <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_STYLES[value] || 'bg-gray-100 text-gray-600'}`}>
+        <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[value] || 'bg-gray-400'}`} />
+        {value}
+      </span>
+      <select
+        value={value}
+        onChange={onChange}
+        aria-label="Change status"
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+      >
+        {PROPOSAL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+      </select>
+    </div>
+  )
+}
+
 const ACTIVITY_ICONS = { Call: Phone, Email: Mail, Meeting: Users, 'Follow-up': Bell, Note: MessageSquare }
 
 const FREQUENCIES = [
@@ -563,13 +595,7 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
             )}
           </td>
           <td className="px-4 py-3">
-            <select
-              value={p.status}
-              onChange={e => onStatusChange(p, e.target.value)}
-              className={`text-xs font-medium px-2 py-1 rounded-full border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-300 ${STATUS_STYLES[p.status] || 'bg-gray-100 text-gray-600'}`}
-            >
-              {PROPOSAL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+            <StatusSelect value={p.status} onChange={e => onStatusChange(p, e.target.value)} />
           </td>
           <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
             {p.sentAt
@@ -685,13 +711,7 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
                       </td>
                       <td className="px-4 py-2.5 text-right text-xs font-semibold text-gray-700">${fmt(alt.total || 0)}</td>
                       <td className="px-4 py-2.5">
-                        <select
-                          value={alt.status}
-                          onChange={e => onStatusChange(alt, e.target.value)}
-                          className={`text-xs font-medium px-2 py-1 rounded-full border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-300 ${STATUS_STYLES[alt.status] || 'bg-gray-100 text-gray-600'}`}
-                        >
-                          {PROPOSAL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
+                        <StatusSelect value={alt.status} onChange={e => onStatusChange(alt, e.target.value)} />
                       </td>
                       <td className="px-4 py-2.5 text-xs text-gray-400">
                         {alt.createdAt ? new Date(alt.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
