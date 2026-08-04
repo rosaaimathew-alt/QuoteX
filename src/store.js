@@ -293,8 +293,8 @@ export function normalizeBranding(b) {
     companyName: b.companyName ?? 'QUOTEX',
     tagline: b.tagline ?? 'Smart Contractor Pricing',
     logo: b.logo ?? null,
-    primaryColor: b.primaryColor || '#0369a1',   // preserve legacy blue if unset
-    sidebarColor: b.sidebarColor || null,          // null → derives from primary
+    primaryColor: b.primaryColor || '#b0894f',   // brass default when unset (matches charcoal/brass identity)
+    sidebarColor: b.sidebarColor || '#26262b',     // charcoal default when unset
     accentColor: b.accentColor ?? null,
     plan: b.plan || 'enterprise',
   }
