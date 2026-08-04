@@ -259,11 +259,11 @@ export default function Dashboard() {
       {/* Main grid — Recent Proposals (wide) | Upcoming Follow-ups */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-        {/* Recent Proposals — 2/3 width */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
+        {/* Recent Proposals — compact list */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-100">
             <p className="text-sm font-semibold text-gray-800">Recent Proposals</p>
-            <button onClick={() => navigate('/tracker')} className="text-xs text-sky-600 hover:underline font-medium">
+            <button onClick={() => navigate('/tracker')} className="text-xs text-[var(--brand-600)] hover:underline font-medium">
               View all →
             </button>
           </div>
@@ -271,44 +271,31 @@ export default function Dashboard() {
             <div className="py-12 text-center text-gray-400">
               <FileCheck size={28} className="mx-auto mb-2 opacity-30" />
               <p className="text-sm">No proposals yet.</p>
-              <button onClick={() => navigate('/quote')} className="mt-3 text-xs text-sky-600 hover:underline">
+              <button onClick={() => navigate('/quote')} className="mt-3 text-xs text-[var(--brand-600)] hover:underline">
                 Build your first quote →
               </button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[400px]">
-                <thead className="bg-gray-50 border-b border-gray-100">
-                  <tr>
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Client</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider w-24">Status</th>
-                    <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider w-20">Total</th>
-                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider w-16">Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {recent.map(p => (
-                    <tr key={p.id} onClick={() => openProposal(p)} className="hover:bg-sky-50 cursor-pointer transition-colors">
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-gray-900 truncate max-w-[140px] sm:max-w-none">{p.client || <span className="italic text-gray-400">Unnamed</span>}</p>
-                        {p.email && <p className="text-xs text-gray-400 mt-0.5 truncate max-w-[140px] sm:max-w-[180px] hidden sm:block">{p.email}</p>}
-                      </td>
-                      <td className="px-3 py-3">
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_BADGE[p.status] || 'bg-gray-100 text-gray-600'}`}>
-                          {p.status}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 text-right font-semibold text-gray-900 text-xs">${fmt(p.total || 0)}</td>
-                      <td className="px-4 py-3 text-right text-xs text-gray-400 whitespace-nowrap">
-                        {p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="divide-y divide-gray-50">
+              {recent.map(p => (
+                <button key={p.id} onClick={() => openProposal(p)}
+                  className="w-full flex items-center justify-between gap-2 px-4 py-2.5 hover:bg-gray-50 text-left transition-colors">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{p.client || <span className="italic text-gray-400">Unnamed</span>}</p>
+                    <p className="text-xs text-gray-400">{p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-xs font-semibold text-gray-900">${fmt(p.total || 0)}</p>
+                    <span className={`inline-block mt-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${STATUS_BADGE[p.status] || 'bg-gray-100 text-gray-600'}`}>{p.status}</span>
+                  </div>
+                </button>
+              ))}
             </div>
           )}
         </div>
+
+        {/* Notes / daily to-do */}
+        <TodoCard />
 
         {/* Upcoming Follow-ups */}
         <div className="bg-white rounded-xl border border-gray-200 p-5">
@@ -522,43 +509,37 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Pipeline by status + Daily to-do */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              {/* Pipeline by status */}
-              <div className="bg-white rounded-xl border border-gray-200 p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <p className="text-sm font-semibold text-gray-800">Pipeline</p>
-                  <button onClick={() => navigate('/tracker')} className="text-xs text-sky-600 hover:underline font-medium">
-                    Kanban →
-                  </button>
-                </div>
-                {statusCounts.length === 0 ? (
-                  <p className="text-xs text-gray-400 italic text-center py-3">No proposals yet.</p>
-                ) : (
-                  <div className="space-y-2.5">
-                    {statusCounts.map(({ status, count, value }) => (
-                      <div key={status}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_BADGE[status]}`}>{status}</span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-semibold text-gray-700">{count}</span>
-                            <span className="text-xs text-gray-400">{fmtSh(value)}</span>
-                          </div>
-                        </div>
-                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all ${STATUS_BAR[status]}`}
-                            style={{ width: `${(count / maxCount) * 100}%` }}
-                          />
+            {/* Pipeline by status */}
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-semibold text-gray-800">Pipeline</p>
+                <button onClick={() => navigate('/tracker')} className="text-xs text-sky-600 hover:underline font-medium">
+                  Kanban →
+                </button>
+              </div>
+              {statusCounts.length === 0 ? (
+                <p className="text-xs text-gray-400 italic text-center py-3">No proposals yet.</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {statusCounts.map(({ status, count, value }) => (
+                    <div key={status}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_BADGE[status]}`}>{status}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-gray-700">{count}</span>
+                          <span className="text-xs text-gray-400">{fmtSh(value)}</span>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Daily to-do checklist */}
-              <TodoCard />
+                      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${STATUS_BAR[status]}`}
+                          style={{ width: `${(count / maxCount) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
           </div>
