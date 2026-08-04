@@ -62,7 +62,7 @@ export default function Scheduler() {
   const [selected, setSelected] = useState(null) // date key string
   const [showUnsched, setShowUnsched]   = useState(false)
   const [unschedQuery, setUnschedQuery] = useState('')
-  const [showStats, setShowStats]       = useState(true)
+  const [showStats, setShowStats]       = useState(false)
   const [expandedStages, setExpandedStages] = useState(new Set())
   const toggleStage = (label) => setExpandedStages(prev => {
     const next = new Set(prev); next.has(label) ? next.delete(label) : next.add(label); return next
