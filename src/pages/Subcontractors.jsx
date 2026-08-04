@@ -8,6 +8,7 @@ const TRADES = ['Electrical', 'Plumbing', 'HVAC', 'Concrete / Footings', 'Roofin
 const MAX_COI_BYTES = 8 * 1024 * 1024 // 8 MB per file — keeps persisted store sane
 
 const safeName = (s) => (s || 'sub').replace(/[^a-z0-9 ._-]/gi, '_').trim()
+const initials = (name) => (name || '?').trim().split(/\s+/).filter(w => !/^(&|and)$/i.test(w)).map(w => w[0]).slice(0, 2).join('').toUpperCase()
 const extOf = (filename) => {
   const m = /\.([a-z0-9]+)$/i.exec(filename || '')
   return m ? `.${m[1].toLowerCase()}` : ''
@@ -151,11 +152,16 @@ function SubCard({ sub }) {
   return (
     <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5 hover:border-gray-300 transition-colors">
       <div className="flex items-start justify-between gap-3 mb-2">
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-gray-900 text-sm">{sub.name}</p>
-          {sub.trade && (
-            <span className="inline-block mt-1 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">{sub.trade}</span>
-          )}
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-[var(--brand-100)] text-[var(--brand-700)] flex items-center justify-center shrink-0 font-bold text-sm">
+            {initials(sub.name)}
+          </div>
+          <div className="min-w-0">
+            <p className="font-semibold text-gray-900 text-sm">{sub.name}</p>
+            {sub.trade && (
+              <span className="inline-block mt-1 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">{sub.trade}</span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <button onClick={() => setEditing(true)} className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
