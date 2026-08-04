@@ -83,7 +83,7 @@ function KpiCard({ icon: Icon, label, value, sub, color, onClick }) {
 }
 
 // ── Quick Action Card ─────────────────────────────────────────────────────────
-function ActionCard({ icon: Icon, label, description, color, action, actionLabel, secondaryAction, secondaryLabel }) {
+function ActionCard({ icon: Icon, label, description, color, action, actionLabel, secondaryAction, secondaryLabel, primary }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-col gap-3 hover:border-gray-300 hover:shadow-sm transition-all">
       <div className="flex items-center gap-3">
@@ -98,7 +98,11 @@ function ActionCard({ icon: Icon, label, description, color, action, actionLabel
       <div className="flex gap-2">
         <button
           onClick={action}
-          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 border border-gray-200 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors"
+          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+            primary
+              ? 'bg-[var(--brand-600)] text-white border border-[var(--brand-600)] hover:bg-[var(--brand-700)]'
+              : 'border border-gray-200 text-gray-700 hover:bg-gray-50'
+          }`}
         >
           {actionLabel} <ArrowRight size={11} />
         </button>
@@ -225,7 +229,7 @@ export default function Dashboard() {
       </div>
 
       {/* KPI strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         <KpiCard
           icon={DollarSign} label="Won Revenue" color="bg-green-500"
           value={`$${fmt(wonRevenue)}`}
@@ -245,15 +249,9 @@ export default function Dashboard() {
           onClick={() => navigate('/tracker')}
         />
         <KpiCard
-          icon={Package} label="Catalog Items" color="bg-[var(--brand-400)]"
-          value={catalog.length}
-          sub={`${new Set(catalog.map(c => c.category)).size} categories`}
-          onClick={() => navigate('/catalog')}
-        />
-        <KpiCard
-          icon={CalendarDays} label={`${pLabel} Bids`} color="bg-indigo-500"
-          value={fmtSh(periodTotal)}
-          sub={`${periodProps.length} proposal${periodProps.length !== 1 ? 's' : ''}`}
+          icon={Award} label="Avg Deal" color="bg-[var(--brand-400)]"
+          value={won.length ? `$${Math.round(wonRevenue / won.length).toLocaleString('en-US')}` : '—'}
+          sub="per won job"
           onClick={() => navigate('/tracker')}
         />
       </div>
@@ -357,68 +355,33 @@ export default function Dashboard() {
         <p className="text-sm font-semibold text-gray-700 mb-3">Quick Actions</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <ActionCard
-            icon={FileText}
-            label="Analyze"
-            description="AI analysis or import a pricing spreadsheet"
-            color="bg-[var(--brand-400)]"
-            actionLabel="Analyze"
-            action={() => navigate('/analyze')}
-            secondaryAction={() => navigate('/analyze')}
-            secondaryLabel="Import"
-          />
-          <ActionCard
             icon={ClipboardList}
-            label="Build Quote"
+            label="New Quote"
             description="Build a new proposal from your catalog"
-            color="bg-[var(--brand-600)]"
-            actionLabel="New Quote"
+            actionLabel="Start"
+            primary
             action={() => navigate('/quote')}
-            secondaryAction={templates.length > 0 ? () => navigate('/quote') : null}
-            secondaryLabel="Templates"
           />
           <ActionCard
             icon={BookOpen}
             label="Item Catalog"
             description={`${catalog.length} items across ${new Set(catalog.map(c => c.category)).size} categories`}
-            color="bg-[var(--brand-700)]"
-            actionLabel="Browse"
+            actionLabel="Open"
             action={() => navigate('/catalog')}
-          />
-          <ActionCard
-            icon={MessageSquareMore}
-            label="AI Assistant"
-            description="Bulk-edit pricing with plain English"
-            color="bg-[var(--brand-500)]"
-            actionLabel="Open Chat"
-            action={() => navigate('/ai')}
           />
           <ActionCard
             icon={BarChart2}
             label="Proposal Tracker"
             description="Manage your pipeline from quote to close"
-            color="bg-[var(--brand-600)]"
-            actionLabel="View Pipeline"
+            actionLabel="Open"
             action={() => navigate('/tracker')}
           />
           <ActionCard
-            icon={Inbox}
-            label="Inbox"
-            description="Read and reply to client emails"
-            color="bg-[var(--brand-500)]"
-            actionLabel="Open Inbox"
-            action={() => navigate('/inbox')}
-          />
-          <ActionCard
             icon={FileCheck}
-            label="Last Proposal"
-            description="View the most recently created proposal"
-            color="bg-[var(--brand-800)]"
+            label="Contracts"
+            description="View and send contracts from won deals"
             actionLabel="Open"
-            action={() => {
-              const latest = [...proposals].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0]
-              if (latest) openProposal(latest)
-              else navigate('/quote')
-            }}
+            action={() => navigate('/contracts')}
           />
         </div>
       </div>
