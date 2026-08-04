@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { useStore } from '../store'
-import { Plus, X, Phone, Mail, Wrench, Star, Edit2, AlertTriangle, ChevronUp, ChevronDown, ShieldCheck, Upload, Download, FileText, Package, Calendar } from 'lucide-react'
+import { Plus, X, Mail, Wrench, Star, Edit2, AlertTriangle, ShieldCheck, Upload, Download, FileText, Package, Calendar } from 'lucide-react'
 import { dataUrlToBytes, downloadZip } from '../lib/zip'
 
 const TRADES = ['Electrical', 'Plumbing', 'HVAC', 'Concrete / Footings', 'Roofing', 'Framing', 'Painting', 'Landscaping', 'General Labor', 'Other']
@@ -148,80 +148,59 @@ function SubCard({ sub }) {
   )
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5 hover:border-gray-300 transition-colors">
-      {/* Header — avatar + name/trade, with everything aligned in the right column */}
-      <div className="flex items-start gap-3">
-        <div className="w-11 h-11 rounded-xl bg-[var(--brand-100)] text-[var(--brand-700)] flex items-center justify-center shrink-0 font-bold">
-          {initials(sub.name)}
+    <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 hover:border-gray-300 transition-colors">
+      {/* Card face — avatar + name/phone (left), trade pill + rating (right) */}
+      <div className="flex items-start justify-between gap-3">
+        <button onClick={() => setOpen(o => !o)} className="flex items-start gap-3 min-w-0 text-left flex-1">
+          <div className="w-11 h-11 rounded-xl bg-[var(--brand-100)] text-[var(--brand-700)] flex items-center justify-center shrink-0 font-bold">
+            {initials(sub.name)}
+          </div>
+          <div className="min-w-0 pt-0.5">
+            <p className="font-semibold text-gray-900 text-sm leading-snug">{sub.name}</p>
+            {sub.phone && <p className="text-xs text-gray-400 mt-1">{sub.phone}</p>}
+          </div>
+        </button>
+        <div className="flex flex-col items-end gap-2 shrink-0">
+          {sub.trade && (
+            <span className="text-[11px] bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full font-medium whitespace-nowrap">{sub.trade}</span>
+          )}
+          <StarRating value={sub.rating || 0} onChange={r => updateSubcontractor(sub.id, { rating: r })} />
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <button onClick={() => setOpen(o => !o)} className="min-w-0 text-left group">
-              <p className="font-semibold text-gray-900 text-sm truncate flex items-center gap-1">
-                {sub.name}
-                {open ? <ChevronUp size={13} className="text-gray-400 shrink-0" /> : <ChevronDown size={13} className="text-gray-400 shrink-0 group-hover:text-gray-600" />}
-              </p>
-              {sub.trade && (
-                <span className="inline-block mt-1 text-[11px] bg-[var(--brand-100)] text-[var(--brand-700)] px-2 py-0.5 rounded-full font-medium">{sub.trade}</span>
+      </div>
+
+      {/* Profile detail — details, Insurance + Incidents, only when the profile is open */}
+      {open && (
+        <>
+          {/* Extra details + actions */}
+          <div className="mt-3 pt-3 border-t border-gray-100 flex items-start justify-between gap-3">
+            <div className="space-y-1.5 min-w-0">
+              {(sub.startDate || sub.endDate) && (
+                <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <Calendar size={12} className="shrink-0 text-gray-400" />
+                  <span>{fmtDate(sub.startDate)}<span className="text-gray-300"> → </span>{sub.endDate ? fmtDate(sub.endDate) : 'Active'}</span>
+                </div>
               )}
-            </button>
+              {sub.email && (
+                <a href={`mailto:${sub.email}`} className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-[var(--brand-700)] transition-colors">
+                  <Mail size={12} className="shrink-0 text-gray-400" /> <span className="truncate">{sub.email}</span>
+                </a>
+              )}
+              {sub.notes && <p className="text-xs text-gray-500 whitespace-pre-wrap">{sub.notes}</p>}
+              {!sub.startDate && !sub.endDate && !sub.email && !sub.notes && (
+                <span className="text-xs text-gray-400 italic">No additional details.</span>
+              )}
+            </div>
             <div className="flex items-center gap-0.5 shrink-0 -mr-1">
-              <button onClick={() => setEditing(true)} className="p-1.5 rounded-lg text-gray-400 hover:text-[var(--brand-700)] hover:bg-[var(--brand-50)] transition-colors">
+              <button onClick={() => setEditing(true)} className="p-1.5 rounded-lg text-gray-400 hover:text-[var(--brand-700)] hover:bg-[var(--brand-50)] transition-colors" title="Edit">
                 <Edit2 size={13} />
               </button>
               <button onClick={() => { if (window.confirm(`Remove ${sub.name}?`)) deleteSubcontractor(sub.id) }}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors" title="Remove">
                 <X size={13} />
               </button>
             </div>
           </div>
 
-          {/* Rating */}
-          <div className="mt-2.5 flex items-center gap-2">
-            <StarRating value={sub.rating || 0} onChange={r => updateSubcontractor(sub.id, { rating: r })} />
-            <span className="text-[11px] text-gray-400">{sub.rating ? `${sub.rating}/5` : 'Set rating'}</span>
-          </div>
-
-          {/* Dates + contact */}
-          <div className="mt-2.5 space-y-1.5">
-            {(sub.startDate || sub.endDate) && (
-              <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                <Calendar size={12} className="shrink-0 text-gray-400" />
-                <span>{fmtDate(sub.startDate)}<span className="text-gray-300"> → </span>{sub.endDate ? fmtDate(sub.endDate) : 'Active'}</span>
-              </div>
-            )}
-            {sub.phone && (
-              <a href={`tel:${sub.phone}`} className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-[var(--brand-700)] transition-colors">
-                <Phone size={12} className="shrink-0 text-gray-400" /> {sub.phone}
-              </a>
-            )}
-            {sub.email && (
-              <a href={`mailto:${sub.email}`} className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-[var(--brand-700)] transition-colors">
-                <Mail size={12} className="shrink-0 text-gray-400" /> <span className="truncate">{sub.email}</span>
-              </a>
-            )}
-            {sub.notes && <p className="text-xs text-gray-500 whitespace-pre-wrap">{sub.notes}</p>}
-          </div>
-
-          {/* Insurance / incident summary — always visible so gaps are obvious at a glance */}
-          {!open && (
-            <div className="mt-2.5 flex items-center gap-3 text-[11px]">
-              <span className={`inline-flex items-center gap-1 ${cois.length > 0 ? 'text-green-600' : 'text-gray-400'}`}>
-                <ShieldCheck size={12} /> {cois.length > 0 ? 'COI on file' : 'No COI'}
-              </span>
-              {incidents.length > 0 && (
-                <span className="inline-flex items-center gap-1 text-amber-600">
-                  <AlertTriangle size={12} /> {incidents.length} incident{incidents.length !== 1 ? 's' : ''}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Profile detail — Insurance + Incidents, only when the profile is open */}
-      {open && (
-        <>
           {/* Certificates of Insurance */}
           <div className="mt-3 pt-3 border-t border-gray-100">
             <div className="flex items-center justify-between gap-2">
