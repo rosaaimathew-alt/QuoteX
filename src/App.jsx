@@ -31,7 +31,7 @@ import { applyBrandStyles, applyTheme, DEFAULT_BRAND_COLOR } from './brand'
 import { canAccessRoute, landingRoute } from './plans'
 import { canRoleAccess, roleLanding } from './roles'
 import { TodoDock } from './components/TodoPanel'
-import { DEMO, resetDemo } from './demo'
+import { DEMO, DEMO_BASENAME, resetDemo } from './demo'
 
 // Nav grouped into labeled sections. Same routes and order of use as before —
 // only chunked so the sidebar reads as four short lists instead of one wall.
@@ -464,7 +464,7 @@ class AppBoundary extends Component {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={DEMO_BASENAME}>
       <Routes>
         <Route path="/welcome"     element={<Landing />} />
         <Route path="/login"       element={<Login />} />

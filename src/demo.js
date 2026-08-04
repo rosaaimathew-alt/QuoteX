@@ -8,9 +8,26 @@
 // Production builds never set the flag, so none of this code path is reachable
 // there — there is no way for the demo to read real company data.
 
-export const DEMO = import.meta.env.VITE_DEMO_MODE === 'true'
+// Demo turns on either way:
+//   • the whole site is a demo build (VITE_DEMO_MODE=true), OR
+//   • the visitor is under the /demo path on the normal site.
+// The /demo path lets the real site and the demo live on ONE domain / project:
+//   yoursite.com        → real app (login, real data)
+//   yoursite.com/demo   → sandbox (no login, sample data, browser-only)
+function detectDemo() {
+  if (import.meta.env.VITE_DEMO_MODE === 'true') return true
+  if (typeof window === 'undefined') return false
+  const p = window.location.pathname
+  return p === '/demo' || p.startsWith('/demo/')
+}
 
-// Separate localStorage key so a demo build can never read/write the real store.
+export const DEMO = detectDemo()
+
+// When entered by path, all routes live under this basename (see App.jsx) so the
+// prefix — and therefore demo mode — sticks as the visitor navigates.
+export const DEMO_BASENAME = (DEMO && import.meta.env.VITE_DEMO_MODE !== 'true') ? '/demo' : undefined
+
+// Separate localStorage key so the demo can never read/write the real store.
 export const DEMO_STORE_KEY = 'quotex-demo'
 
 // Wipe the sandbox and reload — restores the original sample data.
