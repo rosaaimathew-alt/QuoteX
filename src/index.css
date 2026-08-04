@@ -104,3 +104,38 @@
     box-shadow: none !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PROTOTYPE DESIGN-LANGUAGE SKIN — screen only, pure paint.
+   Applies the previewed look (serif display headings, warm paper neutrals,
+   softer surfaces) across the whole app WITHOUT touching any component, handler,
+   field, or data. Wrapped in @media screen so every PDF/print output — signed
+   contracts included — renders exactly as before. The legal contract document
+   (.contract-doc) also keeps its original typography.
+   ══════════════════════════════════════════════════════════════════════════ */
+@media screen {
+
+  /* Serif display headings — the signature of the look */
+  h1, h2 {
+    font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+    letter-spacing: -0.01em;
+  }
+  /* Keep the legal contract document in its original sans typography */
+  .contract-doc h1, .contract-doc h2, .contract-doc h3 {
+    font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    letter-spacing: normal;
+  }
+
+  /* Warm paper neutrals (light mode only; dark mode keeps its own palette) */
+  html:not(.dark) .bg-gray-50   { background-color: #f1ede4 !important; }
+  html:not(.dark) .bg-gray-100  { background-color: #eae4d8 !important; }
+  html:not(.dark) .border-gray-200 { border-color: #e7e1d4 !important; }
+  html:not(.dark) .border-gray-100 { border-color: #efe9df !important; }
+  html:not(.dark) .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: #efe9df !important; }
+
+  /* Softer, warmer surfaces + slightly more generous corners */
+  .shadow-sm { box-shadow: 0 1px 2px rgba(38,38,43,.05), 0 1px 1px rgba(38,38,43,.04) !important; }
+  .shadow-md { box-shadow: 0 2px 10px rgba(38,38,43,.06) !important; }
+  .rounded-xl  { border-radius: 14px; }
+  .rounded-2xl { border-radius: 18px; }
+}
