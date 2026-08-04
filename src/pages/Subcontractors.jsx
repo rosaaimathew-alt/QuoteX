@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useStore } from '../store'
-import { Plus, X, Phone, Mail, Wrench, Star, Edit2, Check } from 'lucide-react'
+import { Plus, X, Phone, Mail, Wrench, Star, Edit2, Check, AlertTriangle, ChevronUp, ChevronDown } from 'lucide-react'
 
 const TRADES = ['Electrical', 'Plumbing', 'HVAC', 'Concrete / Footings', 'Roofing', 'Framing', 'Painting', 'Landscaping', 'General Labor', 'Other']
 
@@ -84,6 +84,16 @@ function SubForm({ initial = {}, onSave, onCancel }) {
 function SubCard({ sub }) {
   const { updateSubcontractor, deleteSubcontractor } = useStore()
   const [editing, setEditing] = useState(false)
+  const [showIncidents, setShowIncidents] = useState(false)
+  const [incidentText, setIncidentText] = useState('')
+
+  const incidents = sub.incidents || []
+  const addIncident = () => {
+    if (!incidentText.trim()) return
+    updateSubcontractor(sub.id, { incidents: [{ id: Date.now(), date: new Date().toISOString(), text: incidentText.trim() }, ...incidents] })
+    setIncidentText('')
+  }
+  const removeIncident = (id) => updateSubcontractor(sub.id, { incidents: incidents.filter(i => i.id !== id) })
 
   if (editing) return (
     <SubForm
@@ -113,7 +123,11 @@ function SubCard({ sub }) {
         </div>
       </div>
 
-      {sub.rating > 0 && <div className="mt-1"><StarRating value={sub.rating} onChange={() => {}} /></div>}
+      {/* Rating — office staff set it directly based on performance */}
+      <div className="mt-1 flex items-center gap-2">
+        <StarRating value={sub.rating || 0} onChange={r => updateSubcontractor(sub.id, { rating: r })} />
+        <span className="text-[11px] text-gray-400">{sub.rating ? `${sub.rating}/5` : 'Set rating'}</span>
+      </div>
 
       <div className="mt-3 space-y-1.5">
         {sub.phone && (
@@ -127,6 +141,45 @@ function SubCard({ sub }) {
           </a>
         )}
         {sub.notes && <p className="text-xs text-gray-500 mt-1 whitespace-pre-wrap">{sub.notes}</p>}
+      </div>
+
+      {/* Incidents — office logs incidents to justify the rating */}
+      <div className="mt-3 pt-3 border-t border-gray-100">
+        <button onClick={() => setShowIncidents(o => !o)}
+          className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors">
+          <AlertTriangle size={12} className="text-gray-400" />
+          Incidents{incidents.length > 0 && <span className="text-gray-400">({incidents.length})</span>}
+          {showIncidents ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+        </button>
+        {showIncidents && (
+          <div className="mt-2 space-y-2">
+            <div className="flex gap-2">
+              <input value={incidentText} onChange={e => setIncidentText(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') addIncident() }}
+                placeholder="Log an incident (missed schedule, rework, no-show…)"
+                className="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)]" />
+              <button onClick={addIncident} disabled={!incidentText.trim()}
+                className="px-3 py-1.5 bg-[var(--brand-600)] text-white text-xs font-medium rounded-lg hover:bg-[var(--brand-700)] disabled:opacity-40 transition-colors shrink-0">
+                Add
+              </button>
+            </div>
+            {incidents.length === 0 ? (
+              <p className="text-xs text-gray-400 italic">No incidents logged.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {incidents.map(inc => (
+                  <div key={inc.id} className="flex items-start justify-between gap-2 bg-gray-50 rounded-lg px-2.5 py-1.5">
+                    <div className="min-w-0">
+                      <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">{inc.text}</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">{new Date(inc.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                    </div>
+                    <button onClick={() => removeIncident(inc.id)} className="text-gray-300 hover:text-red-500 shrink-0" title="Remove incident"><X size={12} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
