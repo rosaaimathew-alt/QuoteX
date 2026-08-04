@@ -215,15 +215,15 @@ export function applyTheme(isDark) {
 
   document.documentElement.classList.add('dark')
   el.textContent = `
-    html.dark { --brand-50: #111827; color-scheme: dark; }
-    html.dark body { background-color: #111827; }
+    html.dark { --brand-50: #1c1c20; color-scheme: dark; }
+    html.dark body { background-color: #1c1c20; }
 
-    /* Backgrounds */
-    html.dark .bg-white           { background-color: #1f2937 !important; }
-    html.dark .bg-gray-50         { background-color: #111827 !important; }
-    html.dark .bg-gray-100        { background-color: #1a2234 !important; }
-    html.dark .bg-sky-50          { background-color: #111827 !important; }
-    html.dark .bg-blue-50         { background-color: #1a2234 !important; }
+    /* Backgrounds — neutral charcoal family to match the sidebar (#26262b) */
+    html.dark .bg-white           { background-color: #26262b !important; }
+    html.dark .bg-gray-50         { background-color: #1c1c20 !important; }
+    html.dark .bg-gray-100        { background-color: #303036 !important; }
+    html.dark .bg-sky-50          { background-color: #1c1c20 !important; }
+    html.dark .bg-blue-50         { background-color: #303036 !important; }
     html.dark .bg-green-50        { background-color: #14291f !important; }
     html.dark .bg-red-50          { background-color: #2d1414 !important; }
     html.dark .bg-amber-50        { background-color: #2d2010 !important; }
@@ -239,28 +239,28 @@ export function applyTheme(isDark) {
     html.dark .text-gray-300      { color: #4b5563 !important; }
 
     /* Borders */
-    html.dark .border-gray-200    { border-color: #374151 !important; }
-    html.dark .border-gray-100    { border-color: #2d3748 !important; }
-    html.dark .border-gray-300    { border-color: #4b5563 !important; }
+    html.dark .border-gray-200    { border-color: #3a3a41 !important; }
+    html.dark .border-gray-100    { border-color: #2f2f35 !important; }
+    html.dark .border-gray-300    { border-color: #4a4a52 !important; }
 
     /* Dividers */
-    html.dark .divide-gray-50  > :not([hidden]) ~ :not([hidden]) { border-color: #2d3748 !important; }
-    html.dark .divide-white    > :not([hidden]) ~ :not([hidden]) { border-color: #374151 !important; }
+    html.dark .divide-gray-50  > :not([hidden]) ~ :not([hidden]) { border-color: #2f2f35 !important; }
+    html.dark .divide-white    > :not([hidden]) ~ :not([hidden]) { border-color: #3a3a41 !important; }
 
     /* Hover states */
-    html.dark .hover\\:bg-gray-50:hover   { background-color: #1a2234 !important; }
-    html.dark .hover\\:bg-gray-100:hover  { background-color: #2d3748 !important; }
-    html.dark .hover\\:bg-sky-50:hover    { background-color: #1a2234 !important; }
-    html.dark .hover\\:bg-blue-50:hover   { background-color: #1a2234 !important; }
+    html.dark .hover\\:bg-gray-50:hover   { background-color: #2b2b31 !important; }
+    html.dark .hover\\:bg-gray-100:hover  { background-color: #35353c !important; }
+    html.dark .hover\\:bg-sky-50:hover    { background-color: #2b2b31 !important; }
+    html.dark .hover\\:bg-blue-50:hover   { background-color: #2b2b31 !important; }
     html.dark .hover\\:bg-red-50:hover    { background-color: #2d1414 !important; }
 
     /* Inputs */
     html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="color"]),
     html.dark textarea,
     html.dark select {
-      background-color: #1f2937 !important;
+      background-color: #26262b !important;
       color: #f3f4f6 !important;
-      border-color: #374151 !important;
+      border-color: #3a3a41 !important;
     }
 
     /* Shadows — deepen them in dark mode */
@@ -270,7 +270,7 @@ export function applyTheme(isDark) {
     html.dark .shadow-2xl { box-shadow: 0 25px 50px rgba(0,0,0,0.8) !important; }
 
     /* Sticky table headers */
-    html.dark .bg-white.bg-opacity-60 { background-color: rgba(31,41,55,0.8) !important; }
+    html.dark .bg-white.bg-opacity-60 { background-color: rgba(38,38,43,0.85) !important; }
 
     /* White text on colored backgrounds should stay white */
     html.dark .bg-blue-600,
