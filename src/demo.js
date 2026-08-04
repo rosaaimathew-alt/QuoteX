@@ -19,6 +19,23 @@ export function resetDemo() {
   try { window.location.reload() } catch { /* ignore */ }
 }
 
+// Fictional outdoor-living pricing catalog for the demo. Made-up items and
+// prices — NOT anyone's real pricing sheet.
+const DEMO_CATALOG = [
+  { id: 1,  name: 'Composite Deck (Trex Transcend)',       description: 'Supply and install composite decking with hidden fasteners over existing or new framing.',                 unit: 'SF', unitPrice: 42, minPrice: 36, maxPrice: 52, count: 24, category: 'Decks',            confidence: 95 },
+  { id: 2,  name: 'Pressure-Treated Deck Framing',          description: 'Build pressure-treated deck substructure with joists, beams, and posts to code.',                            unit: 'SF', unitPrice: 18, minPrice: 15, maxPrice: 24, count: 21, category: 'Decks',            confidence: 94 },
+  { id: 3,  name: 'Aluminum Deck Railing',                  description: 'Supply and install powder-coated aluminum railing with balusters.',                                          unit: 'LF', unitPrice: 62, minPrice: 52, maxPrice: 78, count: 19, category: 'Decks',            confidence: 92 },
+  { id: 4,  name: 'Paver Patio (TechoBloc)',                description: 'Design and build paver patio with 4" ABC base, screening, and polymeric sand.',                             unit: 'SF', unitPrice: 34, minPrice: 28, maxPrice: 44, count: 26, category: 'Hardscapes',       confidence: 96 },
+  { id: 5,  name: 'Seating / Retaining Wall',               description: 'Segmental block wall with cap stones and drainage.',                                                        unit: 'LF', unitPrice: 145, minPrice: 120, maxPrice: 185, count: 14, category: 'Hardscapes',      confidence: 90 },
+  { id: 6,  name: 'Cedar Pergola (per sq ft)',              description: 'Western red cedar pergola with 6x6 posts, stained and sealed.',                                             unit: 'SF', unitPrice: 58, minPrice: 48, maxPrice: 72, count: 11, category: 'Structures',       confidence: 88 },
+  { id: 7,  name: 'Screened Porch Enclosure',               description: 'Screened enclosure with aluminum frame, kick plate, and screen door.',                                     unit: 'SF', unitPrice: 46, minPrice: 38, maxPrice: 58, count: 9,  category: 'Structures',       confidence: 87 },
+  { id: 8,  name: 'Outdoor Kitchen Grill Island',           description: 'Masonry grill island with granite counter, built-in grill, and storage doors.',                            unit: 'EA', unitPrice: 8800, minPrice: 6800, maxPrice: 12500, count: 6, category: 'Outdoor Kitchens', confidence: 84 },
+  { id: 9,  name: 'Gas Fire Pit (Masonry)',                 description: 'Build masonry gas fire pit with burner kit and lava rock.',                                                unit: 'EA', unitPrice: 4200, minPrice: 3200, maxPrice: 5600, count: 8, category: 'Hardscapes',      confidence: 89 },
+  { id: 10, name: 'Landscape Lighting Package',             description: 'Low-voltage LED path and accent lighting with transformer and timer.',                                    unit: 'EA', unitPrice: 2400, minPrice: 1800, maxPrice: 3400, count: 12, category: 'Electrical',      confidence: 86 },
+  { id: 11, name: 'Concrete Footing (per post)',            description: 'Pour concrete footing for post, including excavation and inspection.',                                     unit: 'EA', unitPrice: 165, minPrice: 130, maxPrice: 210, count: 22, category: 'Materials',       confidence: 95 },
+  { id: 12, name: 'Demo & Haul-off',                        description: 'Remove existing structure and haul off all debris.',                                                       unit: 'EA', unitPrice: 950, minPrice: 650, maxPrice: 1500, count: 16, category: 'Demo',             confidence: 91 },
+]
+
 // A 1x1 PNG standing in for an uploaded Certificate of Insurance, so the
 // "Audit Pack" export is demoable out of the box.
 const SAMPLE_COI =
@@ -197,6 +214,8 @@ export function buildDemoSeed() {
     nextProposalId: 9,
     subcontractors,
     nextSubId: 6,
+    catalog: DEMO_CATALOG,
+    nextCatalogId: DEMO_CATALOG.length + 1,
     branding: { companyName: 'Evergreen Outdoor Living', plan: 'enterprise', primaryColor: '#b0894f', sidebar: '#26262b' },
   }
 }
