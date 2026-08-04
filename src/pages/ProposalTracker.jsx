@@ -88,14 +88,13 @@ const STATUS_TEXT = {
   Archived:      'text-zinc-500',
 }
 
-// Status control styled like the prototype: a colored dot + colored label (no
-// pill), with the native <select> overlaid transparently so clicking still
-// changes the status.
+// Status control styled like the prototype: a colored dot inside a colored pill,
+// with the native <select> overlaid transparently so clicking still changes it.
 function StatusSelect({ value, onChange }) {
   return (
     <div className="relative inline-flex items-center">
-      <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${STATUS_TEXT[value] || 'text-gray-500'}`}>
-        <span className={`w-2 h-2 rounded-full ${STATUS_DOT[value] || 'bg-gray-400'}`} />
+      <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_STYLES[value] || 'bg-gray-100 text-gray-600'}`}>
+        <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[value] || 'bg-gray-400'}`} />
         {value}
       </span>
       <select
@@ -274,9 +273,9 @@ function ActivityLog({ proposal }) {
 function ReminderBadges({ proposal }) {
   const { dismissReminder } = useStore()
   const active = (proposal.reminders || []).filter(r => !r.dismissed)
-  if (active.length === 0) return <span className="text-xs text-gray-300">—</span>
+  if (active.length === 0) return null
   return (
-    <div className="space-y-1">
+    <div className="space-y-1 mt-1.5">
       {active.map(r => {
         const nd = nextReminderDate(r)
         const overdue = nd && isOverdue(nd)
@@ -592,6 +591,7 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
                 {p.winLossReason.category}
               </span>
             )}
+            <ReminderBadges proposal={p} />
           </td>
           <td className="px-4 py-3 text-right font-semibold text-gray-900 whitespace-nowrap">
             ${fmt(p.total || 0)}
@@ -622,9 +622,6 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
               </p>
             )}
           </td>
-          <td className="px-4 py-3">
-            <ReminderBadges proposal={p} />
-          </td>
           <td className="px-4 py-3 text-right">
             <div className="flex items-center justify-end gap-1">
               {/* Primary inline actions: Open + Activity log */}
@@ -649,7 +646,7 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
         </tr>
         {expandedLog === p.id && (
           <tr className="border-t border-gray-100">
-            <td colSpan={6} className="p-0">
+            <td colSpan={5} className="p-0">
               <ActivityLog proposal={p} />
             </td>
           </tr>
@@ -695,7 +692,6 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
                   </span>
                 </th>
               ))}
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Follow-ups</th>
               <th className="px-4 py-3 w-28"></th>
             </tr>
           </thead>
@@ -728,7 +724,6 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
                       <td className="px-4 py-2.5 text-xs text-gray-400">
                         {alt.createdAt ? new Date(alt.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
                       </td>
-                      <td className="px-4 py-2.5" />
                       <td className="px-4 py-2.5 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <button onClick={() => onOpen(alt)} className="p-1 rounded text-gray-300 hover:bg-gray-50 hover:text-gray-700 transition-colors" title="Open"><Eye size={12} /></button>
