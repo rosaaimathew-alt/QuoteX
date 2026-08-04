@@ -277,45 +277,51 @@ function ThreadView({ thread, proposals, readIds, onMarkRead, onDelete, onBack }
   return (
     <div className="flex flex-col h-full">
       {/* Thread header */}
-      <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-100 bg-white shrink-0">
-        <button onClick={onBack} className="sm:hidden p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
-          <ArrowLeft size={16} />
-        </button>
-        <Avatar name={thread.contactName} email={thread.contactEmail} />
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-gray-900 text-sm truncate">
-            {thread.contactName || thread.contactEmail}
-          </p>
-          <p className="text-xs text-gray-400 truncate">{thread.contactEmail}</p>
-        </div>
-        {linkedProposal && (
-          <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full font-medium border border-blue-100 whitespace-nowrap">
-            #{linkedProposal.id} — ${Number(linkedProposal.total || 0).toLocaleString()}
-          </span>
-        )}
-        {/* Sales Suggest — AI close-likelihood from the customer's replies */}
-        {suggest?.score != null ? (
-          <span title={suggest.reason}
-            className={`text-xs px-2 py-1 rounded-full font-semibold border whitespace-nowrap ${
-              suggest.score >= 70 ? 'bg-green-50 text-green-700 border-green-200'
-              : suggest.score >= 40 ? 'bg-amber-50 text-amber-700 border-amber-200'
-              : 'bg-red-50 text-red-600 border-red-200'}`}>
-            {suggest.score}% likely
-          </span>
-        ) : (
-          <button onClick={runSuggest} disabled={suggesting}
-            className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50 whitespace-nowrap"
-            title="Gauge how likely this customer is to close">
-            {suggesting ? <Loader size={12} className="animate-spin" /> : <Gauge size={12} />} Gauge interest
+      <div className="px-5 py-3 border-b border-gray-100 bg-white shrink-0">
+        {/* Primary row — who this conversation is with */}
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="sm:hidden p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
+            <ArrowLeft size={16} />
           </button>
-        )}
-        <button
-          onClick={() => onDelete(thread.contactEmail)}
-          className="p-1.5 text-gray-300 hover:text-red-500 rounded-lg hover:bg-red-50"
-          title="Delete thread"
-        >
-          <Trash2 size={14} />
-        </button>
+          <Avatar name={thread.contactName} email={thread.contactEmail} />
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-gray-900 text-sm truncate">
+              {thread.contactName || thread.contactEmail}
+            </p>
+            <p className="text-xs text-gray-400 truncate">{thread.contactEmail}</p>
+          </div>
+          <button
+            onClick={() => onDelete(thread.contactEmail)}
+            className="p-1.5 text-gray-300 hover:text-red-500 rounded-lg hover:bg-red-50"
+            title="Delete thread"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+        {/* Secondary row — linked proposal + close-likelihood, demoted under the name */}
+        <div className="flex items-center gap-2 mt-2 pl-12">
+          {linkedProposal && (
+            <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full font-medium border border-blue-100 whitespace-nowrap">
+              #{linkedProposal.id} — ${Number(linkedProposal.total || 0).toLocaleString()}
+            </span>
+          )}
+          {/* Sales Suggest — AI close-likelihood from the customer's replies */}
+          {suggest?.score != null ? (
+            <span title={suggest.reason}
+              className={`text-xs px-2 py-1 rounded-full font-semibold border whitespace-nowrap ${
+                suggest.score >= 70 ? 'bg-green-50 text-green-700 border-green-200'
+                : suggest.score >= 40 ? 'bg-amber-50 text-amber-700 border-amber-200'
+                : 'bg-red-50 text-red-600 border-red-200'}`}>
+              {suggest.score}% likely
+            </span>
+          ) : (
+            <button onClick={runSuggest} disabled={suggesting}
+              className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50 whitespace-nowrap"
+              title="Gauge how likely this customer is to close">
+              {suggesting ? <Loader size={12} className="animate-spin" /> : <Gauge size={12} />} Gauge interest
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Messages */}

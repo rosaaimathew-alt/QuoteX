@@ -314,7 +314,7 @@ export default function Finance() {
     <div className="p-4 sm:p-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2"><Wallet size={22} className="text-teal-600" /> Finance</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2"><Wallet size={22} className="text-gray-400" /> Finance</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Track card spend by employee and tie expenses to jobs for automatic P&amp;L.</p>
         </div>
         <div className="flex gap-2">
@@ -330,13 +330,16 @@ export default function Finance() {
       {/* Summary */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         {[
-          { label: 'Total spend', value: `$${fmt(total)}`, icon: TrendingDown, color: 'text-red-500' },
-          { label: 'This month', value: `$${fmt(thisMonth)}`, icon: DollarSign, color: 'text-amber-500' },
-          { label: 'Unassigned', value: `$${fmt(unassigned)}`, icon: Briefcase, color: 'text-gray-400' },
-          { label: 'Cards', value: cards.length, icon: CreditCard, color: 'text-teal-500' },
+          { label: 'Total spend', value: `$${fmt(total)}`, icon: TrendingDown },
+          { label: 'This month', value: `$${fmt(thisMonth)}`, icon: DollarSign },
+          { label: 'Unassigned', value: `$${fmt(unassigned)}`, icon: Briefcase },
+          { label: 'Cards', value: cards.length, icon: CreditCard },
         ].map(s => (
-          <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="flex items-center gap-1.5 mb-1"><s.icon size={14} className="text-gray-400" /><span className="text-xs font-semibold uppercase tracking-widest text-gray-400">{s.label}</span></div>
+          <div key={s.label} className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="w-8 h-8 rounded-lg bg-gray-100 text-gray-500 flex items-center justify-center shrink-0"><s.icon size={16} /></span>
+              <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">{s.label}</span>
+            </div>
             <p className="text-xl font-bold text-gray-900">{s.value}</p>
           </div>
         ))}
@@ -353,7 +356,7 @@ export default function Finance() {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {perCard.map(c => (
-              <div key={c.id} className="rounded-xl p-4 bg-white border border-gray-200 relative overflow-hidden" style={{ borderLeftColor: c.color, borderLeftWidth: '4px' }}>
+              <div key={c.id} className="rounded-xl p-4 bg-white border border-gray-200 shadow-sm relative overflow-hidden" style={{ borderLeftColor: c.color, borderLeftWidth: '4px' }}>
                 <div className="flex items-start justify-between">
                   <CreditCard size={18} style={{ color: c.color }} />
                   <div className="flex gap-1">
@@ -374,7 +377,7 @@ export default function Finance() {
       {perJob.length > 0 && (
         <div className="mb-6">
           <p className="text-sm font-semibold text-gray-700 mb-2">Spend by job</p>
-          <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-50">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm divide-y divide-gray-50">
             {perJob.map(j => {
               const profit = j.revenue - j.cost
               return (
@@ -403,7 +406,7 @@ export default function Finance() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {filtered.length === 0 ? (
           <div className="py-12 text-center text-gray-400 text-sm">No expenses yet — import a statement or add one.</div>
         ) : (
@@ -437,7 +440,7 @@ export default function Finance() {
                       </td>
                       <td className="px-4 py-2">
                         <select value={e.jobId || ''} onChange={ev => updateExpense(e.id, { jobId: Number(ev.target.value) || null })}
-                          className={`text-xs border rounded px-1 py-0.5 ${e.jobId ? 'border-teal-300 bg-teal-50 text-teal-700' : 'border-gray-200 text-gray-400'}`}>
+                          className={`text-xs border rounded px-1 py-0.5 ${e.jobId ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-400'}`}>
                           <option value="">Unassigned</option>
                           {jobs.map(j => <option key={j.id} value={j.id}>{j.client || `Job #${j.id}`}</option>)}
                         </select>

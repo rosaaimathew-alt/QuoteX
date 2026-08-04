@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   useStore, PROPOSAL_STATUSES, WIN_REASONS, LOSS_REASONS, ACTIVITY_TYPES,
@@ -8,7 +8,7 @@ import {
   DollarSign, FileText, Plus, ChevronDown, ChevronUp, MessageSquare,
   Phone, Mail, Send, Users, BarChart2, Columns, List, Award, ThumbsDown,
   Eye, Copy, GitBranch, FileSignature, ChevronLeft, ChevronRight, ShoppingCart,
-  GitMerge, Unlink, Search,
+  GitMerge, Unlink, Search, MoreHorizontal,
 } from 'lucide-react'
 import { getPeriodRange, shiftPeriod, isCurrentPeriod } from '../periodUtils'
 import { wonRevenueOf } from '../contractTotal'
@@ -43,15 +43,16 @@ const fmt = (n) =>
 
 const fmtShort = (n) => { const v = Number(n); if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(2)}M`; if (v >= 1_000) return `$${(v / 1_000).toFixed(1)}k`; return `$${v.toFixed(0)}` }
 
+// One soft pill system: bg-<sem>-100 text-<sem>-700 across the board.
 const STATUS_STYLES = {
-  Draft:         'bg-gray-100 text-gray-600',
+  Draft:         'bg-gray-100 text-gray-700',
   Sent:          'bg-blue-100 text-blue-700',
   'Followed Up': 'bg-purple-100 text-purple-700',
   Negotiating:   'bg-amber-100 text-amber-700',
   Won:           'bg-green-100 text-green-700',
   Lost:          'bg-red-100 text-red-700',
-  MIA:           'bg-slate-100 text-slate-500',
-  Archived:      'bg-zinc-100 text-zinc-500',
+  MIA:           'bg-slate-100 text-slate-700',
+  Archived:      'bg-zinc-100 text-zinc-700',
 }
 
 const STATUS_COLORS = {
@@ -409,6 +410,77 @@ function MergeModal({ sourceGroup, allGroups, onMerge, onClose }) {
   )
 }
 
+// ── Row Overflow Menu ───────────────────────────────────────────────────────
+// A single "⋯" dropdown holding secondary row actions. Fixed-positioned off the
+// button's rect so it never gets clipped by the table's overflow containers.
+// Click-outside / scroll / resize all close it.
+function RowMenu({ items }) {
+  const [open, setOpen] = useState(false)
+  const [coords, setCoords] = useState(null)
+  const btnRef = useRef(null)
+  const menuRef = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e) => {
+      if (btnRef.current?.contains(e.target)) return
+      if (menuRef.current?.contains(e.target)) return
+      setOpen(false)
+    }
+    const onDismiss = () => setOpen(false)
+    document.addEventListener('mousedown', onDown)
+    window.addEventListener('resize', onDismiss)
+    window.addEventListener('scroll', onDismiss, true)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      window.removeEventListener('resize', onDismiss)
+      window.removeEventListener('scroll', onDismiss, true)
+    }
+  }, [open])
+
+  const toggle = () => {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      setCoords({ top: r.bottom + 4, right: window.innerWidth - r.right })
+    }
+    setOpen(o => !o)
+  }
+
+  if (!items.length) return null
+  return (
+    <>
+      <button
+        ref={btnRef}
+        onClick={toggle}
+        className="p-1.5 rounded text-gray-300 hover:bg-gray-50 hover:text-gray-700 transition-colors"
+        title="More actions"
+      >
+        <MoreHorizontal size={13} />
+      </button>
+      {open && coords && (
+        <div
+          ref={menuRef}
+          style={{ position: 'fixed', top: coords.top, right: coords.right, zIndex: 50 }}
+          className="w-48 bg-white border border-gray-200 rounded-lg shadow-lg py-1"
+        >
+          {items.map((it, i) => {
+            const Icon = it.icon
+            return (
+              <button
+                key={i}
+                onClick={() => { setOpen(false); it.onClick() }}
+                className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-left transition-colors hover:bg-gray-50 ${it.danger ? 'text-red-600 hover:text-red-700' : 'text-gray-600 hover:text-gray-700'}`}
+              >
+                <Icon size={13} className="shrink-0" /> {it.label}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </>
+  )
+}
+
 // ── List View ──────────────────────────────────────────────────────────────
 // Rank to pick the "best" proposal to surface as the primary row
 const STATUS_RANK = { Won: 6, Negotiating: 5, 'Followed Up': 4, Sent: 3, Draft: 2, Lost: 1 }
@@ -519,36 +591,22 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
           </td>
           <td className="px-4 py-3 text-right">
             <div className="flex items-center justify-end gap-1">
-              <button onClick={() => onOpen(p)} className="p-1.5 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-50" title="Open proposal">
+              {/* Primary inline actions: Open + Activity log */}
+              <button onClick={() => onOpen(p)} className="p-1.5 rounded text-gray-300 hover:bg-gray-50 hover:text-gray-700 transition-colors" title="Open proposal">
                 <Eye size={13} />
               </button>
-              <button onClick={() => onRevise(p)} className="p-1.5 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-50" title="Create revision">
-                <Copy size={13} />
-              </button>
-              <button onClick={onMerge} className="p-1.5 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-50" title="Merge into another client">
-                <GitMerge size={13} />
-              </button>
-              {altCount > 0 && (
-                <button onClick={() => onDetach(p.id)} className="p-1.5 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-50" title="Separate this proposal as its own client">
-                  <Unlink size={13} />
-                </button>
-              )}
-              {p.status === 'Won' && (
-                <button onClick={() => onGenerateContract(p)} className="p-1.5 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-50" title="Generate Contract">
-                  <FileSignature size={13} />
-                </button>
-              )}
-              {(p.status === 'Sent' || p.status === 'Followed Up') && p.email && (
-                <button onClick={() => setFollowUpProposal(p)} className="p-1.5 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-50" title="Send follow-up email">
-                  <Send size={13} />
-                </button>
-              )}
-              <button onClick={() => setExpandedLog(expandedLog === p.id ? null : p.id)} className="p-1.5 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-50" title="Activity log">
+              <button onClick={() => setExpandedLog(expandedLog === p.id ? null : p.id)} className="p-1.5 rounded text-gray-300 hover:bg-gray-50 hover:text-gray-700 transition-colors" title="Activity log">
                 {expandedLog === p.id ? <ChevronUp size={13} /> : <MessageSquare size={13} />}
               </button>
-              <button onClick={() => deleteProposal(p.id)} className="p-1.5 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-50" title="Delete">
-                <Trash2 size={13} />
-              </button>
+              {/* Everything else in a single ⋯ overflow menu */}
+              <RowMenu items={[
+                { label: 'Revise', icon: Copy, onClick: () => onRevise(p) },
+                { label: 'Merge into client', icon: GitMerge, onClick: onMerge },
+                ...(altCount > 0 ? [{ label: 'Detach', icon: Unlink, onClick: () => onDetach(p.id) }] : []),
+                ...(p.status === 'Won' ? [{ label: 'Generate Contract', icon: FileSignature, onClick: () => onGenerateContract(p) }] : []),
+                ...((p.status === 'Sent' || p.status === 'Followed Up') && p.email ? [{ label: 'Send Follow-up', icon: Send, onClick: () => setFollowUpProposal(p) }] : []),
+                { label: 'Delete', icon: Trash2, onClick: () => deleteProposal(p.id), danger: true },
+              ]} />
             </div>
           </td>
         </tr>
@@ -642,10 +700,12 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
                       <td className="px-4 py-2.5" />
                       <td className="px-4 py-2.5 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => onOpen(alt)} className="p-1 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-50" title="Open"><Eye size={12} /></button>
-                          <button onClick={() => onRevise(alt)} className="p-1 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-50" title="Revise"><Copy size={12} /></button>
-                          <button onClick={() => handleDetach(alt.id)} className="p-1 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-50" title="Separate as new client"><Unlink size={12} /></button>
-                          <button onClick={() => deleteProposal(alt.id)} className="p-1 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-50" title="Delete"><Trash2 size={12} /></button>
+                          <button onClick={() => onOpen(alt)} className="p-1 rounded text-gray-300 hover:bg-gray-50 hover:text-gray-700 transition-colors" title="Open"><Eye size={12} /></button>
+                          <RowMenu items={[
+                            { label: 'Revise', icon: Copy, onClick: () => onRevise(alt) },
+                            { label: 'Detach', icon: Unlink, onClick: () => handleDetach(alt.id) },
+                            { label: 'Delete', icon: Trash2, onClick: () => deleteProposal(alt.id), danger: true },
+                          ]} />
                         </div>
                       </td>
                     </tr>
@@ -683,7 +743,7 @@ function PipelineView({ proposals, onStatusChange }) {
               {cards.map(p => (
                 <div key={p.id} className="bg-white rounded-lg border border-gray-100 shadow-sm p-3">
                   <p className="text-sm font-semibold text-gray-800 truncate">{p.client || 'Unnamed'}</p>
-                  <p className="text-xs text-blue-600 font-medium mt-0.5">${fmt(p.total || 0)}</p>
+                  <p className="text-xs text-[var(--brand-600)] font-medium mt-0.5">${fmt(p.total || 0)}</p>
                   {p.email && <p className="text-xs text-gray-400 truncate mt-0.5">{p.email}</p>}
                   {/* Active reminder indicator */}
                   {(p.reminders || []).some(r => !r.dismissed && isOverdue(nextReminderDate(r))) && (
@@ -696,17 +756,18 @@ function PipelineView({ proposals, onStatusChange }) {
                       {p.winLossReason.category}
                     </p>
                   )}
-                  {/* Move buttons */}
-                  <div className="flex gap-1 mt-2 flex-wrap">
-                    {PROPOSAL_STATUSES.filter(s => s !== status).map(s => (
-                      <button
-                        key={s}
-                        onClick={() => onStatusChange(p, s)}
-                        className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 hover:bg-blue-100 hover:text-blue-700 transition-colors"
-                      >
-                        → {s}
-                      </button>
-                    ))}
+                  {/* Move status — single dropdown (reuses the status list) */}
+                  <div className="mt-2">
+                    <select
+                      value=""
+                      onChange={e => { if (e.target.value) onStatusChange(p, e.target.value) }}
+                      className="w-full text-xs bg-white border border-gray-200 rounded-md px-2 py-1 text-gray-600 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)]"
+                    >
+                      <option value="">Move to…</option>
+                      {PROPOSAL_STATUSES.filter(s => s !== status).map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               ))}
@@ -916,7 +977,8 @@ export default function ProposalTracker() {
   const [filterStatus, setFilterStatus] = useState('All')
   const [periodFilter, setPeriodFilter] = useState('all-time')
   const [statsHidden, setStatsHidden] = useState(() => {
-    try { return localStorage.getItem('qx_tracker_stats_hidden') === '1' } catch { return false }
+    // Collapsed by default — only expanded if the user explicitly chose to show it.
+    try { return localStorage.getItem('qx_tracker_stats_hidden') !== '0' } catch { return true }
   })
   const toggleStats = () => setStatsHidden(v => {
     const n = !v
@@ -1146,7 +1208,7 @@ export default function ProposalTracker() {
               key={id}
               onClick={() => setTab(id)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                tab === id ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                tab === id ? 'bg-white text-[var(--brand-700)] shadow-sm' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               <Icon size={14} /> {label}
@@ -1160,7 +1222,7 @@ export default function ProposalTracker() {
                 key={s}
                 onClick={() => setFilterStatus(s)}
                 className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-                  filterStatus === s ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                  filterStatus === s ? 'bg-[var(--brand-600)] text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
                 }`}
               >
                 {s}

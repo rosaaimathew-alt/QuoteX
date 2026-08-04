@@ -7,7 +7,7 @@ import {
   FileSignature, ClipboardList, MapPin, DollarSign, X, Plus,
   AlertTriangle, CheckCheck, Clock, Wrench, FileText, Mail, Send,
   Search, Trash2, Link2, ExternalLink, PenLine, RefreshCw,
-  HardHat, CloudSun,
+  HardHat, CloudSun, MoreHorizontal,
 } from 'lucide-react'
 
 const fmt    = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
@@ -285,6 +285,10 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
   const [sending, setSending]         = useState(false)
   const [scopeText, setScopeText]     = useState(initScopeText)
   const [coPayments, setCoPayments]   = useState(initPayments)
+  // Scope + payment sections collapse so the modal opens compact; auto-expanded
+  // only when they already carry data. All fields are preserved either way.
+  const [scopeOpen, setScopeOpen]     = useState(() => initScopeText().trim().length > 0)
+  const [payOpen, setPayOpen]         = useState(() => initPayments().length > 0)
 
   const categories = [...new Set(catalog.map(i => i.category).filter(Boolean))]
   const [catFilter, setCatFilter] = useState('All')
@@ -471,26 +475,42 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
             )}
 
             {/* Updated Scope of Work */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Updated Scope of Work</label>
-              <p className="text-[10px] text-gray-400 mb-2">Start a line with <strong>--</strong> to make it a bullet. Plain lines print as text. Enter = new line.</p>
-              <textarea
-                value={scopeText}
-                onChange={e => setScopeText(e.target.value)}
-                placeholder={"-- Line 1 becomes a bullet\n-- Line 2 becomes a bullet\nPlain text line (no bullet)"}
-                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                style={{ minHeight: '10rem', resize: 'vertical' }}
-              />
+            <div className="border border-gray-200 rounded-xl">
+              <button type="button" onClick={() => setScopeOpen(o => !o)}
+                className="w-full flex items-center justify-between px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                <span>Updated Scope of Work</span>
+                {scopeOpen ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
+              </button>
+              {scopeOpen && (
+                <div className="px-4 pb-4">
+                  <p className="text-[10px] text-gray-400 mb-2">Start a line with <strong>--</strong> to make it a bullet. Plain lines print as text. Enter = new line.</p>
+                  <textarea
+                    value={scopeText}
+                    onChange={e => setScopeText(e.target.value)}
+                    placeholder={"-- Line 1 becomes a bullet\n-- Line 2 becomes a bullet\nPlain text line (no bullet)"}
+                    className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    style={{ minHeight: '10rem', resize: 'vertical' }}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Updated Payment Schedule */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Updated Payment Schedule</label>
-                <button onClick={addPayment} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium">
-                  <Plus size={12} /> Add milestone
+            <div className="border border-gray-200 rounded-xl">
+              <div className="flex items-center justify-between px-4 py-3">
+                <button type="button" onClick={() => setPayOpen(o => !o)}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  {payOpen ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
+                  Updated Payment Schedule
                 </button>
+                {payOpen && (
+                  <button onClick={addPayment} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium">
+                    <Plus size={12} /> Add milestone
+                  </button>
+                )}
               </div>
+              {payOpen && (
+              <div className="px-4 pb-4">
               <p className="text-[10px] text-gray-400 mb-2">Pre-filled from contract. Adjust amounts to match new contract total.</p>
               {coPayments.length === 0 && (
                 <p className="text-xs text-gray-400 italic py-1">No milestones — click "Add milestone" to start.</p>
@@ -523,6 +543,8 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
               )}
               {coPayments.length > 0 && Math.abs(paymentSum - newTotal) > 1 && (
                 <p className="text-xs text-amber-600 mt-1">Schedule total (${fmtDol(paymentSum)}) doesn't match new contract total (${fmtDol(newTotal)})</p>
+              )}
+              </div>
               )}
             </div>
 
@@ -558,6 +580,7 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
 
 // ── Budget tab ────────────────────────────────────────────────────────────────
 function BudgetTab({ proposal }) {
+  const [showBreakdown, setShowBreakdown] = useState(false)
   const fmtD = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   // Budget/P&L must reflect only the items actually in the contract. For an à la
   // carte job the contract covers a subset of the proposal lines, so filter down
@@ -627,7 +650,14 @@ function BudgetTab({ proposal }) {
         ))}
       </div>
 
-      {/* Line-item breakdown */}
+      {/* Line-item breakdown (collapsed by default to keep the tiles front-and-center) */}
+      <button onClick={() => setShowBreakdown(o => !o)}
+        className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-800">
+        {showBreakdown ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        {showBreakdown ? 'Hide line-item breakdown' : 'Show line-item breakdown'}
+      </button>
+
+      {showBreakdown && (
       <div className="overflow-x-auto rounded-xl border border-gray-200">
         <table className="w-full text-xs">
           <thead className="bg-gray-50 border-b border-gray-200">
@@ -673,6 +703,7 @@ function BudgetTab({ proposal }) {
           </tfoot>
         </table>
       </div>
+      )}
     </div>
   )
 }
@@ -927,7 +958,7 @@ function ChangeOrdersTab({ proposal }) {
                 <div className="flex gap-2 flex-wrap">
                   <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider self-center">Builder:</span>
                   <button onClick={() => copyLink(co.builderSignLink)}
-                    className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 font-medium">
+                    className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium">
                     <Link2 size={11} /> Copy
                   </button>
                   <a href={co.builderSignLink} target="_blank" rel="noreferrer"
@@ -1108,7 +1139,7 @@ function WarrantyTab({ proposal }) {
       {items.length === 0 && !adding && <p className="text-xs text-gray-400 italic">No warranty items logged.</p>}
 
       {items.map(item => (
-        <div key={item.id} className={`border rounded-xl p-3 ${item.status === 'Open' ? 'border-amber-200 bg-amber-50' : 'border-gray-100'}`}>
+        <div key={item.id} className="border border-gray-200 rounded-xl p-3 bg-white">
           <div className="flex items-start justify-between gap-2 mb-1">
             <p className="text-sm text-gray-900 flex-1">{item.description}</p>
             <select value={item.status}
@@ -1528,6 +1559,7 @@ function JobCard({ proposal }) {
   const [noteText, setNoteText] = useState(proposal.jobData?.notes || '')
   const [showReminder, setShowReminder] = useState(false)
   const [showCloseOut, setShowCloseOut] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const jobData = proposal.jobData || {}
   const completedStages = jobData.completedStages || []
@@ -1554,10 +1586,17 @@ function JobCard({ proposal }) {
     { key: 'warranty',label: `Warranty${openWarranty ? ` (${openWarranty})` : ''}` },
   ]
 
+  // One soft-pill status system for the card badge.
+  const statusPill = isClosed
+    ? { label: 'Closed', cls: 'bg-green-100 text-green-700' }
+    : noType
+      ? { label: 'Needs setup', cls: 'bg-amber-100 text-amber-700' }
+      : pct > 0
+        ? { label: 'In Progress', cls: 'bg-blue-100 text-blue-700' }
+        : { label: 'Not Started', cls: 'bg-gray-100 text-gray-600' }
+
   return (
-    <div className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-all ${
-      isClosed ? 'border-green-200' : pct > 0 ? 'border-blue-100' : 'border-gray-100'
-    }`}>
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden transition-all">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3.5 cursor-pointer hover:bg-gray-50 transition-colors"
         onClick={() => setExpanded(e => !e)}>
@@ -1575,50 +1614,45 @@ function JobCard({ proposal }) {
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-gray-900 text-sm">{proposal.client}</span>
             <span className="text-xs text-gray-400 font-mono">{contractNum}</span>
-            {isClosed && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Closed</span>}
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusPill.cls}`}>{statusPill.label}</span>
             {openWarranty > 0 && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1"><AlertTriangle size={11} /> {openWarranty} warranty</span>}
           </div>
           <div className="flex items-center gap-3 mt-0.5 flex-wrap text-xs text-gray-500">
             <span className="flex items-center gap-1"><MapPin size={10} />{proposal.address || '—'}</span>
             <span className="flex items-center gap-1"><DollarSign size={10} />${fmt(contractTotalOf(proposal))}</span>
             <span>{projectTypes}</span>
+            {jobData.startDate && (
+              <span className="flex items-center gap-1"><CalendarDays size={10} /> {jobData.startDate}</span>
+            )}
           </div>
-          <div className="mt-1.5 h-1 bg-gray-100 rounded-full overflow-hidden w-full max-w-xs">
-            <div className={`h-full rounded-full transition-all ${isClosed ? 'bg-blue-500' : 'bg-blue-400'}`}
-              style={{ width: `${pct}%` }} />
-          </div>
-          <p className="text-[10px] text-gray-400 mt-0.5">
-            {noType
-              ? <span className="text-amber-500 font-medium inline-flex items-center gap-1"><AlertTriangle size={10} /> Set job type to load stages</span>
-              : `${done} of ${stages.length} stages complete`}
-          </p>
         </div>
 
-        <div className="shrink-0 flex flex-col items-end gap-1.5">
-          {jobData.startDate && (
-            <span className="text-xs text-gray-400 flex items-center gap-1">
-              <CalendarDays size={10} /> {jobData.startDate}
-            </span>
+        <div className="shrink-0 flex items-center gap-1">
+          {!isClosed && (
+            <div className="relative" onClick={e => e.stopPropagation()}>
+              <button onClick={() => setMenuOpen(o => !o)}
+                title="More actions"
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
+                <MoreHorizontal size={16} />
+              </button>
+              {menuOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-20">
+                    <button onClick={() => { setMenuOpen(false); setShowReminder(true) }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                      <Mail size={14} className="text-gray-400 shrink-0" /> Send payment reminder
+                    </button>
+                    <button onClick={() => { setMenuOpen(false); setShowCloseOut(true) }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                      <CheckCheck size={14} className="text-gray-400 shrink-0" /> Close out job
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           )}
-          <div className="flex items-center gap-1">
-            {!isClosed && (
-              <>
-                <button
-                  onClick={e => { e.stopPropagation(); setShowReminder(true) }}
-                  title="Send payment reminder"
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
-                  <Mail size={13} />
-                </button>
-                <button
-                  onClick={e => { e.stopPropagation(); setShowCloseOut(true) }}
-                  title="Close out job"
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
-                  <CheckCheck size={13} />
-                </button>
-              </>
-            )}
-            {expanded ? <ChevronUp size={15} className="text-gray-400" /> : <ChevronDown size={15} className="text-gray-400" />}
-          </div>
+          {expanded ? <ChevronUp size={15} className="text-gray-400" /> : <ChevronDown size={15} className="text-gray-400" />}
         </div>
       </div>
 
@@ -1628,6 +1662,18 @@ function JobCard({ proposal }) {
       {/* Expanded */}
       {expanded && (
         <div className="border-t border-gray-100">
+          {/* Full-width progress bar + stage caption — moved here from the card header */}
+          <div className="px-4 pt-4">
+            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden w-full">
+              <div className={`h-full rounded-full transition-all ${isClosed ? 'bg-green-500' : 'bg-blue-500'}`}
+                style={{ width: `${pct}%` }} />
+            </div>
+            <p className="text-[11px] text-gray-400 mt-1">
+              {noType
+                ? <span className="text-amber-500 font-medium inline-flex items-center gap-1"><AlertTriangle size={10} /> Set job type to load stages</span>
+                : `${done} of ${stages.length} stages complete`}
+            </p>
+          </div>
           {/* Dates */}
           <div className="flex flex-wrap gap-4 px-4 pt-4 pb-2">
             <div>

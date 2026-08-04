@@ -103,6 +103,7 @@ function EventEditor({ event, onClose }) {
   const [title, setTitle] = useState(event.title || '')
   const [client, setClient] = useState(event.address || '')
   const [color, setColor] = useState(event.color || '#2563eb')
+  const [showMilestones, setShowMilestones] = useState(false)
 
   // ── Single stage milestone ──
   if (isStage) {
@@ -194,25 +195,31 @@ function EventEditor({ event, onClose }) {
           </div>
         </div>
 
-        {/* Per-job milestones — schedule each on the calendar + check off */}
+        {/* Per-job milestones — collapsed by default so the modal opens compact */}
         {isJob && stages.length > 0 && (
           <div className="pt-3 border-t border-gray-100">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Milestones — set a date &amp; check off</p>
-            <div className="space-y-1">
-              {stages.map(st => {
-                const sdone = completed.includes(st.key)
-                return (
-                  <div key={st.key} className="flex items-center gap-2">
-                    <button onClick={() => toggleJobStage(event.proposalId, st.key)} className={`shrink-0 ${sdone ? 'text-green-600' : 'text-gray-300 hover:text-[var(--brand-600)]'}`}>
-                      {sdone ? <CheckCircle2 size={16} /> : <Square size={16} />}
-                    </button>
-                    <span className={`flex-1 text-sm truncate ${sdone ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{st.label}</span>
-                    <input type="date" value={stageDates[st.key] || ''} onChange={e => setJobStageDate(event.proposalId, st.key, e.target.value)}
-                      className="text-xs border border-gray-200 rounded px-1.5 py-1 shrink-0 focus:outline-none focus:ring-1 focus:ring-[var(--brand-300)]" />
-                  </div>
-                )
-              })}
-            </div>
+            <button type="button" onClick={() => setShowMilestones(v => !v)}
+              className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider hover:text-gray-700 transition-colors">
+              {showMilestones ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              Schedule milestones ({stages.length})
+            </button>
+            {showMilestones && (
+              <div className="space-y-1 mt-2">
+                {stages.map(st => {
+                  const sdone = completed.includes(st.key)
+                  return (
+                    <div key={st.key} className="flex items-center gap-2">
+                      <button onClick={() => toggleJobStage(event.proposalId, st.key)} className={`shrink-0 ${sdone ? 'text-green-600' : 'text-gray-300 hover:text-[var(--brand-600)]'}`}>
+                        {sdone ? <CheckCircle2 size={16} /> : <Square size={16} />}
+                      </button>
+                      <span className={`flex-1 text-sm truncate ${sdone ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{st.label}</span>
+                      <input type="date" value={stageDates[st.key] || ''} onChange={e => setJobStageDate(event.proposalId, st.key, e.target.value)}
+                        className="text-xs border border-gray-200 rounded px-1.5 py-1 shrink-0 focus:outline-none focus:ring-1 focus:ring-[var(--brand-300)]" />
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -301,7 +308,7 @@ export default function PMCalendar() {
       )}
 
       {/* Calendar grid */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="grid grid-cols-7 border-b border-gray-100 bg-gray-50">
           {WEEKDAYS.map(w => <div key={w} className="px-2 py-2 text-center text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{w}</div>)}
         </div>
@@ -323,9 +330,11 @@ export default function PMCalendar() {
                 <div className="flex flex-col gap-0.5 overflow-hidden">
                   {evts.slice(0, 3).map(e => (
                     <button key={e.id} onClick={() => setEditing(e)}
-                      className="text-left text-[11px] leading-tight px-1.5 py-0.5 rounded truncate text-white hover:opacity-90"
-                      style={{ background: e.color }} title={e.title}>
-                      {e.kind === 'stage' && e.completed ? <Check size={11} className="inline align-[-1px] mr-0.5" /> : null}{e.title}
+                      className="flex items-center gap-1 text-left text-[11px] leading-tight px-1.5 py-0.5 rounded bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
+                      title={e.title}>
+                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: e.color }} />
+                      {e.kind === 'stage' && e.completed ? <Check size={10} className="shrink-0 text-green-600" /> : null}
+                      <span className="truncate">{e.title}</span>
                     </button>
                   ))}
                   {evts.length > 3 && <span className="text-[10px] text-gray-400 px-1">+{evts.length - 3} more</span>}
@@ -336,11 +345,11 @@ export default function PMCalendar() {
         </div>
       </div>
 
-      {/* Legend + hidden jobs */}
-      <div className="flex items-center gap-4 mt-3 flex-wrap text-xs text-gray-500">
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded" style={{ background: '#0f766e' }} /> Jobs &amp; milestones</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded" style={{ background: '#16a34a' }} /> Completed</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded" style={{ background: '#2563eb' }} /> Planned</span>
+      {/* Compact footer — legend + hidden jobs */}
+      <div className="flex items-center gap-4 mt-4 flex-wrap text-xs text-gray-500">
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: '#0f766e' }} /> Jobs &amp; milestones</span>
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: '#16a34a' }} /> Completed</span>
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: '#2563eb' }} /> Planned</span>
         {hidden.length > 0 && (
           <button onClick={() => setShowHidden(v => !v)} className="flex items-center gap-1 hover:text-gray-700 ml-auto">
             <EyeOff size={12} /> {hidden.length} hidden {showHidden ? <ChevronUp size={12} /> : <ChevronDown size={12} />}

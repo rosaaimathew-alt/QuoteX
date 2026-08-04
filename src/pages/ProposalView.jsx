@@ -62,7 +62,7 @@ export default function ProposalView() {
     return (
       <div className="p-6 text-center text-gray-400">
         <p className="mb-4">No proposal data. Build a quote first.</p>
-        <button onClick={() => navigate('/quote')} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Go to Build Quote</button>
+        <button onClick={() => navigate('/quote')} className="px-4 py-2 bg-[var(--brand-600)] text-white rounded-lg text-sm">Go to Build Quote</button>
       </div>
     )
   }
@@ -200,19 +200,19 @@ export default function ProposalView() {
           {copied ? 'Copied!' : 'Copy text'}
         </button>
         <button
-          onClick={() => { setShowSend(true); setSendSuccess(false); setSendError('') }}
-          className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
-        >
-          <Send size={14} /> Send to Client
-        </button>
-        <button
           onClick={() => {
             if (proposalIdRef.current) markProposalSent(proposalIdRef.current)
             window.print()
           }}
-          className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+          className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
         >
           <Printer size={14} /> Print / Save PDF
+        </button>
+        <button
+          onClick={() => { setShowSend(true); setSendSuccess(false); setSendError('') }}
+          className="flex items-center gap-1.5 px-4 py-1.5 bg-[var(--brand-600)] text-white rounded-lg text-sm font-medium hover:bg-[var(--brand-700)]"
+        >
+          <Send size={14} /> Send to Client
         </button>
       </div>
 
@@ -230,10 +230,10 @@ export default function ProposalView() {
                 <CheckCircle size={40} className="text-[var(--brand-500)] mx-auto mb-3" />
                 <p className="font-semibold text-gray-900 mb-1">Proposal Sent!</p>
                 <p className="text-sm text-gray-500 mb-1">Email delivered to <strong>{email}</strong></p>
-                <p className="text-xs text-gray-400 mb-4">This proposal has been logged as <span className="font-medium text-blue-600">Sent</span> in your tracker.</p>
+                <p className="text-xs text-gray-400 mb-4">This proposal has been logged as <span className="font-medium text-[var(--brand-600)]">Sent</span> in your tracker.</p>
                 <button
                   onClick={() => { setShowSend(false); navigate('/tracker') }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+                  className="px-4 py-2 bg-[var(--brand-600)] text-white rounded-lg text-sm font-medium hover:bg-[var(--brand-700)]"
                 >
                   View in Tracker →
                 </button>
@@ -250,7 +250,7 @@ export default function ProposalView() {
                   <div>
                     <label className="text-xs font-medium text-gray-500 block mb-1">Your Name (optional — shows as sender)</label>
                     <input
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)]"
                       placeholder="e.g. Mike's Construction"
                       value={fromName}
                       onChange={e => setFromName(e.target.value)}
@@ -260,7 +260,7 @@ export default function ProposalView() {
                     <label className="text-xs font-medium text-gray-500 block mb-1">Reply-to Email (optional)</label>
                     <input
                       type="email"
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)]"
                       placeholder="you@yourcompany.com"
                       value={fromEmail}
                       onChange={e => setFromEmail(e.target.value)}
@@ -281,7 +281,7 @@ export default function ProposalView() {
                   <button
                     onClick={handleSend}
                     disabled={sending || !email}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1.5 px-4 py-2 bg-[var(--brand-600)] text-white rounded-lg text-sm font-medium hover:bg-[var(--brand-700)] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {sending ? <><Loader size={14} className="animate-spin" /> Generating PDF...</> : <><Send size={14} /> Send Proposal</>}
                   </button>

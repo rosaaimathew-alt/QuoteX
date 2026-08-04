@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore, PROPOSAL_STATUSES, ACTIVITY_TYPES } from '../store'
-import { DollarSign, ChevronRight, UserX, TrendingUp, StickyNote, X, Trash2, Phone, Mail, MapPin, Clock, Plus, FileText } from 'lucide-react'
+import { DollarSign, ChevronRight, ChevronDown, UserX, TrendingUp, BarChart3, StickyNote, X, Trash2, Phone, Mail, MapPin, Clock, Plus, FileText } from 'lucide-react'
 
 const fmtDol = (n) => {
   const v = Number(n) || 0
@@ -157,6 +157,7 @@ export default function Pipeline() {
   const [active, setActive] = useState('All')
   const [changing, setChanging] = useState(null)
   const [notesFor, setNotesFor] = useState(null)
+  const [showStats, setShowStats] = useState(false)
 
   const byStatus = useMemo(() => {
     const map = {}
@@ -198,36 +199,8 @@ export default function Pipeline() {
         </p>
       </div>
 
-      {/* Stage summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-6">
-        {PIPELINE_STAGES.map(stage => {
-          const list  = byStatus[stage] || []
-          const value = list.reduce((s, p) => s + (Number(p.total) || 0), 0)
-          const meta  = STAGE_META[stage]
-          return (
-            <button
-              key={stage}
-              onClick={() => setActive(active === stage ? 'All' : stage)}
-              className={`text-left rounded-xl border p-3 transition-all ${
-                active === stage
-                  ? `${meta.border} ring-2 ring-offset-1 ${meta.border.replace('border-', 'ring-')}`
-                  : 'border-gray-200 hover:border-gray-300'
-              } bg-white`}
-            >
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <span className={`w-2 h-2 rounded-full ${meta.dot}`} />
-                <span className="text-xs font-semibold text-gray-500 truncate">{stage}</span>
-                {stage === 'MIA' && <UserX size={10} className="text-slate-400 ml-auto" />}
-              </div>
-              <p className="text-xl font-bold text-gray-900">{list.length}</p>
-              <p className="text-xs text-gray-400">{fmtDol(value)}</p>
-            </button>
-          )
-        })}
-      </div>
-
       {/* Win rate bar */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-4">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <TrendingUp size={14} className="text-green-500" />
@@ -245,19 +218,68 @@ export default function Pipeline() {
             style={{ width: `${Math.min(closeStats.rate, 100)}%` }}
           />
         </div>
-        <div className="flex gap-4 mt-2 text-xs text-gray-400">
-          {PIPELINE_STAGES.filter(s => s !== 'Won').map(s => {
-            const n = (byStatus[s] || []).length
-            if (!n) return null
-            return (
-              <span key={s}><span className={`inline-block w-2 h-2 rounded-full mr-1 ${STAGE_META[s].dot}`} />{s}: {n}</span>
-            )
-          })}
-        </div>
+      </div>
+
+      {/* Collapsible stats — the 7 stage cards + dot legend live here (counts also shown in filter bar below) */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-6 overflow-hidden">
+        <button
+          onClick={() => setShowStats(v => !v)}
+          className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+        >
+          <BarChart3 size={15} className="text-gray-400" />
+          <span className="text-sm font-semibold text-gray-700">Stats by stage</span>
+          <span className="text-xs text-gray-400">{proposals.length} proposals</span>
+          {showStats
+            ? <ChevronDown size={16} className="text-gray-400 ml-auto" />
+            : <ChevronRight size={16} className="text-gray-400 ml-auto" />}
+        </button>
+
+        {showStats && (
+          <div className="border-t border-gray-100 p-4">
+            {/* Stage summary cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+              {PIPELINE_STAGES.map(stage => {
+                const list  = byStatus[stage] || []
+                const value = list.reduce((s, p) => s + (Number(p.total) || 0), 0)
+                const meta  = STAGE_META[stage]
+                return (
+                  <button
+                    key={stage}
+                    onClick={() => setActive(active === stage ? 'All' : stage)}
+                    className={`text-left rounded-xl border p-3 transition-colors bg-white ${
+                      active === stage
+                        ? 'border-[var(--brand-600)] bg-[var(--brand-50)]'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <span className={`w-2 h-2 rounded-full ${meta.dot}`} />
+                      <span className="text-xs font-semibold text-gray-500 truncate">{stage}</span>
+                      {stage === 'MIA' && <UserX size={10} className="text-slate-400 ml-auto" />}
+                    </div>
+                    <p className="text-xl font-bold text-gray-900">{list.length}</p>
+                    <p className="text-xs text-gray-400">{fmtDol(value)}</p>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Dot legend */}
+            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-4 text-xs text-gray-400">
+              {PIPELINE_STAGES.filter(s => s !== 'Won').map(s => {
+                const n = (byStatus[s] || []).length
+                if (!n) return null
+                return (
+                  <span key={s}><span className={`inline-block w-2 h-2 rounded-full mr-1 ${STAGE_META[s].dot}`} />{s}: {n}</span>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Proposal list */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 flex-wrap">
           {['All', ...PIPELINE_STAGES].map(s => (
             <button

@@ -174,6 +174,11 @@ export default function BuildQuote() {
     setShowLoadTemplate(false)
   }
 
+  const seg = (active) => `px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${active ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`
+  const ghostBtn = 'flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50'
+  const fieldLabel = 'text-[10px] font-semibold uppercase tracking-wider text-gray-400 block mb-1'
+  const fieldInput = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)]'
+
   return (
     <div className="p-4 sm:p-6 flex flex-col lg:flex-row gap-5 h-full min-h-screen">
       {/* Left: Catalog picker */}
@@ -182,7 +187,7 @@ export default function BuildQuote() {
         <div className="relative">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
-            className="w-full pl-7 pr-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+            className="w-full pl-7 pr-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)]"
             placeholder="Search..."
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -191,7 +196,7 @@ export default function BuildQuote() {
         <div className="flex flex-wrap gap-1">
           {cats.map(c => (
             <button key={c} onClick={() => setCatFilter(c)}
-              className={`px-2 py-0.5 rounded text-xs font-medium ${catFilter === c ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+              className={`px-2 py-0.5 rounded text-xs font-medium ${catFilter === c ? 'bg-[var(--brand-600)] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
               {c}
             </button>
           ))}
@@ -199,8 +204,8 @@ export default function BuildQuote() {
         <div className="flex-1 overflow-y-auto space-y-1 max-h-[calc(100vh-220px)]">
           {filtered.map(item => (
             <button key={item.id} onClick={() => addItem(item)}
-              className="w-full text-left px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors group">
-              <p className="text-xs font-medium text-gray-800 group-hover:text-blue-700 leading-tight">{item.name}</p>
+              className="w-full text-left px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-[var(--brand-400)] hover:bg-[var(--brand-50)] transition-colors group">
+              <p className="text-xs font-medium text-gray-800 group-hover:text-[var(--brand-700)] leading-tight">{item.name}</p>
               <p className="text-xs text-gray-400 mt-0.5">${item.unitPrice}/{item.unit}</p>
             </button>
           ))}
@@ -216,224 +221,232 @@ export default function BuildQuote() {
             <button onClick={() => setRevisingParentId(null)} className="ml-auto text-amber-400 hover:text-amber-700"><X size={13} /></button>
           </div>
         )}
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <h2 className="text-2xl font-bold text-gray-900">Build Quote</h2>
-          <div className="flex items-center gap-3">
-            {/* Item breakdown toggle */}
-            <button
-              onClick={() => setShowBreakdown(v => !v)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${
-                showBreakdown
-                  ? 'bg-gray-100 border-gray-300 text-gray-800'
-                  : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
-              }`}
-            >
-              <span className={`relative w-8 h-4 rounded-full transition-colors shrink-0 ${showBreakdown ? 'bg-gray-700' : 'bg-gray-300'}`}>
-                <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform ${showBreakdown ? 'translate-x-4' : 'translate-x-0.5'}`} />
-              </span>
-              {showBreakdown ? 'Scope Visible' : 'Scope Hidden'}
-            </button>
-            {/* Summed / A La Carte toggle */}
-            <button
-              onClick={() => setIsAlaCarte(v => !v)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${
-                isAlaCarte
-                  ? 'bg-gray-100 border-gray-300 text-gray-800'
-                  : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              <span className={`relative w-8 h-4 rounded-full transition-colors shrink-0 ${isAlaCarte ? 'bg-gray-700' : 'bg-gray-300'}`}>
-                <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform ${isAlaCarte ? 'translate-x-4' : 'translate-x-0.5'}`} />
-              </span>
-              {isAlaCarte ? 'A La Carte' : 'Summed Total'}
-            </button>
-            {/* Template buttons */}
-            {templates.length > 0 && (
-              <button
-                onClick={() => setShowLoadTemplate(true)}
-                className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
-              >
-                <BookTemplate size={14} /> Load Template
-              </button>
-            )}
-            {lines.length > 0 && (
-              <button
-                onClick={() => { setTemplateName(''); setTemplateDesc(''); setShowSaveTemplate(true) }}
-                className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
-              >
-                <Save size={14} /> Save as Template
-              </button>
-            )}
-            <button
-              onClick={goToProposal}
-              disabled={!lines.length}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Preview Proposal →
-            </button>
+
+        {/* Header — single primary action */}
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Build Quote</h2>
+            <p className="text-sm text-gray-500 mt-0.5">Assemble line items and customer details, then preview the client-ready proposal.</p>
           </div>
+          <button
+            onClick={goToProposal}
+            disabled={!lines.length}
+            className="px-4 py-2 bg-[var(--brand-600)] text-white rounded-lg text-sm font-medium hover:bg-[var(--brand-700)] disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+          >
+            Preview Proposal →
+          </button>
+        </div>
+
+        {/* Controls toolbar — demoted mode toggles + ghost template actions */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Scope segmented control */}
+          <div className="flex items-center rounded-lg border border-gray-200 bg-gray-50 p-0.5">
+            <button onClick={() => setShowBreakdown(true)} className={seg(showBreakdown)}>Scope shown</button>
+            <button onClick={() => setShowBreakdown(false)} className={seg(!showBreakdown)}>Scope hidden</button>
+          </div>
+          {/* Pricing segmented control */}
+          <div className="flex items-center rounded-lg border border-gray-200 bg-gray-50 p-0.5">
+            <button onClick={() => setIsAlaCarte(false)} className={seg(!isAlaCarte)}>Summed total</button>
+            <button onClick={() => setIsAlaCarte(true)} className={seg(isAlaCarte)}>À la carte</button>
+          </div>
+          <div className="flex-1" />
+          {templates.length > 0 && (
+            <button onClick={() => setShowLoadTemplate(true)} className={ghostBtn}>
+              <BookTemplate size={14} /> Load Template
+            </button>
+          )}
+          {lines.length > 0 && (
+            <button onClick={() => { setTemplateName(''); setTemplateDesc(''); setShowSaveTemplate(true) }} className={ghostBtn}>
+              <Save size={14} /> Save as Template
+            </button>
+          )}
         </div>
 
         {/* Customer info */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Customer Info</p>
-          <div className="grid grid-cols-2 gap-3">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+          <div className="px-5 py-3.5 border-b border-gray-100">
+            <h3 className="text-sm font-semibold text-gray-800">Customer Info</h3>
+          </div>
+          <div className="p-5 space-y-5">
+            {/* Contact sub-section */}
             <div>
-              <label className="text-xs font-medium text-gray-500 block mb-1">Customer Name</label>
-              <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="John Smith" value={client} onChange={e => setClient(e.target.value)} />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-gray-500 block mb-1">Project Address</label>
-              <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="123 Main St" value={address} onChange={e => setAddress(e.target.value)} />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-gray-500 block mb-1">Email Address</label>
-              <input type="email" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="john@example.com" value={email} onChange={e => setEmail(e.target.value)} />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-gray-500 block mb-1">Phone Number</label>
-              <input type="tel" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="(555) 000-0000" value={phone} onChange={e => setPhone(e.target.value)} />
-            </div>
-            <div className="col-span-2 sm:col-span-1">
-              <label className="text-xs font-medium text-gray-500 block mb-1">Quote Expiration Date</label>
-              <input type="date" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" value={expiration} onChange={e => setExpiration(e.target.value)} />
-            </div>
-            <div className="col-span-2">
-              <label className="text-xs font-medium text-gray-500 block mb-1">Project Type <span className="text-gray-400">(multi-select — used on contract)</span></label>
-              <div className="flex flex-wrap gap-1.5">
-                {PROJECT_TYPE_OPTIONS.map(t => (
-                  <button key={t} type="button" onClick={() => toggleProjectType(t)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                      projectTypes.includes(t)
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'
-                    }`}>
-                    {t}
-                  </button>
-                ))}
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Contact</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className={fieldLabel}>Customer Name</label>
+                  <input className={fieldInput} placeholder="John Smith" value={client} onChange={e => setClient(e.target.value)} />
+                </div>
+                <div>
+                  <label className={fieldLabel}>Email Address</label>
+                  <input type="email" className={fieldInput} placeholder="john@example.com" value={email} onChange={e => setEmail(e.target.value)} />
+                </div>
+                <div>
+                  <label className={fieldLabel}>Phone Number</label>
+                  <input type="tel" className={fieldInput} placeholder="(555) 000-0000" value={phone} onChange={e => setPhone(e.target.value)} />
+                </div>
               </div>
             </div>
-            <div className="col-span-2">
-              <label className="text-xs font-medium text-gray-500 block mb-1">Project Summary <span className="text-gray-400">(optional — appears on scope of work)</span></label>
-              <textarea rows={2} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none" placeholder="e.g. 16'x16' Gable Roof Eze-Breeze Porch with vaulted ceilings…" value={projectSummary} onChange={e => setProjectSummary(e.target.value)} />
+
+            {/* Hairline divider */}
+            <div className="border-t border-gray-100" />
+
+            {/* Project sub-section */}
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Project</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2 sm:col-span-1">
+                  <label className={fieldLabel}>Project Address</label>
+                  <input className={fieldInput} placeholder="123 Main St" value={address} onChange={e => setAddress(e.target.value)} />
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <label className={fieldLabel}>Quote Expiration Date</label>
+                  <input type="date" className={fieldInput} value={expiration} onChange={e => setExpiration(e.target.value)} />
+                </div>
+                <div className="col-span-2">
+                  <label className={fieldLabel}>Project Type <span className="normal-case text-gray-400 font-normal">(multi-select — used on contract)</span></label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {PROJECT_TYPE_OPTIONS.map(t => (
+                      <button key={t} type="button" onClick={() => toggleProjectType(t)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                          projectTypes.includes(t)
+                            ? 'bg-[var(--brand-600)] text-white border-[var(--brand-600)]'
+                            : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-[var(--brand-400)]'
+                        }`}>
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="col-span-2">
+                  <label className={fieldLabel}>Project Summary <span className="normal-case text-gray-400 font-normal">(optional — appears on scope of work)</span></label>
+                  <textarea rows={2} className={`${fieldInput} resize-none`} placeholder="e.g. 16'x16' Gable Roof Eze-Breeze Porch with vaulted ceilings…" value={projectSummary} onChange={e => setProjectSummary(e.target.value)} />
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Lines */}
-        <div className="bg-white rounded-xl border border-gray-200 flex-1">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-100">
-                <tr>
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase w-8">#</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Item / Scope</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase w-20">Qty</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase w-20">Unit</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase w-28">Unit Price</th>
-                  <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase w-28">Line Total</th>
-                  <th className="px-4 py-2.5 w-10"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {lines.map((line, idx) => (
-                  <tr key={line.id} className="hover:bg-gray-50 align-top">
-                    <td className="px-4 pt-3">
-                      <div className="flex flex-col gap-0.5">
-                        <button onClick={() => moveUp(idx)} disabled={idx === 0} className="text-gray-300 hover:text-gray-500 disabled:opacity-20"><ChevronUp size={12} /></button>
-                        <button onClick={() => moveDown(idx)} disabled={idx === lines.length - 1} className="text-gray-300 hover:text-gray-500 disabled:opacity-20"><ChevronDown size={12} /></button>
-                      </div>
-                    </td>
-                    <td className="px-4 py-2">
-                      <input
-                        className="w-full border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none text-sm font-medium text-gray-800"
-                        value={line.name}
-                        onChange={e => updateLine(line.id, 'name', e.target.value)}
-                        placeholder="Item name"
-                      />
-                      <textarea
-                        rows={2}
-                        className="w-full border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none text-xs text-gray-400 italic mt-0.5 resize-none"
-                        value={line.description || ''}
-                        onChange={e => updateLine(line.id, 'description', e.target.value)}
-                        placeholder="Scope detail (prints on proposal)..."
-                      />
-                    </td>
-                    <td className="px-4 pt-3">
+        {/* Line items */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex-1 flex flex-col">
+          <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-800">Line Items</h3>
+            <span className="text-xs text-gray-400">{lines.length} line{lines.length !== 1 ? 's' : ''}</span>
+          </div>
+
+          <div className="divide-y divide-gray-100">
+            {lines.map((line, idx) => (
+              <div key={line.id} className="px-5 py-4 hover:bg-gray-50/60 transition-colors">
+                <div className="flex items-end gap-3 flex-wrap">
+                  {/* Reorder */}
+                  <div className="flex flex-col gap-0.5 pb-1.5">
+                    <button onClick={() => moveUp(idx)} disabled={idx === 0} className="text-gray-300 hover:text-gray-500 disabled:opacity-20"><ChevronUp size={14} /></button>
+                    <button onClick={() => moveDown(idx)} disabled={idx === lines.length - 1} className="text-gray-300 hover:text-gray-500 disabled:opacity-20"><ChevronDown size={14} /></button>
+                  </div>
+                  {/* Name */}
+                  <div className="flex-1 min-w-[160px]">
+                    <label className={fieldLabel}>Item / Scope</label>
+                    <input
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)]"
+                      value={line.name}
+                      onChange={e => updateLine(line.id, 'name', e.target.value)}
+                      placeholder="Item name"
+                    />
+                  </div>
+                  {/* Qty */}
+                  <div className="w-16">
+                    <label className={fieldLabel}>Qty</label>
+                    <input type="number" min="0"
+                      className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)]"
+                      value={line.qty} onChange={e => updateLine(line.id, 'qty', e.target.value)} />
+                  </div>
+                  {/* Unit */}
+                  <div className="w-20">
+                    <label className={fieldLabel}>Unit</label>
+                    <select
+                      className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)]"
+                      value={line.unit} onChange={e => updateLine(line.id, 'unit', e.target.value)}>
+                      {['LF','SF','EA','LS'].map(u => <option key={u}>{u}</option>)}
+                    </select>
+                  </div>
+                  {/* Unit price */}
+                  <div className="w-28">
+                    <label className={fieldLabel}>Unit Price</label>
+                    <div className="flex items-center border border-gray-200 rounded-lg px-2 py-2 focus-within:ring-2 focus-within:ring-[var(--brand-300)]">
+                      <span className="text-gray-400 text-sm">$</span>
                       <input type="number" min="0"
-                        className="w-full border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none text-sm text-center"
-                        value={line.qty} onChange={e => updateLine(line.id, 'qty', e.target.value)} />
-                    </td>
-                    <td className="px-4 pt-3">
-                      <select
-                        className="text-sm border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none"
-                        value={line.unit} onChange={e => updateLine(line.id, 'unit', e.target.value)}>
-                        {['LF','SF','EA','LS'].map(u => <option key={u}>{u}</option>)}
-                      </select>
-                    </td>
-                    <td className="px-4 pt-3">
-                      <div className="flex items-center gap-0.5">
-                        <span className="text-gray-400 text-sm">$</span>
-                        <input type="number" min="0"
-                          className="w-full border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none text-sm"
-                          value={line.unitPrice} onChange={e => updateLine(line.id, 'unitPrice', e.target.value)} />
-                      </div>
-                    </td>
-                    <td className="px-4 pt-3 text-right font-medium text-gray-800 whitespace-nowrap">
+                        className="w-full text-sm focus:outline-none bg-transparent"
+                        value={line.unitPrice} onChange={e => updateLine(line.id, 'unitPrice', e.target.value)} />
+                    </div>
+                  </div>
+                  {/* Line total */}
+                  <div className="w-24 text-right">
+                    <label className={fieldLabel}>Line Total</label>
+                    <p className="text-sm font-semibold text-gray-800 py-2 whitespace-nowrap">
                       ${(line.qty * line.unitPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </td>
-                    <td className="px-2 pt-2.5">
-                      <div className="flex flex-col gap-1">
-                        {line.catalogId === null && !savedToLog.has(line.id) && line.name?.trim() && (
-                          <button
-                            title="Save to catalog"
-                            onClick={() => {
-                              addCatalogItems([{
-                                name: line.name.trim(),
-                                description: line.description || '',
-                                unit: line.unit || 'EA',
-                                unitPrice: Number(line.unitPrice) || 0,
-                                category: line.category || 'General',
-                                section: line.section || '',
-                              }])
-                              setSavedToLog(prev => new Set([...prev, line.id]))
-                            }}
-                            className="p-1 rounded text-gray-300 hover:text-blue-500 hover:bg-blue-50"
-                          >
-                            <BookPlus size={13} />
-                          </button>
-                        )}
-                        {savedToLog.has(line.id) && (
-                          <span className="p-1 text-green-500"><Check size={13} /></span>
-                        )}
-                        <button onClick={() => removeLine(line.id)} className="p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50">
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </p>
+                  </div>
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 pb-1.5">
+                    {line.catalogId === null && !savedToLog.has(line.id) && line.name?.trim() && (
+                      <button
+                        title="Save to catalog"
+                        onClick={() => {
+                          addCatalogItems([{
+                            name: line.name.trim(),
+                            description: line.description || '',
+                            unit: line.unit || 'EA',
+                            unitPrice: Number(line.unitPrice) || 0,
+                            category: line.category || 'General',
+                            section: line.section || '',
+                          }])
+                          setSavedToLog(prev => new Set([...prev, line.id]))
+                        }}
+                        className="p-1.5 rounded-lg text-gray-300 hover:text-[var(--brand-600)] hover:bg-[var(--brand-50)]"
+                      >
+                        <BookPlus size={15} />
+                      </button>
+                    )}
+                    {savedToLog.has(line.id) && (
+                      <span className="p-1.5 text-green-500" title="Saved to catalog"><Check size={15} /></span>
+                    )}
+                    <button onClick={() => removeLine(line.id)} title="Remove line" className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50">
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Description — always visible & editable */}
+                <div className="mt-3 pl-8">
+                  <label className={fieldLabel}>Description — shown on the proposal</label>
+                  <textarea
+                    rows={2}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)] resize-y"
+                    value={line.description || ''}
+                    onChange={e => updateLine(line.id, 'description', e.target.value)}
+                    placeholder="Scope detail that prints on the client proposal…"
+                  />
+                </div>
+              </div>
+            ))}
           </div>
 
           {lines.length === 0 && (
             <div className="text-center py-12 text-gray-400">
               <p className="text-sm">Click items from the catalog on the left to add them.</p>
               {templates.length > 0 && (
-                <button onClick={() => setShowLoadTemplate(true)} className="mt-2 text-sm text-blue-500 hover:underline">
+                <button onClick={() => setShowLoadTemplate(true)} className="mt-2 text-sm text-[var(--brand-600)] hover:underline">
                   Or load a saved template →
                 </button>
               )}
             </div>
           )}
 
-          <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
-            <button onClick={addBlankLine} className="flex items-center gap-1.5 text-sm text-blue-600 hover:underline">
-              <Plus size={14} /> Add blank line
+          <div className="px-5 py-3.5 border-t border-gray-100 flex items-center justify-between mt-auto">
+            <button onClick={addBlankLine} className="flex items-center gap-1.5 text-sm font-medium text-[var(--brand-600)] hover:underline">
+              <Plus size={14} /> Add line item
             </button>
             <div className="text-right">
-              <p className="text-xs text-gray-500 mb-0.5">{lines.length} line{lines.length !== 1 ? 's' : ''}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Subtotal</p>
               <p className="text-lg font-bold text-gray-900">
                 ${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
@@ -484,7 +497,7 @@ export default function BuildQuote() {
               <div>
                 <label className="text-xs font-medium text-gray-500 block mb-1">Template Name</label>
                 <input
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)]"
                   placeholder="e.g. Standard 6ft Cedar Fence"
                   value={templateName}
                   onChange={e => setTemplateName(e.target.value)}
@@ -494,7 +507,7 @@ export default function BuildQuote() {
               <div>
                 <label className="text-xs font-medium text-gray-500 block mb-1">Description (optional)</label>
                 <input
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)]"
                   placeholder="e.g. Typical residential privacy fence job"
                   value={templateDesc}
                   onChange={e => setTemplateDesc(e.target.value)}
@@ -507,7 +520,7 @@ export default function BuildQuote() {
               <button
                 onClick={handleSaveTemplate}
                 disabled={!templateName.trim()}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                className="px-4 py-2 bg-[var(--brand-600)] text-white rounded-lg text-sm font-medium hover:bg-[var(--brand-700)] disabled:opacity-50"
               >
                 Save Template
               </button>
@@ -529,16 +542,16 @@ export default function BuildQuote() {
             <p className="text-xs text-gray-500 mb-3">Loading a template will replace your current line items.</p>
             <div className="space-y-2 max-h-72 overflow-y-auto">
               {templates.map(t => (
-                <div key={t.id} className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 group transition-colors">
+                <div key={t.id} className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg hover:border-[var(--brand-400)] hover:bg-[var(--brand-50)] group transition-colors">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-800 group-hover:text-blue-700">{t.name}</p>
+                    <p className="text-sm font-medium text-gray-800 group-hover:text-[var(--brand-700)]">{t.name}</p>
                     {t.description && <p className="text-xs text-gray-400 mt-0.5">{t.description}</p>}
                     <p className="text-xs text-gray-300 mt-0.5">{t.lines.length} items · saved {new Date(t.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
                   </div>
                   <div className="flex gap-1 shrink-0">
                     <button
                       onClick={() => handleLoadTemplate(t)}
-                      className="px-2.5 py-1 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700"
+                      className="px-2.5 py-1 bg-[var(--brand-600)] text-white rounded-lg text-xs font-medium hover:bg-[var(--brand-700)]"
                     >
                       Load
                     </button>

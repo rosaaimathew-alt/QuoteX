@@ -502,8 +502,8 @@ export default function Settings() {
         {/* Left: form */}
         <div className="flex-1 min-w-80 space-y-5">
 
-          {/* Email connection — available to all tiers (needed to send proposals) */}
-          <EmailConnectCard />
+          {/* ── Branding ───────────────────────────────────────────── */}
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Branding</h3>
 
           {/* Company identity */}
           {canBrand && (
@@ -587,54 +587,6 @@ export default function Settings() {
           </div>
           )}
 
-          {/* Role / view */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <div className="flex items-center gap-2 mb-1">
-              <Building2 size={16} className="text-gray-400" />
-              <h3 className="font-semibold text-gray-800 text-sm">Role &amp; View</h3>
-            </div>
-            <p className="text-xs text-gray-400 mb-4">Switches the whole app between the Sales, Project Manager, and Manager experiences.</p>
-            <div className="grid grid-cols-3 gap-2">
-              {ROLE_ORDER.map(key => {
-                const active = role === key
-                return (
-                  <button
-                    key={key}
-                    onClick={() => setRole(key)}
-                    className={`text-left rounded-lg border p-3 transition-colors ${active ? 'border-[var(--brand-500)] bg-[var(--brand-50)]' : 'border-gray-200 hover:border-gray-300'}`}
-                  >
-                    <p className={`text-sm font-semibold ${active ? 'text-[var(--brand-700)]' : 'text-gray-700'}`}>{ROLE_META[key].label}</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5 leading-snug">{ROLE_META[key].blurb}</p>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Plan / subscription tier */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <div className="flex items-center gap-2 mb-1">
-              <Sparkles size={16} className="text-gray-400" />
-              <h3 className="font-semibold text-gray-800 text-sm">Subscription Plan</h3>
-            </div>
-            <p className="text-xs text-gray-400 mb-4">Controls which sections and customization this account can access.</p>
-            <div className="grid grid-cols-3 gap-2">
-              {PLAN_ORDER.map(key => {
-                const active = plan === key
-                return (
-                  <button
-                    key={key}
-                    onClick={() => setPlan(key)}
-                    className={`text-left rounded-lg border p-3 transition-colors ${active ? 'border-[var(--brand-500)] bg-[var(--brand-50)]' : 'border-gray-200 hover:border-gray-300'}`}
-                  >
-                    <p className={`text-sm font-semibold ${active ? 'text-[var(--brand-700)]' : 'text-gray-700'}`}>{PLAN_META[key].label}</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5 leading-snug">{PLAN_META[key].blurb}</p>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
           {/* Theme customizer — Pro & Enterprise only */}
           {canBrand ? (
             <div className="bg-white rounded-xl border border-gray-200 p-5">
@@ -714,6 +666,64 @@ export default function Settings() {
             </button>
           </div>
           )}
+
+          {/* ── Workspace ──────────────────────────────────────────── */}
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 pt-4 border-t border-gray-100">Workspace</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Role / view */}
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <div className="flex items-center gap-2 mb-1">
+                <Building2 size={16} className="text-gray-400" />
+                <h3 className="font-semibold text-gray-800 text-sm">Role &amp; View</h3>
+              </div>
+              <p className="text-xs text-gray-400 mb-4">Switches the whole app between the Sales, Project Manager, and Manager experiences.</p>
+              <div className="grid grid-cols-3 gap-2">
+                {ROLE_ORDER.map(key => {
+                  const active = role === key
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setRole(key)}
+                      className={`text-left rounded-lg border p-3 transition-colors ${active ? 'border-[var(--brand-500)] bg-[var(--brand-50)]' : 'border-gray-200 hover:border-gray-300'}`}
+                    >
+                      <p className={`text-sm font-semibold ${active ? 'text-[var(--brand-700)]' : 'text-gray-700'}`}>{ROLE_META[key].label}</p>
+                      <p className="text-[11px] text-gray-400 mt-0.5 leading-snug">{ROLE_META[key].blurb}</p>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Plan / subscription tier */}
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <div className="flex items-center gap-2 mb-1">
+                <Sparkles size={16} className="text-gray-400" />
+                <h3 className="font-semibold text-gray-800 text-sm">Subscription Plan</h3>
+              </div>
+              <p className="text-xs text-gray-400 mb-4">Controls which sections and customization this account can access.</p>
+              <div className="grid grid-cols-3 gap-2">
+                {PLAN_ORDER.map(key => {
+                  const active = plan === key
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setPlan(key)}
+                      className={`text-left rounded-lg border p-3 transition-colors ${active ? 'border-[var(--brand-500)] bg-[var(--brand-50)]' : 'border-gray-200 hover:border-gray-300'}`}
+                    >
+                      <p className={`text-sm font-semibold ${active ? 'text-[var(--brand-700)]' : 'text-gray-700'}`}>{PLAN_META[key].label}</p>
+                      <p className="text-[11px] text-gray-400 mt-0.5 leading-snug">{PLAN_META[key].blurb}</p>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Connections & Data ─────────────────────────────────── */}
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 pt-4 border-t border-gray-100">Connections &amp; Data</h3>
+
+          {/* Email connection — available to all tiers (needed to send proposals) */}
+          <EmailConnectCard />
 
           {/* Data backup / restore */}
           <DataManagement />

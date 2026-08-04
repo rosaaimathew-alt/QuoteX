@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store'
 import { wonRevenueOf } from '../contractTotal'
 import {
-  Users, ChevronDown, ChevronRight, Phone, Mail, MapPin,
+  Users, Search, ChevronDown, ChevronRight, Phone, Mail, MapPin,
   FileText, DollarSign, Calendar, Plus,
 } from 'lucide-react'
 
@@ -94,7 +94,7 @@ export default function ClientList() {
 
       {/* Search */}
       <div className="relative mb-5">
-        <Users size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <input
           className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 bg-white"
           style={{ '--tw-ring-color': 'var(--brand-300)' }}
@@ -119,7 +119,7 @@ export default function ClientList() {
             const latest     = client.proposals[client.proposals.length - 1]
 
             return (
-              <div key={client.name} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div key={client.name} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                 {/* Client row */}
                 <button
                   onClick={() => toggle(client.name)}
@@ -138,16 +138,18 @@ export default function ClientList() {
                         {status}
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                      {client.email && <span className="text-xs text-gray-400 flex items-center gap-1"><Mail size={10} />{client.email}</span>}
-                      {client.phone && <span className="text-xs text-gray-400 flex items-center gap-1"><Phone size={10} />{client.phone}</span>}
-                      {client.address && <span className="text-xs text-gray-400 flex items-center gap-1 truncate max-w-48"><MapPin size={10} />{client.address}</span>}
+                    <div className="mt-0.5">
+                      {client.email
+                        ? <span className="text-xs text-gray-400 flex items-center gap-1 truncate"><Mail size={10} className="shrink-0" /><span className="truncate">{client.email}</span></span>
+                        : client.phone
+                        ? <span className="text-xs text-gray-400 flex items-center gap-1 truncate"><Phone size={10} className="shrink-0" /><span className="truncate">{client.phone}</span></span>
+                        : <span className="text-xs text-gray-300">No contact info</span>}
                     </div>
                   </div>
 
                   <div className="text-right shrink-0 hidden sm:block">
-                    <p className="text-sm font-bold text-gray-900">${fmt(wonValue > 0 ? wonValue : totalValue)}</p>
-                    <p className="text-xs text-gray-400">{wonValue > 0 ? 'won' : 'pipeline'}</p>
+                    <p className={`text-sm font-bold ${wonValue > 0 ? 'text-green-600' : 'text-gray-700'}`}>${fmt(wonValue > 0 ? wonValue : totalValue)}</p>
+                    <p className={`text-xs ${wonValue > 0 ? 'text-green-600/70' : 'text-gray-400'}`}>{wonValue > 0 ? 'won' : 'pipeline'}</p>
                   </div>
 
                   <div className="text-right shrink-0">
@@ -167,6 +169,14 @@ export default function ClientList() {
                 {/* Proposal list */}
                 {isOpen && (
                   <div className="border-t border-gray-100">
+                    {/* Full contact — collapsed row shows only one line, all chips revealed here */}
+                    {(client.email || client.phone || client.address) && (
+                      <div className="flex flex-wrap gap-x-4 gap-y-1.5 px-5 py-3 bg-gray-50/60 border-b border-gray-100">
+                        {client.email && <span className="text-xs text-gray-500 flex items-center gap-1.5"><Mail size={11} className="text-gray-400" />{client.email}</span>}
+                        {client.phone && <span className="text-xs text-gray-500 flex items-center gap-1.5"><Phone size={11} className="text-gray-400" />{client.phone}</span>}
+                        {client.address && <span className="text-xs text-gray-500 flex items-center gap-1.5"><MapPin size={11} className="text-gray-400" />{client.address}</span>}
+                      </div>
+                    )}
                     <table className="w-full text-sm">
                       <thead className="bg-gray-50">
                         <tr>

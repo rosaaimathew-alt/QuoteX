@@ -31,7 +31,7 @@ function SubForm({ initial = {}, onSave, onCancel }) {
   const f = (k) => (e) => setForm(s => ({ ...s, [k]: e.target.value }))
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+    <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5 space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">Name / Company</label>
@@ -94,12 +94,12 @@ function SubCard({ sub }) {
   )
 
   return (
-    <div className="bg-white border border-gray-100 rounded-xl p-4 hover:border-gray-200 transition-colors">
+    <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5 hover:border-gray-300 transition-colors">
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-gray-900 text-sm">{sub.name}</p>
           {sub.trade && (
-            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">{sub.trade}</span>
+            <span className="inline-block mt-1 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">{sub.trade}</span>
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
@@ -113,9 +113,9 @@ function SubCard({ sub }) {
         </div>
       </div>
 
-      {sub.rating > 0 && <StarRating value={sub.rating} onChange={() => {}} />}
+      {sub.rating > 0 && <div className="mt-1"><StarRating value={sub.rating} onChange={() => {}} /></div>}
 
-      <div className="mt-2 space-y-1">
+      <div className="mt-3 space-y-1.5">
         {sub.phone && (
           <a href={`tel:${sub.phone}`} className="flex items-center gap-2 text-xs text-gray-600 hover:text-blue-600 transition-colors">
             <Phone size={11} className="shrink-0" /> {sub.phone}
@@ -151,10 +151,10 @@ export default function Subcontractors() {
 
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-5 gap-3">
+      <div className="flex items-center justify-between mb-6 gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Subcontractors</h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">{subcontractors.length} subs in directory</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">{subcontractors.length} subs in directory</p>
         </div>
         <button onClick={() => setAdding(true)}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
@@ -194,7 +194,7 @@ export default function Subcontractors() {
       )}
 
       {subcontractors.length === 0 && !adding && (
-        <div className="bg-white rounded-2xl border border-gray-100 py-16 text-center">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm py-16 text-center">
           <Wrench size={36} className="text-gray-200 mx-auto mb-3" />
           <p className="text-gray-500 font-medium">No subcontractors yet</p>
           <p className="text-sm text-gray-400 mt-1">Add your electricians, concrete crews, and other subs.</p>
@@ -205,7 +205,7 @@ export default function Subcontractors() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {filtered.map(sub => <SubCard key={sub.id} sub={sub} />)}
       </div>
     </div>

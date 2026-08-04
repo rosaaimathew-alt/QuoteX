@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store'
 import { contractTotalOf } from '../contractTotal'
-import { ChevronLeft, ChevronRight, CalendarDays, MapPin, DollarSign } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CalendarDays, MapPin, DollarSign, HardHat } from 'lucide-react'
 
 const fmt = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 
@@ -89,7 +89,7 @@ export default function Scheduler() {
 
   const selectedJobs = selected ? (dayJobs[selected] || []) : []
 
-  // Jobs with no dates — show in sidebar
+  // Jobs with no dates — actionable strip
   const noDateJobs = proposals.filter(p =>
     p.status === 'Won' &&
     !(p.jobData?.completedStages || []).includes('closed') &&
@@ -98,19 +98,34 @@ export default function Scheduler() {
 
   return (
     <div className="p-4 sm:p-6 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Job Scheduler</h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-            Set start &amp; target dates in Job Management to plot jobs here
-          </p>
-        </div>
+      <div className="mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Job Scheduler</h1>
+        <p className="text-xs sm:text-sm text-gray-500 mt-1">
+          Set start &amp; target dates in Job Management to plot jobs here
+        </p>
       </div>
+
+      {/* Unscheduled jobs strip — actionable */}
+      {noDateJobs.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-5">
+          <p className="text-xs font-semibold text-amber-800 mb-2">Jobs needing a date ({noDateJobs.length}) — add dates in Job Management</p>
+          <div className="flex gap-2 flex-wrap">
+            {noDateJobs.map(job => (
+              <button key={job.id} onClick={() => navigate('/jobs')}
+                className="flex items-center gap-1.5 text-xs bg-white border border-amber-200 rounded-lg px-2.5 py-1.5 hover:border-amber-400 transition-colors">
+                <HardHat size={12} className="text-[var(--brand-600)]" />
+                <span className="font-medium text-gray-800">{job.client}</span>
+                <span className="text-gray-400">${fmt(contractTotalOf(job))}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
 
         {/* Calendar */}
-        <div className="lg:col-span-3 bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="lg:col-span-3 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           {/* Month nav */}
           <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
             <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors">
@@ -129,14 +144,14 @@ export default function Scheduler() {
           {/* Day headers */}
           <div className="grid grid-cols-7 border-b border-gray-100">
             {DAY_NAMES.map(d => (
-              <div key={d} className="py-2 text-center text-xs font-semibold text-gray-400">{d}</div>
+              <div key={d} className="py-2 text-center text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{d}</div>
             ))}
           </div>
 
           {/* Calendar grid */}
           <div className="grid grid-cols-7">
             {cells.map((date, i) => {
-              if (!date) return <div key={`empty-${i}`} className="min-h-[64px] bg-gray-50/50 border-r border-b border-gray-50" />
+              if (!date) return <div key={`empty-${i}`} className="min-h-[88px] bg-gray-50/60 border-r border-b border-gray-50" />
               const key       = toKey(date)
               const jobs      = dayJobs[key] || []
               const isToday   = key === todayKey
@@ -145,24 +160,25 @@ export default function Scheduler() {
                 <div
                   key={key}
                   onClick={() => setSelected(isSelected ? null : key)}
-                  className={`min-h-[64px] p-1 border-r border-b border-gray-50 cursor-pointer transition-colors ${
-                    isSelected ? 'bg-blue-50' : isToday ? 'bg-amber-50' : 'hover:bg-gray-50'
+                  className={`min-h-[88px] p-1.5 border-r border-b border-gray-50 cursor-pointer transition-colors ${
+                    isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'
                   }`}
                 >
-                  <p className={`text-xs font-semibold mb-0.5 w-6 h-6 flex items-center justify-center rounded-full ${
-                    isToday ? 'bg-blue-600 text-white' : 'text-gray-500'
+                  <span className={`text-xs font-medium mb-1 w-6 h-6 flex items-center justify-center rounded-full ${
+                    isToday ? 'bg-blue-600 text-white' : 'text-gray-600'
                   }`}>
                     {date.getDate()}
-                  </p>
-                  <div className="space-y-0.5">
+                  </span>
+                  <div className="space-y-0.5 mt-0.5">
                     {jobs.slice(0, 2).map(job => (
                       <div key={job.id}
-                        className={`text-white text-[9px] font-medium px-1 py-0.5 rounded truncate ${colorMap[job.id]}`}>
-                        {job.client.split(' ')[0]}
+                        className="flex items-center gap-1 text-[10px] font-medium px-1 py-0.5 rounded bg-gray-100 text-gray-700">
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${colorMap[job.id]}`} />
+                        <span className="truncate">{job.client.split(' ')[0]}</span>
                       </div>
                     ))}
                     {jobs.length > 2 && (
-                      <p className="text-[9px] text-gray-400 pl-0.5">+{jobs.length - 2}</p>
+                      <p className="text-[10px] text-gray-400 pl-0.5">+{jobs.length - 2} more</p>
                     )}
                   </div>
                 </div>
@@ -171,11 +187,10 @@ export default function Scheduler() {
           </div>
         </div>
 
-        {/* Sidebar */}
+        {/* Quiet right rail — selected day */}
         <div className="space-y-4">
-          {/* Selected day detail */}
-          {selected && (
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
+          {selected ? (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
                 {new Date(selected + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
               </p>
@@ -186,15 +201,17 @@ export default function Scheduler() {
                   {selectedJobs.map(job => (
                     <div key={job.id}
                       onClick={() => navigate('/jobs')}
-                      className="cursor-pointer hover:bg-gray-50 -mx-1 px-1 rounded-lg transition-colors">
-                      <div className="w-full h-1 rounded-full mb-1.5 bg-gray-200" />
-                      <p className="text-sm font-semibold text-gray-900">{job.client}</p>
+                      className="cursor-pointer hover:bg-gray-50 -mx-1 px-1 py-1 rounded-lg transition-colors">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${colorMap[job.id]}`} />
+                        <p className="text-sm font-semibold text-gray-900 truncate">{job.client}</p>
+                      </div>
                       {job.address && (
-                        <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                        <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
                           <MapPin size={10} /> {job.address}
                         </p>
                       )}
-                      <p className="text-xs text-gray-500 flex items-center gap-1">
+                      <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
                         <DollarSign size={10} /> ${fmt(contractTotalOf(job))}
                       </p>
                       {job.jobData?.startDate && (
@@ -207,45 +224,14 @@ export default function Scheduler() {
                 </div>
               )}
             </div>
-          )}
-
-          {/* Jobs with no dates */}
-          {noDateJobs.length > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-              <p className="text-xs font-semibold text-amber-700 mb-2">No dates set ({noDateJobs.length})</p>
-              <div className="space-y-2">
-                {noDateJobs.map(job => (
-                  <div key={job.id} onClick={() => navigate('/jobs')}
-                    className="cursor-pointer">
-                    <p className="text-xs font-medium text-gray-800 hover:text-blue-600 transition-colors">{job.client}</p>
-                    <p className="text-xs text-gray-400">${fmt(contractTotalOf(job))}</p>
-                  </div>
-                ))}
-              </div>
-              <button onClick={() => navigate('/jobs')}
-                className="mt-2 text-xs text-amber-700 hover:underline font-medium">
-                Add dates in Job Management →
-              </button>
-            </div>
-          )}
-
-          {/* Legend */}
-          {wonJobs.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Active Jobs</p>
-              <div className="space-y-2">
-                {wonJobs.map(job => (
-                  <div key={job.id} className="flex items-center gap-2">
-                    <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${colorMap[job.id]}`} />
-                    <span className="text-xs text-gray-700 truncate">{job.client}</span>
-                  </div>
-                ))}
-              </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+              <p className="text-xs text-gray-400">Select a day to see scheduled jobs.</p>
             </div>
           )}
 
           {wonJobs.length === 0 && !noDateJobs.length && (
-            <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 text-center">
               <CalendarDays size={28} className="text-gray-200 mx-auto mb-2" />
               <p className="text-xs text-gray-400">No active jobs with dates yet.</p>
               <button onClick={() => navigate('/jobs')}
@@ -256,6 +242,21 @@ export default function Scheduler() {
           )}
         </div>
       </div>
+
+      {/* Compact footer — active jobs legend */}
+      {wonJobs.length > 0 && (
+        <div className="mt-4 bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-3">
+          <div className="flex items-center gap-x-4 gap-y-2 flex-wrap">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Active jobs</span>
+            {wonJobs.map(job => (
+              <div key={job.id} className="flex items-center gap-1.5">
+                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${colorMap[job.id]}`} />
+                <span className="text-xs text-gray-700 truncate max-w-[160px]">{job.client}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
 import { useStore } from '../store'
 import { wonRevenueOf } from '../contractTotal'
-import { TrendingUp, DollarSign, Award, XCircle, Target, Plus, ChevronDown, ChevronUp, Trash2, Clock, MapPin, Settings2, Pencil, Check, X } from 'lucide-react'
+import { TrendingUp, DollarSign, Award, XCircle, Target, Plus, ChevronDown, ChevronUp, Trash2, Clock, MapPin, Settings2, Pencil, Check, X, MoreHorizontal, BarChart3 } from 'lucide-react'
 
 // ── Sales Heat Map ────────────────────────────────────────────────────────────
 const GEO_CACHE_KEY = 'quotex-geo-cache'
@@ -694,19 +694,34 @@ const TYPE_LIGHT = {
 }
 
 function StatCard({ icon: Icon, label, value, sub, color = 'blue' }) {
-  const colors = {
-    blue:  'bg-blue-50 text-blue-600',
-    green: 'bg-emerald-50 text-emerald-600',
-    amber: 'bg-amber-50 text-amber-600',
-  }
   return (
-    <div className="bg-white rounded-xl border border-gray-200 px-5 py-4 flex items-center gap-4">
-      <div className="p-2.5 rounded-lg bg-gray-100 text-gray-500"><Icon size={18} /></div>
-      <div>
-        <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">{label}</p>
-        <p className="text-xl font-bold text-gray-900 leading-tight">{value}</p>
-        {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm px-5 py-4">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-2xl font-bold text-gray-900 leading-tight">{value}</p>
+        <div className="p-2 rounded-lg bg-gray-100 text-gray-500 shrink-0"><Icon size={16} /></div>
       </div>
+      <p className="text-xs text-gray-500 font-semibold mt-2">{label}</p>
+      {sub && <p className="text-xs text-gray-400 mt-0.5 leading-snug">{sub}</p>}
+    </div>
+  )
+}
+
+// Reusable collapsible card — used for secondary analytics kept off the calm default view
+function Collapsible({ icon: Icon, title, subtitle, badge, open, onToggle, children }) {
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-5">
+      <button onClick={onToggle} className="w-full flex items-center justify-between px-5 py-3.5 text-left">
+        <div className="flex items-center gap-2 min-w-0">
+          {Icon && <Icon size={15} className="text-gray-400 shrink-0" />}
+          <div className="min-w-0">
+            <span className="text-sm font-semibold text-gray-800">{title}</span>
+            {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
+          </div>
+          {badge}
+        </div>
+        {open ? <ChevronUp size={15} className="text-gray-400 shrink-0" /> : <ChevronDown size={15} className="text-gray-400 shrink-0" />}
+      </button>
+      {open && <div className="border-t border-gray-100 px-5 py-4">{children}</div>}
     </div>
   )
 }
@@ -888,6 +903,9 @@ export default function Analytics() {
   const [activeTypes, setActiveTypes]   = useState(new Set(['Total', 'Appointments']))
   const [managingTypes, setManagingTypes] = useState(false)
   const [remapping, setRemapping] = useState(false)
+  const [showTrendMenu, setShowTrendMenu] = useState(false)
+  const [showHeatMap, setShowHeatMap] = useState(false)
+  const [showTypeBreakdown, setShowTypeBreakdown] = useState(false)
 
   const { stats, trendMonths, allTypes } = useMemo(() => {
     const won  = proposals.filter(p => p.status === 'Won')
@@ -1008,21 +1026,13 @@ export default function Analytics() {
       </div>
 
       {/* Revenue Trend */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5 mb-5">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-5">
         <div className="flex items-start justify-between flex-wrap gap-3 mb-4">
           <div>
             <h2 className="font-semibold text-gray-900 text-sm">Revenue Trend &amp; Seasonality</h2>
             <p className="text-xs text-gray-400 mt-0.5">Revenue by month (left axis, $) vs. appointments done (right axis, teal dashed). Toggle any line below.</p>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setRemapping(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-500 hover:bg-gray-50 transition-colors">
-              <Pencil size={12} /> Reassign
-            </button>
-            <button onClick={() => setManagingTypes(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-500 hover:bg-gray-50 transition-colors">
-              <Settings2 size={12} /> Service Types
-            </button>
             <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
               {[12, 18, 24].map(n => (
                 <button key={n} onClick={() => setRangeMonths(n)}
@@ -1030,6 +1040,28 @@ export default function Analytics() {
                   {n}mo
                 </button>
               ))}
+            </div>
+            <div className="relative">
+              <button onClick={() => setShowTrendMenu(o => !o)}
+                aria-label="More actions"
+                className="flex items-center justify-center w-8 h-8 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors">
+                <MoreHorizontal size={16} />
+              </button>
+              {showTrendMenu && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowTrendMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-20 w-44 bg-white border border-gray-200 rounded-lg shadow-lg py-1">
+                    <button onClick={() => { setRemapping(true); setShowTrendMenu(false) }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 text-left transition-colors">
+                      <Pencil size={12} /> Reassign
+                    </button>
+                    <button onClick={() => { setManagingTypes(true); setShowTrendMenu(false) }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 text-left transition-colors">
+                      <Settings2 size={12} /> Service Types
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -1063,36 +1095,45 @@ export default function Analytics() {
       {managingTypes && <ProjectTypeModal onClose={() => setManagingTypes(false)} />}
       {remapping && <RemapProjectsModal onClose={() => setRemapping(false)} />}
 
-      <SalesHeatMap proposals={proposals} />
+      {/* Sales Heat Map — collapsed by default; expands to the full Leaflet map card */}
+      <div className="mb-5">
+        <button onClick={() => setShowHeatMap(o => !o)}
+          className="w-full flex items-center justify-between bg-white rounded-xl border border-gray-200 shadow-sm px-5 py-3.5 text-left">
+          <div className="flex items-center gap-2">
+            <MapPin size={15} className="text-gray-400" />
+            <div>
+              <span className="text-sm font-semibold text-gray-800">Sales Heat Map</span>
+              <p className="text-xs text-gray-400 mt-0.5">Where your business comes from across NC &amp; SC</p>
+            </div>
+          </div>
+          {showHeatMap ? <ChevronUp size={15} className="text-gray-400" /> : <ChevronDown size={15} className="text-gray-400" />}
+        </button>
+        {showHeatMap && <div className="mt-3"><SalesHeatMap proposals={proposals} /></div>}
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
-        {/* Job type breakdown */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h2 className="font-semibold text-gray-900 text-sm mb-1">Won Jobs by Project Type</h2>
-          <p className="text-xs text-gray-400 mb-4">Which services drive your closed business</p>
-          {stats.typeRows.length === 0 ? (
-            <p className="text-sm text-gray-400 py-6 text-center">No won proposals yet</p>
-          ) : (
-            <>
-              <div className="space-y-2.5">
-                {stats.typeRows.map(r => (
-                  <Bar key={r.type} label={r.type} pct={r.pct} count={r.count} revenue={r.revenue}
-                    color={TYPE_COLORS_BAR[r.type] || 'bg-gray-400'} />
-                ))}
-              </div>
-              <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
-                {stats.typeRows.map(r => (
-                  <span key={r.type} className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-600">
-                    {r.type} {r.pct.toFixed(0)}%
-                  </span>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
+      {/* Won Jobs by Project Type — collapsed by default */}
+      <Collapsible
+        icon={BarChart3}
+        title="Won Jobs by Project Type"
+        subtitle="Which services drive your closed business"
+        open={showTypeBreakdown}
+        onToggle={() => setShowTypeBreakdown(o => !o)}
+      >
+        {stats.typeRows.length === 0 ? (
+          <p className="text-sm text-gray-400 py-6 text-center">No won proposals yet</p>
+        ) : (
+          <div className="space-y-2.5">
+            {stats.typeRows.map(r => (
+              <Bar key={r.type} label={r.type} pct={r.pct} count={r.count} revenue={r.revenue}
+                color={TYPE_COLORS_BAR[r.type] || 'bg-gray-400'} />
+            ))}
+          </div>
+        )}
+      </Collapsible>
 
+      <div className="mb-5">
         {/* Win / loss reasons */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-4">
           <div>
             <div className="flex items-center gap-2 mb-2">
               <Award size={14} className="text-emerald-500" />

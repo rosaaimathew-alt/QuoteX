@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, Fragment } from 'react'
 import {
   Search, Edit2, Trash2, Plus, Check, X, GripVertical,
   ChevronDown, ChevronRight, LayoutList, Rows3,
@@ -162,23 +162,23 @@ function EditRow({ item, onSave, onCancel }) {
   const priceLocked = form.locked && !isManager
   return (
     <>
-      <tr className="bg-blue-50">
+      <tr className="bg-[var(--brand-50)]">
         <td className="px-4 py-2 w-6"></td>
-        <td className="px-4 py-2"><input className="w-full text-sm border border-blue-300 rounded px-2 py-1 focus:outline-none" value={form.name} onChange={e => set('name', e.target.value)} /></td>
+        <td className="px-4 py-2"><input className="w-full text-sm border border-[var(--brand-300)] rounded px-2 py-1 focus:outline-none" value={form.name} onChange={e => set('name', e.target.value)} /></td>
         <td className="px-4 py-2">
-          <select className="text-sm border border-blue-300 rounded px-2 py-1 focus:outline-none" value={form.category} onChange={e => set('category', e.target.value)}>
+          <select className="text-sm border border-[var(--brand-300)] rounded px-2 py-1 focus:outline-none" value={form.category} onChange={e => set('category', e.target.value)}>
             {CATEGORIES.map(c => <option key={c}>{c}</option>)}
           </select>
         </td>
         <td className="px-4 py-2">
-          <select className="text-sm border border-blue-300 rounded px-2 py-1 focus:outline-none" value={form.unit} onChange={e => set('unit', e.target.value)}>
+          <select className="text-sm border border-[var(--brand-300)] rounded px-2 py-1 focus:outline-none" value={form.unit} onChange={e => set('unit', e.target.value)}>
             {UNITS.map(u => <option key={u}>{u}</option>)}
           </select>
         </td>
         <td className="px-4 py-2">
           <div className="flex items-center gap-0.5"><span className="text-gray-400">$</span>
             <input type="number" min="0" disabled={priceLocked}
-              className={`w-20 text-sm border rounded px-2 py-1 focus:outline-none ${priceLocked ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed' : 'border-blue-300'}`}
+              className={`w-20 text-sm border rounded px-2 py-1 focus:outline-none ${priceLocked ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed' : 'border-[var(--brand-300)]'}`}
               value={form.unitPrice} onChange={e => set('unitPrice', parseFloat(e.target.value) || 0)} />
             {isManager ? (
               <button onClick={() => set('locked', !form.locked)} title={form.locked ? 'Price locked — click to unlock' : 'Lock price so sales can’t edit it'}
@@ -188,9 +188,6 @@ function EditRow({ item, onSave, onCancel }) {
             ) : form.locked ? <Lock size={12} className="text-amber-500 ml-0.5" title="Price locked by manager" /> : null}
           </div>
         </td>
-        <td className="px-4 py-2 text-sm text-gray-500">${form.minPrice} – ${form.maxPrice}</td>
-        <td className="px-4 py-2 text-sm text-center text-gray-500">{form.count}</td>
-        <td className="px-4 py-2"><ConfidenceBadge value={form.confidence} /></td>
         <td className="px-4 py-2">
           <div className="flex gap-1">
             <button onClick={() => onSave(form)} className="p-1 rounded text-green-600 hover:bg-green-100"><Check size={14} /></button>
@@ -198,9 +195,15 @@ function EditRow({ item, onSave, onCancel }) {
           </div>
         </td>
       </tr>
-      <tr className="bg-blue-50 border-b border-blue-100">
-        <td colSpan={9} className="px-4 pb-3">
-          <textarea rows={2} className="w-full text-xs border border-blue-300 rounded px-2 py-1 focus:outline-none resize-none text-gray-600 italic mb-2" placeholder="Scope description..." value={form.description || ''} onChange={e => set('description', e.target.value)} />
+      <tr className="bg-[var(--brand-50)] border-b border-[var(--brand-100)]">
+        <td colSpan={6} className="px-4 pb-3">
+          {/* Relocated detail metrics — kept viewable while editing */}
+          <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500 mb-2">
+            <span>Range: <strong className="text-gray-700 font-medium">${form.minPrice} – ${form.maxPrice}</strong></span>
+            <span>Samples: <strong className="text-gray-700 font-medium">{form.count}</strong></span>
+            <span className="flex items-center gap-1.5">Confidence: <ConfidenceBadge value={form.confidence} /></span>
+          </div>
+          <textarea rows={2} className="w-full text-xs border border-[var(--brand-300)] rounded px-2 py-1 focus:outline-none resize-none text-gray-600 italic mb-2" placeholder="Scope description..." value={form.description || ''} onChange={e => set('description', e.target.value)} />
           <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
             <p className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-2">Internal Cost Breakdown (not client-facing)</p>
             <div className="flex gap-4 flex-wrap">
@@ -238,16 +241,16 @@ function TableView({ filtered, editId, setEditId, onSave, onDelete, onMove, addi
   const dragItem = useRef(null)
   const isManager        = useStore(s => (s.role || 'manager') === 'manager')
   const updateCatalogItem = useStore(s => s.updateCatalogItem)
-
-  const Th = ({ k, label, sortKey, sortAsc, toggleSort }) => (
-    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-800 select-none whitespace-nowrap"
-      onClick={() => toggleSort(k)}>
-      {label} {sortKey === k ? (sortAsc ? '↑' : '↓') : ''}
-    </th>
-  )
+  const CATEGORIES        = useStore(s => s.catalogCategories)
+  const [expanded, setExpanded] = useState(new Set())
+  const toggleExpand = (id) => setExpanded(prev => {
+    const next = new Set(prev)
+    next.has(id) ? next.delete(id) : next.add(id)
+    return next
+  })
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
@@ -257,10 +260,7 @@ function TableView({ filtered, editId, setEditId, onSave, onDelete, onMove, addi
               <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Category</th>
               <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Unit</th>
               <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Unit Price</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Range</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Samples</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Confidence</th>
-              <th className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Actions</th>
+              <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -272,13 +272,10 @@ function TableView({ filtered, editId, setEditId, onSave, onDelete, onMove, addi
                   <td className="px-4 py-2"><select className="text-sm border border-gray-300 rounded px-2 py-1" value={newForm.category} onChange={e => setNewForm(f => ({ ...f, category: e.target.value }))}>{CATEGORIES.map(c => <option key={c}>{c}</option>)}</select></td>
                   <td className="px-4 py-2"><select className="text-sm border border-gray-300 rounded px-2 py-1" value={newForm.unit} onChange={e => setNewForm(f => ({ ...f, unit: e.target.value }))}>{UNITS.map(u => <option key={u}>{u}</option>)}</select></td>
                   <td className="px-4 py-2"><input type="number" min="0" className="w-20 text-sm border border-gray-300 rounded px-2 py-1" value={newForm.unitPrice} onChange={e => setNewForm(f => ({ ...f, unitPrice: parseFloat(e.target.value) || 0 }))} /></td>
-                  <td className="px-4 py-2 text-gray-400 text-xs">—</td>
-                  <td className="px-4 py-2 text-gray-400 text-xs text-center">1</td>
-                  <td className="px-4 py-2"><ConfidenceBadge value={70} /></td>
-                  <td className="px-4 py-2"><div className="flex gap-1"><button onClick={saveNew} className="p-1 rounded text-green-600 hover:bg-green-100"><Check size={14} /></button><button onClick={() => setAddingNew(false)} className="p-1 rounded text-gray-400 hover:bg-gray-100"><X size={14} /></button></div></td>
+                  <td className="px-4 py-2"><div className="flex gap-1 justify-end"><button onClick={saveNew} className="p-1 rounded text-green-600 hover:bg-green-100"><Check size={14} /></button><button onClick={() => setAddingNew(false)} className="p-1 rounded text-gray-400 hover:bg-gray-100"><X size={14} /></button></div></td>
                 </tr>
                 <tr className="bg-gray-50 border-b border-gray-100">
-                  <td colSpan={9} className="px-4 pb-3">
+                  <td colSpan={6} className="px-4 pb-3">
                     <textarea rows={2} className="w-full text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none resize-none text-gray-600 italic mb-2" placeholder="Scope description..." value={newForm.description} onChange={e => setNewForm(f => ({ ...f, description: e.target.value }))} />
                     <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                       <p className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-2">Internal Cost Breakdown (not client-facing)</p>
@@ -301,46 +298,61 @@ function TableView({ filtered, editId, setEditId, onSave, onDelete, onMove, addi
               editId === item.id ? (
                 <EditRow key={item.id} item={item} onSave={(changes) => { onSave(item.id, changes); setEditId(null) }} onCancel={() => setEditId(null)} />
               ) : (
-                <tr
-                  key={item.id}
-                  draggable
-                  onDragStart={() => { dragItem.current = item.id }}
-                  className="hover:bg-gray-50 transition-colors cursor-grab active:cursor-grabbing"
-                >
-                  <td className="px-4 py-2.5 text-gray-300"><GripVertical size={14} /></td>
-                  <td className="px-4 py-2.5">
-                    <p className="font-medium text-gray-800">{item.name}</p>
-                    {item.description && <p className="text-xs text-gray-400 italic mt-0.5 leading-snug line-clamp-1">{item.description}</p>}
-                  </td>
-                  <td className="px-4 py-2.5"><span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{item.category}</span></td>
-                  <td className="px-4 py-2.5 text-gray-500">{item.unit}</td>
-                  <td className="px-4 py-2.5">
-                    <p className="font-semibold text-gray-900 flex items-center gap-1">
-                      ${fmt(item.unitPrice)}
-                      {item.locked && <Lock size={11} className="text-amber-500" title="Price locked by manager" />}
-                    </p>
-                    {((item.costMaterials || 0) + (item.costSub || 0)) > 0 && (
-                      <p className="text-[10px] text-amber-600 mt-0.5">cost ${fmt((item.costMaterials||0)+(item.costSub||0))}</p>
-                    )}
-                  </td>
-                  <td className="px-4 py-2.5 text-gray-400 text-xs">${item.minPrice} – ${item.maxPrice}</td>
-                  <td className="px-4 py-2.5 text-center text-gray-500">{item.count}</td>
-                  <td className="px-4 py-2.5"><ConfidenceBadge value={item.confidence} /></td>
-                  <td className="px-4 py-2.5">
-                    <div className="flex gap-1">
-                      <MoveTo item={item} onMove={onMove} />
-                      {isManager && (
-                        <button onClick={() => updateCatalogItem(item.id, { locked: !item.locked })}
-                          className={`p-1 rounded hover:bg-amber-50 ${item.locked ? 'text-amber-600' : 'text-gray-400 hover:text-amber-600'}`}
-                          title={item.locked ? 'Unlock price' : 'Lock price so sales can’t edit it'}>
-                          {item.locked ? <Lock size={14} /> : <Unlock size={14} />}
-                        </button>
+                <Fragment key={item.id}>
+                  <tr
+                    draggable
+                    onDragStart={() => { dragItem.current = item.id }}
+                    className="hover:bg-gray-50 transition-colors cursor-grab active:cursor-grabbing"
+                  >
+                    <td className="px-4 py-2.5 text-gray-300"><GripVertical size={14} /></td>
+                    <td className="px-4 py-2.5">
+                      <p className="font-medium text-gray-800">{item.name}</p>
+                      {item.description && <p className="text-xs text-gray-400 italic mt-0.5 leading-snug line-clamp-1">{item.description}</p>}
+                    </td>
+                    <td className="px-4 py-2.5"><span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{item.category}</span></td>
+                    <td className="px-4 py-2.5 text-gray-500">{item.unit}</td>
+                    <td className="px-4 py-2.5">
+                      <p className="font-semibold text-gray-900 flex items-center gap-1">
+                        ${fmt(item.unitPrice)}
+                        {item.locked && <Lock size={11} className="text-amber-500" title="Price locked by manager" />}
+                      </p>
+                      {((item.costMaterials || 0) + (item.costSub || 0)) > 0 && (
+                        <p className="text-[10px] text-amber-600 mt-0.5">cost ${fmt((item.costMaterials||0)+(item.costSub||0))}</p>
                       )}
-                      <button onClick={() => setEditId(item.id)} className="p-1 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50"><Edit2 size={14} /></button>
-                      <button onClick={() => onDelete(item.id)} className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
-                    </div>
-                  </td>
-                </tr>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex gap-1 justify-end">
+                        <button onClick={() => toggleExpand(item.id)}
+                          className={`p-1 rounded hover:bg-gray-100 ${expanded.has(item.id) ? 'text-gray-600' : 'text-gray-400'}`}
+                          title="Show pricing details (range, samples, confidence)">
+                          {expanded.has(item.id) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        </button>
+                        <MoveTo item={item} onMove={onMove} />
+                        {isManager && (
+                          <button onClick={() => updateCatalogItem(item.id, { locked: !item.locked })}
+                            className={`p-1 rounded hover:bg-amber-50 ${item.locked ? 'text-amber-600' : 'text-gray-400 hover:text-amber-600'}`}
+                            title={item.locked ? 'Unlock price' : 'Lock price so sales can’t edit it'}>
+                            {item.locked ? <Lock size={14} /> : <Unlock size={14} />}
+                          </button>
+                        )}
+                        <button onClick={() => setEditId(item.id)} className="p-1 rounded text-gray-400 hover:text-[var(--brand-600)] hover:bg-[var(--brand-50)]"><Edit2 size={14} /></button>
+                        <button onClick={() => onDelete(item.id)} className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                  {expanded.has(item.id) && (
+                    <tr className="bg-gray-50/70">
+                      <td></td>
+                      <td colSpan={5} className="px-4 pb-3 pt-0">
+                        <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 text-xs text-gray-500">
+                          <span>Range: <strong className="text-gray-700 font-medium">${item.minPrice} – ${item.maxPrice}</strong></span>
+                          <span>Samples: <strong className="text-gray-700 font-medium">{item.count}</strong></span>
+                          <span className="flex items-center gap-1.5">Confidence: <ConfidenceBadge value={item.confidence} /></span>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               )
             )}
           </tbody>

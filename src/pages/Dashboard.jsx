@@ -125,6 +125,7 @@ export default function Dashboard() {
   // ── Period filter state ───────────────────────────────────────────────────
   const [period,  setPeriod]  = useState('year')
   const [refDate, setRefDate] = useState(new Date())
+  const [showMore, setShowMore] = useState(false)   // "More insights" collapse toggle
   const { start: pStart, end: pEnd, label: pLabel } = getPeriodRange(period, refDate)
   const isCurrent = isCurrentPeriod(period, refDate)
 
@@ -257,130 +258,7 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Aging quote alerts */}
-      {(() => {
-        const now = Date.now()
-        const aging = proposals
-          .filter(p => ['Sent', 'Followed Up'].includes(p.status) && p.sentAt)
-          .map(p => ({ ...p, daysSince: Math.floor((now - new Date(p.sentAt)) / 86400000) }))
-          .filter(p => p.daysSince >= 7)
-          .sort((a, b) => b.daysSince - a.daysSince)
-          .slice(0, 5)
-        if (!aging.length) return null
-        return (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <AlertCircle size={15} className="text-amber-600 shrink-0" />
-              <p className="text-sm font-semibold text-amber-800">Quotes Awaiting Response</p>
-            </div>
-            <div className="space-y-2">
-              {aging.map(p => (
-                <div key={p.id} onClick={() => navigate('/tracker')}
-                  className="flex items-center justify-between gap-3 bg-white rounded-lg px-3 py-2 cursor-pointer hover:bg-amber-50 transition-colors border border-amber-100">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{p.client || 'Unnamed'}</p>
-                    <p className="text-xs text-gray-400">${fmt(p.total || 0)} · Sent {new Date(p.sentAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
-                  </div>
-                  <span className={`text-xs font-bold shrink-0 px-2 py-0.5 rounded-full ${
-                    p.daysSince >= 30 ? 'bg-red-100 text-red-700' :
-                    p.daysSince >= 14 ? 'bg-amber-100 text-amber-700' :
-                    'bg-yellow-100 text-yellow-700'
-                  }`}>
-                    {p.daysSince}d ago
-                  </span>
-                </div>
-              ))}
-            </div>
-            <button onClick={() => navigate('/tracker')} className="mt-3 text-xs text-amber-700 hover:underline font-medium">
-              View all in tracker →
-            </button>
-          </div>
-        )
-      })()}
-
-      {/* Period Chart */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-          <div>
-            <p className="text-sm font-semibold text-gray-800">{pLabel} — Activity</p>
-            <p className="text-xs text-gray-400 mt-0.5">
-              Total bid: <span className="font-semibold text-indigo-600">${fmt(periodTotal)}</span> across {periodProps.length} proposal{periodProps.length !== 1 ? 's' : ''}
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {/* Period toggle */}
-            <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-medium">
-              {['month', 'quarter', 'year'].map(p => (
-                <button
-                  key={p}
-                  onClick={() => { setPeriod(p); setRefDate(new Date()) }}
-                  className={`px-3 py-1.5 capitalize transition-colors ${period === p ? 'bg-[var(--brand-600)] text-white' : 'text-gray-500 hover:bg-gray-50'}`}
-                >
-                  {p === 'month' ? 'Mo' : p === 'quarter' ? 'Qtr' : 'Yr'}
-                </button>
-              ))}
-            </div>
-            {/* Prev / Next */}
-            <div className="flex items-center gap-1">
-              <button onClick={() => setRefDate(shiftPeriod(period, refDate, -1))}
-                className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors">
-                <ChevronLeft size={15} />
-              </button>
-              <button
-                onClick={() => setRefDate(new Date())}
-                disabled={isCurrent}
-                className="text-xs text-indigo-600 hover:underline disabled:text-gray-300 disabled:no-underline px-1"
-              >
-                Today
-              </button>
-              <button onClick={() => setRefDate(shiftPeriod(period, refDate, 1))}
-                className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors">
-                <ChevronRight size={15} />
-              </button>
-            </div>
-            <div className="flex items-center gap-3 text-xs">
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-[var(--brand-300)] inline-block" /> Bid</span>
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-400 inline-block" /> Won</span>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-end gap-1.5 h-28">
-          {segData.map((seg) => {
-            const bidH = segMax > 0 ? (seg.total / segMax) * 100 : 0
-            const wonH = segMax > 0 ? (seg.won   / segMax) * 100 : 0
-            return (
-              <div key={seg.label} className="flex-1 flex flex-col items-center gap-1 group relative">
-                {seg.count > 0 && (
-                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs rounded-lg px-2.5 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 shadow-lg">
-                    <p className="font-semibold">{seg.label}</p>
-                    <p>Bid: ${fmt(seg.total)}</p>
-                    <p>Won: ${fmt(seg.won)}</p>
-                    <p>{seg.count} proposal{seg.count !== 1 ? 's' : ''}</p>
-                  </div>
-                )}
-                <div className="w-full flex flex-col justify-end relative" style={{ height: '88px' }}>
-                  {seg.total > 0 ? (
-                    <>
-                      <div
-                        className={`w-full rounded-t-sm transition-all ${seg.isCurrent ? 'bg-[var(--brand-400)]' : 'bg-[var(--brand-200)]'}`}
-                        style={{ height: `${bidH}%` }}
-                      />
-                      {seg.won > 0 && (
-                        <div className="w-full bg-green-400 absolute bottom-0 rounded-t-sm" style={{ height: `${wonH}%` }} />
-                      )}
-                    </>
-                  ) : (
-                    <div className="w-full bg-gray-50 rounded-sm" style={{ height: '100%' }} />
-                  )}
-                </div>
-                <p className={`text-xs ${seg.isCurrent ? 'font-bold text-indigo-600' : 'text-gray-400'}`}>{seg.label}</p>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Main grid */}
+      {/* Main grid — Recent Proposals (wide) | Upcoming Follow-ups */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
         {/* Recent Proposals — 2/3 width */}
@@ -434,47 +312,8 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Right column: Pipeline + Reminders */}
-        <div className="flex flex-col gap-5">
-
-          {/* Pipeline by status */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-semibold text-gray-800">Pipeline</p>
-              <button onClick={() => navigate('/tracker')} className="text-xs text-sky-600 hover:underline font-medium">
-                Kanban →
-              </button>
-            </div>
-            {statusCounts.length === 0 ? (
-              <p className="text-xs text-gray-400 italic text-center py-3">No proposals yet.</p>
-            ) : (
-              <div className="space-y-2.5">
-                {statusCounts.map(({ status, count, value }) => (
-                  <div key={status}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_BADGE[status]}`}>{status}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-gray-700">{count}</span>
-                        <span className="text-xs text-gray-400">{fmtSh(value)}</span>
-                      </div>
-                    </div>
-                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${STATUS_BAR[status]}`}
-                        style={{ width: `${(count / maxCount) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Daily to-do checklist */}
-          <TodoCard />
-
-          {/* Upcoming reminders */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5 flex-1">
+        {/* Upcoming Follow-ups */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
             <p className="text-sm font-semibold text-gray-800 mb-3">Upcoming Follow-ups</p>
             {reminders.length === 0 ? (
               <div className="text-center py-4">
@@ -510,7 +349,6 @@ export default function Dashboard() {
                 })}
               </div>
             )}
-          </div>
         </div>
       </div>
 
@@ -583,6 +421,185 @@ export default function Dashboard() {
             }}
           />
         </div>
+      </div>
+
+      {/* More insights — collapsible secondary panels */}
+      <div>
+        <button
+          onClick={() => setShowMore(v => !v)}
+          className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors"
+        >
+          <ChevronRight size={16} className={`text-gray-400 transition-transform ${showMore ? 'rotate-90' : ''}`} />
+          More insights
+        </button>
+
+        {showMore && (
+          <div className="mt-4 space-y-4 sm:space-y-6">
+
+            {/* Aging quote alerts */}
+            {(() => {
+              const now = Date.now()
+              const aging = proposals
+                .filter(p => ['Sent', 'Followed Up'].includes(p.status) && p.sentAt)
+                .map(p => ({ ...p, daysSince: Math.floor((now - new Date(p.sentAt)) / 86400000) }))
+                .filter(p => p.daysSince >= 7)
+                .sort((a, b) => b.daysSince - a.daysSince)
+                .slice(0, 5)
+              if (!aging.length) return null
+              return (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <AlertCircle size={15} className="text-amber-600 shrink-0" />
+                    <p className="text-sm font-semibold text-amber-800">Quotes Awaiting Response</p>
+                  </div>
+                  <div className="space-y-2">
+                    {aging.map(p => (
+                      <div key={p.id} onClick={() => navigate('/tracker')}
+                        className="flex items-center justify-between gap-3 bg-white rounded-lg px-3 py-2 cursor-pointer hover:bg-amber-50 transition-colors border border-amber-100">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{p.client || 'Unnamed'}</p>
+                          <p className="text-xs text-gray-400">${fmt(p.total || 0)} · Sent {new Date(p.sentAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+                        </div>
+                        <span className={`text-xs font-bold shrink-0 px-2 py-0.5 rounded-full ${
+                          p.daysSince >= 30 ? 'bg-red-100 text-red-700' :
+                          p.daysSince >= 14 ? 'bg-amber-100 text-amber-700' :
+                          'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {p.daysSince}d ago
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={() => navigate('/tracker')} className="mt-3 text-xs text-amber-700 hover:underline font-medium">
+                    View all in tracker →
+                  </button>
+                </div>
+              )
+            })()}
+
+            {/* Period Chart */}
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">{pLabel} — Activity</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Total bid: <span className="font-semibold text-indigo-600">${fmt(periodTotal)}</span> across {periodProps.length} proposal{periodProps.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {/* Period toggle */}
+                  <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-medium">
+                    {['month', 'quarter', 'year'].map(p => (
+                      <button
+                        key={p}
+                        onClick={() => { setPeriod(p); setRefDate(new Date()) }}
+                        className={`px-3 py-1.5 capitalize transition-colors ${period === p ? 'bg-[var(--brand-600)] text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+                      >
+                        {p === 'month' ? 'Mo' : p === 'quarter' ? 'Qtr' : 'Yr'}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Prev / Next */}
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => setRefDate(shiftPeriod(period, refDate, -1))}
+                      className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors">
+                      <ChevronLeft size={15} />
+                    </button>
+                    <button
+                      onClick={() => setRefDate(new Date())}
+                      disabled={isCurrent}
+                      className="text-xs text-indigo-600 hover:underline disabled:text-gray-300 disabled:no-underline px-1"
+                    >
+                      Today
+                    </button>
+                    <button onClick={() => setRefDate(shiftPeriod(period, refDate, 1))}
+                      className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors">
+                      <ChevronRight size={15} />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs">
+                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-[var(--brand-300)] inline-block" /> Bid</span>
+                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-400 inline-block" /> Won</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-end gap-1.5 h-28">
+                {segData.map((seg) => {
+                  const bidH = segMax > 0 ? (seg.total / segMax) * 100 : 0
+                  const wonH = segMax > 0 ? (seg.won   / segMax) * 100 : 0
+                  return (
+                    <div key={seg.label} className="flex-1 flex flex-col items-center gap-1 group relative">
+                      {seg.count > 0 && (
+                        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs rounded-lg px-2.5 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 shadow-lg">
+                          <p className="font-semibold">{seg.label}</p>
+                          <p>Bid: ${fmt(seg.total)}</p>
+                          <p>Won: ${fmt(seg.won)}</p>
+                          <p>{seg.count} proposal{seg.count !== 1 ? 's' : ''}</p>
+                        </div>
+                      )}
+                      <div className="w-full flex flex-col justify-end relative" style={{ height: '88px' }}>
+                        {seg.total > 0 ? (
+                          <>
+                            <div
+                              className={`w-full rounded-t-sm transition-all ${seg.isCurrent ? 'bg-[var(--brand-400)]' : 'bg-[var(--brand-200)]'}`}
+                              style={{ height: `${bidH}%` }}
+                            />
+                            {seg.won > 0 && (
+                              <div className="w-full bg-green-400 absolute bottom-0 rounded-t-sm" style={{ height: `${wonH}%` }} />
+                            )}
+                          </>
+                        ) : (
+                          <div className="w-full bg-gray-50 rounded-sm" style={{ height: '100%' }} />
+                        )}
+                      </div>
+                      <p className={`text-xs ${seg.isCurrent ? 'font-bold text-indigo-600' : 'text-gray-400'}`}>{seg.label}</p>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Pipeline by status + Daily to-do */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              {/* Pipeline by status */}
+              <div className="bg-white rounded-xl border border-gray-200 p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-sm font-semibold text-gray-800">Pipeline</p>
+                  <button onClick={() => navigate('/tracker')} className="text-xs text-sky-600 hover:underline font-medium">
+                    Kanban →
+                  </button>
+                </div>
+                {statusCounts.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic text-center py-3">No proposals yet.</p>
+                ) : (
+                  <div className="space-y-2.5">
+                    {statusCounts.map(({ status, count, value }) => (
+                      <div key={status}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_BADGE[status]}`}>{status}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-gray-700">{count}</span>
+                            <span className="text-xs text-gray-400">{fmtSh(value)}</span>
+                          </div>
+                        </div>
+                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${STATUS_BAR[status]}`}
+                            style={{ width: `${(count / maxCount) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Daily to-do checklist */}
+              <TodoCard />
+            </div>
+
+          </div>
+        )}
       </div>
     </div>
   )
