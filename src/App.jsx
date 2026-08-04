@@ -50,7 +50,7 @@ const NAV_SECTIONS = [
     { to: '/subs',      label: 'Subcontractors',  icon: Wrench },
     { to: '/scheduler', label: 'Scheduler',       icon: CalendarDays },
   ] },
-  { section: 'Money', items: [
+  { section: 'Financials', items: [
     { to: '/analytics',     label: 'Analytics',     icon: PieChart },
     { to: '/profitability', label: 'Profitability', icon: TrendingUp },
     { to: '/finance',       label: 'Finance',       icon: Wallet },

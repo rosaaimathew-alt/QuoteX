@@ -1,10 +1,26 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useStore } from '../store'
-import { Plus, X, Phone, Mail, Wrench, Star, Edit2, Check, AlertTriangle, ChevronUp, ChevronDown } from 'lucide-react'
+import { Plus, X, Phone, Mail, Wrench, Star, Edit2, AlertTriangle, ChevronUp, ChevronDown, ShieldCheck, Upload, Download, FileText, Package, Calendar } from 'lucide-react'
+import { dataUrlToBytes, downloadZip } from '../lib/zip'
 
 const TRADES = ['Electrical', 'Plumbing', 'HVAC', 'Concrete / Footings', 'Roofing', 'Framing', 'Painting', 'Landscaping', 'General Labor', 'Other']
 
-const RATING_COLORS = ['', 'bg-red-400', 'bg-orange-400', 'bg-yellow-400', 'bg-blue-400', 'bg-green-500']
+const MAX_COI_BYTES = 8 * 1024 * 1024 // 8 MB per file — keeps persisted store sane
+
+const safeName = (s) => (s || 'sub').replace(/[^a-z0-9 ._-]/gi, '_').trim()
+const extOf = (filename) => {
+  const m = /\.([a-z0-9]+)$/i.exec(filename || '')
+  return m ? `.${m[1].toLowerCase()}` : ''
+}
+const fmtDate = (iso, opts = { month: 'short', day: 'numeric', year: 'numeric' }) =>
+  iso ? new Date(iso).toLocaleDateString('en-US', opts) : '—'
+const readFileAsDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    const r = new FileReader()
+    r.onload = (e) => resolve(e.target.result)
+    r.onerror = reject
+    r.readAsDataURL(file)
+  })
 
 function StarRating({ value, onChange }) {
   return (
@@ -26,6 +42,8 @@ function SubForm({ initial = {}, onSave, onCancel }) {
     phone: initial.phone || '',
     email: initial.email || '',
     rating: initial.rating || 0,
+    startDate: initial.startDate || '',
+    endDate: initial.endDate || '',
     notes: initial.notes || '',
   })
   const f = (k) => (e) => setForm(s => ({ ...s, [k]: e.target.value }))
@@ -54,6 +72,16 @@ function SubForm({ initial = {}, onSave, onCancel }) {
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
           <input value={form.email} onChange={f('email')} placeholder="sub@example.com" type="email"
+            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Start date</label>
+          <input value={form.startDate} onChange={f('startDate')} type="date"
+            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">End date</label>
+          <input value={form.endDate} onChange={f('endDate')} type="date"
             className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300" />
         </div>
       </div>
@@ -85,15 +113,32 @@ function SubCard({ sub }) {
   const { updateSubcontractor, deleteSubcontractor } = useStore()
   const [editing, setEditing] = useState(false)
   const [showIncidents, setShowIncidents] = useState(false)
+  const [showCois, setShowCois] = useState(false)
   const [incidentText, setIncidentText] = useState('')
+  const fileRef = useRef(null)
 
   const incidents = sub.incidents || []
+  const cois = sub.cois || []
+
   const addIncident = () => {
     if (!incidentText.trim()) return
     updateSubcontractor(sub.id, { incidents: [{ id: Date.now(), date: new Date().toISOString(), text: incidentText.trim() }, ...incidents] })
     setIncidentText('')
   }
   const removeIncident = (id) => updateSubcontractor(sub.id, { incidents: incidents.filter(i => i.id !== id) })
+
+  const uploadCoi = async (file) => {
+    if (!file) return
+    if (file.size > MAX_COI_BYTES) {
+      window.alert(`"${file.name}" is ${(file.size / 1048576).toFixed(1)} MB. Please upload a COI under 8 MB.`)
+      return
+    }
+    const dataUrl = await readFileAsDataUrl(file)
+    const coi = { id: Date.now(), name: file.name, type: file.type, size: file.size, dataUrl, uploadedAt: new Date().toISOString() }
+    updateSubcontractor(sub.id, { cois: [coi, ...cois] })
+    setShowCois(true)
+  }
+  const removeCoi = (id) => updateSubcontractor(sub.id, { cois: cois.filter(c => c.id !== id) })
 
   if (editing) return (
     <SubForm
@@ -129,6 +174,14 @@ function SubCard({ sub }) {
         <span className="text-[11px] text-gray-400">{sub.rating ? `${sub.rating}/5` : 'Set rating'}</span>
       </div>
 
+      {/* Engagement dates */}
+      {(sub.startDate || sub.endDate) && (
+        <div className="mt-2 flex items-center gap-1.5 text-xs text-gray-500">
+          <Calendar size={11} className="shrink-0 text-gray-400" />
+          <span>{fmtDate(sub.startDate)}<span className="text-gray-300"> → </span>{sub.endDate ? fmtDate(sub.endDate) : 'Active'}</span>
+        </div>
+      )}
+
       <div className="mt-3 space-y-1.5">
         {sub.phone && (
           <a href={`tel:${sub.phone}`} className="flex items-center gap-2 text-xs text-gray-600 hover:text-blue-600 transition-colors">
@@ -141,6 +194,52 @@ function SubCard({ sub }) {
           </a>
         )}
         {sub.notes && <p className="text-xs text-gray-500 mt-1 whitespace-pre-wrap">{sub.notes}</p>}
+      </div>
+
+      {/* Certificates of Insurance */}
+      <div className="mt-3 pt-3 border-t border-gray-100">
+        <div className="flex items-center justify-between gap-2">
+          <button onClick={() => setShowCois(o => !o)}
+            className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors">
+            <ShieldCheck size={12} className={cois.length > 0 ? 'text-green-500' : 'text-gray-400'} />
+            Insurance (COI){cois.length > 0 && <span className="text-gray-400">({cois.length})</span>}
+            {showCois ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
+          <button onClick={() => fileRef.current?.click()}
+            className="flex items-center gap-1 text-xs font-medium text-[var(--brand-700)] hover:text-[var(--brand-800)] transition-colors">
+            <Upload size={12} /> Upload
+          </button>
+          <input ref={fileRef} type="file" accept=".pdf,image/*" className="hidden"
+            onChange={e => { uploadCoi(e.target.files?.[0]); e.target.value = '' }} />
+        </div>
+        {showCois && (
+          <div className="mt-2 space-y-1.5">
+            {cois.length === 0 ? (
+              <p className="text-xs text-gray-400 italic">No COI on file. Upload the latest certificate.</p>
+            ) : (
+              cois.map((coi, idx) => (
+                <div key={coi.id} className="flex items-center justify-between gap-2 bg-gray-50 rounded-lg px-2.5 py-1.5">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileText size={13} className="text-gray-400 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs text-gray-700 truncate">{coi.name}</p>
+                      <p className="text-[10px] text-gray-400">
+                        {idx === 0 && <span className="text-green-600 font-medium">Latest · </span>}
+                        {fmtDate(coi.uploadedAt)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <a href={coi.dataUrl} download={coi.name} className="p-1 rounded text-gray-400 hover:text-[var(--brand-700)]" title="Download">
+                      <Download size={13} />
+                    </a>
+                    <button onClick={() => removeCoi(coi.id)} className="p-1 rounded text-gray-300 hover:text-red-500" title="Remove"><X size={13} /></button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
       {/* Incidents — office logs incidents to justify the rating */}
@@ -171,7 +270,7 @@ function SubCard({ sub }) {
                   <div key={inc.id} className="flex items-start justify-between gap-2 bg-gray-50 rounded-lg px-2.5 py-1.5">
                     <div className="min-w-0">
                       <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">{inc.text}</p>
-                      <p className="text-[10px] text-gray-400 mt-0.5">{new Date(inc.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">{fmtDate(inc.date)}</p>
                     </div>
                     <button onClick={() => removeIncident(inc.id)} className="text-gray-300 hover:text-red-500 shrink-0" title="Remove incident"><X size={12} /></button>
                   </div>
@@ -193,6 +292,8 @@ export default function Subcontractors() {
 
   const trades = ['All', ...Array.from(new Set(subcontractors.map(s => s.trade).filter(Boolean)))]
 
+  const coiCount = subcontractors.filter(s => (s.cois || []).length > 0).length
+
   const filtered = subcontractors.filter(s => {
     if (tradeFilter !== 'All' && s.trade !== tradeFilter) return false
     if (query) {
@@ -202,17 +303,63 @@ export default function Subcontractors() {
     return true
   })
 
+  // Bundle every sub's LATEST COI + a manifest into a single .zip for audits.
+  const buildAuditPack = () => {
+    const today = new Date().toISOString().slice(0, 10)
+    const files = []
+    const rows = [['Subcontractor', 'Trade', 'Start', 'End', 'Rating', 'Latest COI', 'COI Uploaded']]
+    const usedNames = new Set()
+
+    subcontractors.forEach(sub => {
+      const latest = (sub.cois || [])[0]
+      let coiLabel = 'MISSING'
+      if (latest) {
+        let base = `${safeName(sub.name)} - COI${extOf(latest.name)}`
+        let n = 2
+        while (usedNames.has(base)) { base = `${safeName(sub.name)} - COI (${n})${extOf(latest.name)}`; n++ }
+        usedNames.add(base)
+        coiLabel = base
+        files.push({ name: base, bytes: dataUrlToBytes(latest.dataUrl) })
+      }
+      rows.push([
+        sub.name || '',
+        sub.trade || '',
+        sub.startDate || '',
+        sub.endDate || '',
+        sub.rating ? `${sub.rating}/5` : '',
+        coiLabel,
+        latest ? fmtDate(latest.uploadedAt) : '',
+      ])
+    })
+
+    const csv = rows
+      .map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
+      .join('\r\n')
+    files.push({ name: 'manifest.csv', bytes: new TextEncoder().encode(csv) })
+
+    downloadZip(`COI-Audit-Pack-${today}.zip`, files)
+  }
+
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6 gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Subcontractors</h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-1">{subcontractors.length} subs in directory</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">
+            {subcontractors.length} subs in directory
+            {subcontractors.length > 0 && <span className="text-gray-400"> · {coiCount} with COI on file</span>}
+          </p>
         </div>
-        <button onClick={() => setAdding(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
-          <Plus size={15} /> Add Sub
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={buildAuditPack} disabled={coiCount === 0} title={coiCount === 0 ? 'Upload a COI first' : 'Download all latest COIs as a .zip'}
+            className="flex items-center gap-2 px-3.5 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm">
+            <Package size={15} /> Audit Pack
+          </button>
+          <button onClick={() => setAdding(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
+            <Plus size={15} /> Add Sub
+          </button>
+        </div>
       </div>
 
       {/* Filters */}

@@ -52,8 +52,10 @@ function jobDateKeys(job) {
 }
 
 export default function Scheduler() {
-  const proposals  = useStore(s => s.proposals)
-  const navigate   = useNavigate()
+  const proposals    = useStore(s => s.proposals)
+  const updateJobData = useStore(s => s.updateJobData)
+  const navigate     = useNavigate()
+  const [scheduling, setScheduling] = useState(null) // proposal being scheduled
   const today      = new Date()
   const [year,  setYear]  = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
@@ -153,7 +155,7 @@ export default function Scheduler() {
                   {filteredUnsched.length === 0 ? (
                     <p className="text-xs text-gray-400 px-2 py-4 text-center">{noDateJobs.length === 0 ? 'All jobs are scheduled.' : 'No matches.'}</p>
                   ) : filteredUnsched.map(job => (
-                    <button key={job.id} onClick={() => navigate('/jobs')}
+                    <button key={job.id} onClick={() => { setScheduling(job); setShowUnsched(false) }}
                       className="w-full flex items-center justify-between gap-2 px-2 py-2 rounded-lg hover:bg-gray-50 text-left transition-colors">
                       <span className="flex items-center gap-2 min-w-0">
                         <HardHat size={12} className="text-[var(--brand-600)] shrink-0" />
@@ -163,7 +165,7 @@ export default function Scheduler() {
                     </button>
                   ))}
                 </div>
-                <p className="text-[11px] text-gray-400 px-2 pt-2 border-t border-gray-100 mt-1">Open a job to set its start &amp; target dates.</p>
+                <p className="text-[11px] text-gray-400 px-2 pt-2 border-t border-gray-100 mt-1">Click a job to set its start &amp; target dates.</p>
               </div>
             </>
           )}
@@ -336,6 +338,82 @@ export default function Scheduler() {
         </div>
       </div>
 
+      {scheduling && (
+        <ScheduleModal
+          job={scheduling}
+          onClose={() => setScheduling(null)}
+          onSave={(changes) => { updateJobData(scheduling.id, changes); setScheduling(null) }}
+          onOpenJob={() => navigate('/jobs')}
+        />
+      )}
+
+    </div>
+  )
+}
+
+function ScheduleModal({ job, onClose, onSave, onOpenJob }) {
+  const stages = getStages(job) || []
+  const completed = job.jobData?.completedStages || []
+  const [startDate, setStartDate] = useState(job.jobData?.startDate || '')
+  const [targetDate, setTargetDate] = useState(job.jobData?.targetDate || '')
+  const invalid = startDate && targetDate && targetDate < startDate
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-5">
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-[var(--brand-600)] uppercase tracking-wide">Schedule job</p>
+            <h2 className="text-lg font-bold text-gray-900 truncate">{job.client}</h2>
+            <p className="text-xs text-gray-400 mt-0.5">${fmt(contractTotalOf(job))}{job.address ? ` · ${job.address}` : ''}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100"><span className="text-xl leading-none">×</span></button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Start date</label>
+            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)]" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Target / end date</label>
+            <input type="date" value={targetDate} min={startDate || undefined} onChange={e => setTargetDate(e.target.value)}
+              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)]" />
+          </div>
+        </div>
+        {invalid && <p className="text-xs text-red-500 mt-1.5">End date can’t be before the start date.</p>}
+        <p className="text-[11px] text-gray-400 mt-2">The job spans these dates across the calendar. Set it here to place it on the schedule.</p>
+
+        {stages.length > 0 && (
+          <div className="mt-4">
+            <p className="text-xs font-medium text-gray-600 mb-1.5">Stages</p>
+            <div className="flex flex-wrap gap-1.5">
+              {stages.map(s => (
+                <span key={s.key}
+                  className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${completed.includes(s.key) ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                  {s.label}
+                </span>
+              ))}
+            </div>
+            <button onClick={onOpenJob} className="mt-2 text-xs text-[var(--brand-700)] hover:underline">
+              Update stage progress in Job Management →
+            </button>
+          </div>
+        )}
+
+        <div className="flex gap-2 mt-5">
+          <button onClick={() => onSave({ startDate, targetDate })} disabled={!startDate || invalid}
+            className="flex-1 py-2 bg-[var(--brand-600)] text-white text-sm font-medium rounded-lg hover:bg-[var(--brand-700)] disabled:opacity-40 transition-colors">
+            Save schedule
+          </button>
+          <button onClick={onClose}
+            className="flex-1 py-2 border border-gray-200 text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition-colors">
+            Cancel
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
