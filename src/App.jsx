@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate, useLocation } from 'react-router-dom'
-import { LayoutDashboard, FileText, BookOpen, ClipboardList, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon, Sun, Moon, Users, FileSignature, LogOut, TrendingUp, Menu, HardHat, Wrench, CalendarDays, PieChart, Wallet } from 'lucide-react'
+import { LayoutGrid, User, FileText, Cloud, Package, ListChecks, LineChart, Tag, UserCog, Wrench, Calendar, BarChart3, TrendingUp, Wallet, Mail, Search, X, Settings as SettingsIcon, Sun, Moon, LogOut, Menu } from 'lucide-react'
 import { Component, useEffect, useState, useRef } from 'react'
 import Dashboard from './pages/Dashboard'
 import Analyze from './pages/Analyze'
@@ -36,27 +36,27 @@ import { TodoDock } from './components/TodoPanel'
 // only chunked so the sidebar reads as four short lists instead of one wall.
 const NAV_SECTIONS = [
   { section: 'Sales', items: [
-    { to: '/',        label: 'Dashboard',       icon: LayoutDashboard },
-    { to: '/clients', label: 'Clients',          icon: Users },
+    { to: '/',        label: 'Dashboard',       icon: LayoutGrid },
+    { to: '/clients', label: 'Clients',          icon: User },
     { to: '/analyze', label: 'Analyze',          icon: FileText },
-    { to: '/ai',      label: 'AI Assistant',     icon: MessageSquareMore },
-    { to: '/catalog', label: 'Item Catalog',     icon: BookOpen },
-    { to: '/quote',   label: 'Build Quote',      icon: ClipboardList },
-    { to: '/tracker', label: 'Proposal Tracker', icon: BarChart2 },
+    { to: '/ai',      label: 'AI Assistant',     icon: Cloud },
+    { to: '/catalog', label: 'Item Catalog',     icon: Package },
+    { to: '/quote',   label: 'Build Quote',      icon: ListChecks },
+    { to: '/tracker', label: 'Proposal Tracker', icon: LineChart },
   ] },
   { section: 'Operations', items: [
-    { to: '/contracts', label: 'Contracts',      icon: FileSignature },
-    { to: '/jobs',      label: 'Job Management',  icon: HardHat },
+    { to: '/contracts', label: 'Contracts',      icon: Tag },
+    { to: '/jobs',      label: 'Job Management',  icon: UserCog },
     { to: '/subs',      label: 'Subcontractors',  icon: Wrench },
-    { to: '/scheduler', label: 'Scheduler',       icon: CalendarDays },
+    { to: '/scheduler', label: 'Scheduler',       icon: Calendar },
   ] },
   { section: 'Financials', items: [
-    { to: '/analytics',     label: 'Analytics',     icon: PieChart },
+    { to: '/analytics',     label: 'Analytics',     icon: BarChart3 },
     { to: '/profitability', label: 'Profitability', icon: TrendingUp },
     { to: '/finance',       label: 'Finance',       icon: Wallet },
   ] },
   { section: 'Comms', items: [
-    { to: '/inbox', label: 'Inbox', icon: Inbox },
+    { to: '/inbox', label: 'Inbox', icon: Mail },
   ] },
 ]
 // Flat list preserved for lookups (page title, etc.)
