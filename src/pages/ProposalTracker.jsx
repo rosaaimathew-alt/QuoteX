@@ -77,13 +77,25 @@ const STATUS_DOT = {
   Archived:      'bg-zinc-400',
 }
 
-// Status control styled like the prototype: a colored dot + label pill, with the
-// native <select> overlaid transparently so clicking still changes the status.
+const STATUS_TEXT = {
+  Draft:         'text-gray-500',
+  Sent:          'text-blue-600',
+  'Followed Up': 'text-purple-600',
+  Negotiating:   'text-amber-600',
+  Won:           'text-green-600',
+  Lost:          'text-red-600',
+  MIA:           'text-slate-500',
+  Archived:      'text-zinc-500',
+}
+
+// Status control styled like the prototype: a colored dot + colored label (no
+// pill), with the native <select> overlaid transparently so clicking still
+// changes the status.
 function StatusSelect({ value, onChange }) {
   return (
     <div className="relative inline-flex items-center">
-      <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_STYLES[value] || 'bg-gray-100 text-gray-600'}`}>
-        <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[value] || 'bg-gray-400'}`} />
+      <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${STATUS_TEXT[value] || 'text-gray-500'}`}>
+        <span className={`w-2 h-2 rounded-full ${STATUS_DOT[value] || 'bg-gray-400'}`} />
         {value}
       </span>
       <select
