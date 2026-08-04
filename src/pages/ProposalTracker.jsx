@@ -227,9 +227,10 @@ function ActivityLog({ proposal }) {
 }
 
 // ── Reminder Badge ─────────────────────────────────────────────────────────
-function ReminderBadges({ proposal, onAdd }) {
+function ReminderBadges({ proposal }) {
   const { dismissReminder } = useStore()
   const active = (proposal.reminders || []).filter(r => !r.dismissed)
+  if (active.length === 0) return <span className="text-xs text-gray-300">—</span>
   return (
     <div className="space-y-1">
       {active.map(r => {
@@ -245,9 +246,6 @@ function ReminderBadges({ proposal, onAdd }) {
           </div>
         )
       })}
-      <button onClick={onAdd} className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700">
-        <Plus size={11} /> Add reminder
-      </button>
     </div>
   )
 }
@@ -587,7 +585,7 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
             )}
           </td>
           <td className="px-4 py-3">
-            <ReminderBadges proposal={p} onAdd={() => onReminderOpen(p.id)} />
+            <ReminderBadges proposal={p} />
           </td>
           <td className="px-4 py-3 text-right">
             <div className="flex items-center justify-end gap-1">
@@ -600,6 +598,7 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
               </button>
               {/* Everything else in a single ⋯ overflow menu */}
               <RowMenu items={[
+                { label: 'Add reminder', icon: Bell, onClick: () => onReminderOpen(p.id) },
                 { label: 'Revise', icon: Copy, onClick: () => onRevise(p) },
                 { label: 'Merge into client', icon: GitMerge, onClick: onMerge },
                 ...(altCount > 0 ? [{ label: 'Detach', icon: Unlink, onClick: () => onDetach(p.id) }] : []),
