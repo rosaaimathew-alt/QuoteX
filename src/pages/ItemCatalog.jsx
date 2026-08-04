@@ -1,6 +1,6 @@
 import { useState, useRef, Fragment } from 'react'
 import {
-  Search, Edit2, Trash2, Plus, Check, X, GripVertical,
+  Search, Edit2, Eye, Trash2, Plus, Check, X, GripVertical,
   ChevronDown, ChevronRight, LayoutList, Rows3,
   Sparkles, Loader, MoveRight, Settings2, Pencil, Lock, Unlock,
 } from 'lucide-react'
@@ -154,7 +154,7 @@ function MoveTo({ item, onMove }) {
 }
 
 // ── Inline edit row ────────────────────────────────────────────────────────
-function EditRow({ item, onSave, onCancel }) {
+function EditRow({ item, onSave, onCancel, onDelete }) {
   const [form, setForm] = useState({ ...item })
   const CATEGORIES = useStore(s => s.catalogCategories)
   const isManager  = useStore(s => (s.role || 'manager') === 'manager')
@@ -190,8 +190,9 @@ function EditRow({ item, onSave, onCancel }) {
         </td>
         <td className="px-4 py-2">
           <div className="flex gap-1">
-            <button onClick={() => onSave(form)} className="p-1 rounded text-green-600 hover:bg-green-100"><Check size={14} /></button>
-            <button onClick={onCancel} className="p-1 rounded text-gray-400 hover:bg-gray-100"><X size={14} /></button>
+            <button onClick={() => onSave(form)} className="p-1 rounded text-green-600 hover:bg-green-100" title="Save"><Check size={14} /></button>
+            <button onClick={onCancel} className="p-1 rounded text-gray-400 hover:bg-gray-100" title="Cancel"><X size={14} /></button>
+            {onDelete && <button onClick={() => onDelete(item.id)} className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50" title="Delete item"><Trash2 size={14} /></button>}
           </div>
         </td>
       </tr>
@@ -296,7 +297,7 @@ function TableView({ filtered, editId, setEditId, onSave, onDelete, onMove, addi
             )}
             {filtered.map(item =>
               editId === item.id ? (
-                <EditRow key={item.id} item={item} onSave={(changes) => { onSave(item.id, changes); setEditId(null) }} onCancel={() => setEditId(null)} />
+                <EditRow key={item.id} item={item} onSave={(changes) => { onSave(item.id, changes); setEditId(null) }} onCancel={() => setEditId(null)} onDelete={(id) => { onDelete(id); setEditId(null) }} />
               ) : (
                 <Fragment key={item.id}>
                   <tr
@@ -307,7 +308,6 @@ function TableView({ filtered, editId, setEditId, onSave, onDelete, onMove, addi
                     <td className="px-4 py-2.5 text-gray-300"><GripVertical size={14} /></td>
                     <td className="px-4 py-2.5">
                       <p className="font-medium text-gray-800">{item.name}</p>
-                      {item.description && <p className="text-xs text-gray-400 italic mt-0.5 leading-snug line-clamp-1">{item.description}</p>}
                     </td>
                     <td className="px-4 py-2.5"><span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{item.category}</span></td>
                     <td className="px-4 py-2.5 text-gray-500">{item.unit}</td>
@@ -323,20 +323,11 @@ function TableView({ filtered, editId, setEditId, onSave, onDelete, onMove, addi
                     <td className="px-4 py-2.5">
                       <div className="flex gap-1 justify-end">
                         <button onClick={() => toggleExpand(item.id)}
-                          className={`p-1 rounded hover:bg-gray-100 ${expanded.has(item.id) ? 'text-gray-600' : 'text-gray-400'}`}
-                          title="Show pricing details (range, samples, confidence)">
-                          {expanded.has(item.id) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                          className={`p-1 rounded hover:bg-gray-100 ${expanded.has(item.id) ? 'text-[var(--brand-600)]' : 'text-gray-400'}`}
+                          title="View details">
+                          <Eye size={15} />
                         </button>
-                        <MoveTo item={item} onMove={onMove} />
-                        {isManager && (
-                          <button onClick={() => updateCatalogItem(item.id, { locked: !item.locked })}
-                            className={`p-1 rounded hover:bg-amber-50 ${item.locked ? 'text-amber-600' : 'text-gray-400 hover:text-amber-600'}`}
-                            title={item.locked ? 'Unlock price' : 'Lock price so sales can’t edit it'}>
-                            {item.locked ? <Lock size={14} /> : <Unlock size={14} />}
-                          </button>
-                        )}
-                        <button onClick={() => setEditId(item.id)} className="p-1 rounded text-gray-400 hover:text-[var(--brand-600)] hover:bg-[var(--brand-50)]"><Edit2 size={14} /></button>
-                        <button onClick={() => onDelete(item.id)} className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
+                        <button onClick={() => setEditId(item.id)} className="p-1 rounded text-gray-400 hover:text-[var(--brand-600)] hover:bg-[var(--brand-50)]" title="Edit"><Edit2 size={15} /></button>
                       </div>
                     </td>
                   </tr>
@@ -344,6 +335,7 @@ function TableView({ filtered, editId, setEditId, onSave, onDelete, onMove, addi
                     <tr className="bg-gray-50/70">
                       <td></td>
                       <td colSpan={5} className="px-4 pb-3 pt-0">
+                        {item.description && <p className="text-xs text-gray-500 mb-2 leading-relaxed">{item.description}</p>}
                         <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 text-xs text-gray-500">
                           <span>Range: <strong className="text-gray-700 font-medium">${item.minPrice} – ${item.maxPrice}</strong></span>
                           <span>Samples: <strong className="text-gray-700 font-medium">{item.count}</strong></span>
@@ -431,6 +423,7 @@ function SectionsView({ catalog, onMove, onDelete, onSave }) {
                       item={items.find(i => i.id === editId)}
                       onSave={(changes) => { onSave(editId, changes); setEditId(null) }}
                       onCancel={() => setEditId(null)}
+                      onDelete={(id) => { onDelete(id); setEditId(null) }}
                     />
                   </tbody>
                 </table>
