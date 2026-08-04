@@ -115,6 +115,11 @@
    ══════════════════════════════════════════════════════════════════════════ */
 @media screen {
 
+  /* App ground — a deeper, more neutral warm paper (not bright beige) so white
+     cards get real contrast. Replaces the light --brand-50 tint. */
+  .qx-ground            { background-color: #ebe5d8; }
+  html.dark .qx-ground  { background-color: #111827; }
+
   /* Serif display headings — the signature of the look */
   h1, h2 {
     font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;

@@ -262,7 +262,7 @@ function AppShell() {
   const logo        = branding?.logo        || null
 
   return (
-    <div className="min-h-screen flex" style={{ backgroundColor: 'var(--brand-50)' }}>
+    <div className="min-h-screen flex qx-ground">
 
       {/* Mobile backdrop */}
       {sidebarOpen && (

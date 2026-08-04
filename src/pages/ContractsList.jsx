@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileSignature, FilePen, CheckCircle2, Clock, Search, X, FileX, ExternalLink, Eye, Loader2, Copy } from 'lucide-react'
+import { FileSignature, FilePen, CheckCircle2, Clock, Search, X, FileX, ExternalLink, Eye, Loader2, Copy, MoreHorizontal } from 'lucide-react'
 import { useStore } from '../store'
 import { contractTotalOf } from '../contractTotal'
 
@@ -9,6 +9,38 @@ const fmt = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2,
 const fmtDate = (iso) => {
   if (!iso) return '—'
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+const initials = (name) => (name || '?').trim().split(/\s+/).filter(w => !/^(&|and)$/i.test(w)).map(w => w[0]).slice(0, 2).join('').toUpperCase()
+
+// Row overflow menu — secondary contract actions (Signatures, Links, Mark signed…)
+function RowMenu({ items }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  useEffect(() => {
+    if (!open) return
+    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [open])
+  if (!items.length) return null
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button onClick={() => setOpen(o => !o)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors" title="More actions">
+        <MoreHorizontal size={16} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-9 z-30 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[180px]">
+          {items.map((it, i) => (
+            <button key={i} onClick={() => { setOpen(false); it.onClick() }} disabled={it.disabled}
+              className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+              {it.icon} {it.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 const FILTERS = ['All', 'In Progress', 'Signed', 'Not Started']
@@ -386,141 +418,48 @@ export default function ContractsList() {
         </div>
       )}
 
-      {/* Contract cards */}
+      {/* Contract list — one card, clean rows, primary button + overflow menu */}
       {filtered.length > 0 && (
-        <div className="space-y-3">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
           {filtered.map(p => {
-            const status     = getContractStatus(p)
-            const draft      = p.contractDraft || {}
+            const status      = getContractStatus(p)
+            const draft       = p.contractDraft || {}
             const contractNum = draft.contractNum || `EOL${String(70000 + p.id).padStart(6, '0')}`
-            const lastSaved  = draft.savedAt
-            const signedAt   = draft.signedAt
+            const signedAt    = draft.signedAt
+            const primaryLabel = status === 'not-started' ? 'Start' : status === 'signed' ? 'View' : 'Open'
+
+            // Secondary actions live in the ⋯ menu.
+            const menu = []
+            if (draft.signRecordId) menu.push({ icon: <Eye size={14} className="text-gray-400" />, label: 'Signatures', onClick: () => setViewingRecordId(draft.signRecordId) })
+            if (draft.signLinks)    menu.push({ icon: <Copy size={14} className="text-gray-400" />, label: 'Signing links', onClick: () => setViewingLinks(draft.signLinks) })
+            if (status === 'in-progress' && !draft.signLinks) menu.push({ icon: <Copy size={14} className="text-gray-400" />, label: recovering === p.id ? 'Finding…' : 'Find links', onClick: () => handleRecoverLinks(p), disabled: recovering === p.id })
+            if (status === 'in-progress') menu.push({ icon: <CheckCircle2 size={14} className="text-gray-400" />, label: 'Mark signed', onClick: () => markContractSigned(p.id, true) })
+            if (status === 'signed')      menu.push({ icon: <FileX size={14} className="text-gray-400" />, label: 'Undo signed', onClick: () => markContractSigned(p.id, false) })
 
             return (
-              <div
-                key={p.id}
-                className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-shadow hover:shadow-md ${
-                  status === 'signed' ? 'border-emerald-100' : 'border-gray-100'
-                }`}
-              >
-                <div className="flex items-start gap-3 sm:gap-5 px-4 sm:px-5 py-4">
-
-                  {/* Icon */}
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                    status === 'signed'      ? 'bg-emerald-100 text-emerald-600' :
-                    status === 'in-progress' ? 'bg-amber-100 text-amber-600' :
-                                               'bg-gray-100 text-gray-400'
-                  }`}>
-                    {status === 'signed'
-                      ? <CheckCircle2 size={20} />
-                      : status === 'in-progress'
-                        ? <FilePen size={20} />
-                        : <FileSignature size={20} />}
-                  </div>
-
-                  {/* Main info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-gray-900 text-sm">{p.client}</span>
-                      <StatusBadge status={status} />
-                      <span className="text-xs text-gray-400 font-mono">{contractNum}</span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-0.5 truncate">{p.address}</p>
-                    <div className="flex items-center gap-4 mt-1 flex-wrap">
-                      <span className="text-xs font-semibold text-[var(--brand-700)]">${fmt(contractTotalOf(p))}</span>
-                      {status === 'signed' && (draft.signedOffPlatform
-                        ? <span className="text-xs text-gray-400">Signed off-platform</span>
-                        : signedAt && <span className="text-xs text-gray-400">Signed {fmtDate(signedAt)}</span>
-                      )}
-                      {status === 'in-progress' && lastSaved && (
-                        <span className="text-xs text-gray-400">Last saved {fmtDate(lastSaved)}</span>
-                      )}
-                      {status === 'not-started' && p.closedAt && (
-                        <span className="text-xs text-gray-400">Won {fmtDate(p.closedAt)}</span>
-                      )}
-                      {p.email && (
-                        <span className="text-xs text-gray-400 truncate max-w-[180px]">{p.email}</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-wrap justify-end">
-                    {draft.signRecordId && (
-                      <button
-                        onClick={() => setViewingRecordId(draft.signRecordId)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-medium hover:bg-purple-700 transition-colors"
-                        title="View signed contract and signatures"
-                      >
-                        <Eye size={12} /> Signatures
-                      </button>
-                    )}
-                    {draft.signLinks && (
-                      <button
-                        onClick={() => setViewingLinks(draft.signLinks)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg text-xs font-medium hover:bg-blue-100 transition-colors"
-                        title="Show signing links"
-                      >
-                        <Copy size={12} /> Links
-                      </button>
-                    )}
-                    {status === 'in-progress' && !draft.signLinks && (
-                      <button
-                        onClick={() => handleRecoverLinks(p)}
-                        disabled={recovering === p.id}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 text-orange-600 border border-orange-200 rounded-lg text-xs font-medium hover:bg-orange-100 transition-colors disabled:opacity-50"
-                        title="Try to recover signing links from server"
-                      >
-                        {recovering === p.id
-                          ? <><Loader2 size={12} className="animate-spin" /> Finding…</>
-                          : <><Copy size={12} /> Find Links</>}
-                      </button>
-                    )}
-                    {status !== 'signed' && (
-                      <button
-                        onClick={() => openContract(p)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--brand-600)] text-white rounded-lg text-xs font-medium hover:bg-[var(--brand-700)] transition-colors"
-                      >
-                        <ExternalLink size={12} />
-                        {status === 'not-started' ? 'Start Contract' : 'Open / Edit'}
-                      </button>
-                    )}
-                    {status === 'signed' && (
-                      <button
-                        onClick={() => openContract(p)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg text-xs font-medium hover:bg-gray-200 transition-colors"
-                      >
-                        <ExternalLink size={12} /> View
-                      </button>
-                    )}
-                    {status === 'in-progress' && (
-                      <button
-                        onClick={() => markContractSigned(p.id, true)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 transition-colors"
-                      >
-                        <CheckCircle2 size={12} /> Mark Signed
-                      </button>
-                    )}
-                    {status === 'signed' && (
-                      <button
-                        onClick={() => markContractSigned(p.id, false)}
-                        className="px-3 py-1.5 border border-gray-200 text-gray-500 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors"
-                      >
-                        Undo Signed
-                      </button>
-                    )}
-                  </div>
+              <div key={p.id} className="flex items-center gap-3 sm:gap-4 px-4 sm:px-5 py-3.5 border-b border-gray-100 last:border-b-0">
+                {/* Avatar */}
+                <div className="w-10 h-10 rounded-xl bg-[var(--brand-100)] text-[var(--brand-700)] flex items-center justify-center shrink-0 font-bold text-sm">
+                  {initials(p.client)}
                 </div>
-
-                {/* Progress bar for in-progress contracts */}
-                {status === 'in-progress' && (
-                  <div className="h-0.5 bg-amber-100">
-                    <div className="h-full bg-amber-400 w-1/2" />
-                  </div>
-                )}
-                {status === 'signed' && (
-                  <div className="h-0.5 bg-emerald-400" />
-                )}
+                {/* Name + contract # · value */}
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-900 text-sm truncate">{p.client}</p>
+                  <p className="text-xs text-gray-400 truncate">
+                    <span className="font-mono">{contractNum}</span> · ${fmt(contractTotalOf(p))}
+                    {status === 'signed' && (draft.signedOffPlatform
+                      ? ' · off-platform'
+                      : signedAt ? ` · Signed ${fmtDate(signedAt)}` : '')}
+                  </p>
+                </div>
+                <StatusBadge status={status} />
+                <button
+                  onClick={() => openContract(p)}
+                  className="flex items-center gap-1.5 px-4 py-1.5 bg-[var(--brand-600)] text-white rounded-lg text-xs font-medium hover:bg-[var(--brand-700)] transition-colors shrink-0"
+                >
+                  {primaryLabel}
+                </button>
+                <RowMenu items={menu} />
               </div>
             )
           })}
