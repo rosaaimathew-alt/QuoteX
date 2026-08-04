@@ -37,7 +37,7 @@ function Avatar({ name, email, size = 'md' }) {
   const initial = (name || email || '?')[0].toUpperCase()
   const sz = size === 'sm' ? 'w-7 h-7 text-xs' : 'w-9 h-9 text-sm'
   return (
-    <div className={`${sz} ${avatarColor(email)} rounded-full flex items-center justify-center text-white font-bold shrink-0`}>
+    <div className={`${sz} bg-[var(--brand-100)] text-[var(--brand-700)] rounded-full flex items-center justify-center font-bold shrink-0`}>
       {initial}
     </div>
   )

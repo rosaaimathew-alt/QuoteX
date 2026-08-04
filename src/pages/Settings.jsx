@@ -208,7 +208,7 @@ function DriveBackupCard() {
   return (
     <div className="mt-5 pt-5 border-t border-gray-100">
       <div className="flex items-center gap-2 mb-1">
-        <HardDrive size={15} className="text-indigo-500" />
+        <HardDrive size={15} className="text-[var(--brand-500)]" />
         <h4 className="font-semibold text-gray-800 text-sm">Google Drive Backup</h4>
         {status === null && <RefreshCw size={12} className="animate-spin text-gray-400" />}
         {status !== null && (
@@ -223,7 +223,7 @@ function DriveBackupCard() {
 
       {status !== null && !status.authenticated && (
         <button onClick={connectDrive}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors">
+          className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors">
           <CloudUpload size={14} /> Connect Google Drive
         </button>
       )}
@@ -231,7 +231,7 @@ function DriveBackupCard() {
       {status?.authenticated && (
         <div className="flex items-center gap-3 flex-wrap">
           <button onClick={() => triggerBackup(false)} disabled={backing}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors">
+            className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors">
             {backing ? <RefreshCw size={13} className="animate-spin" /> : <CloudUpload size={13} />}
             {backing ? 'Backing up…' : 'Back Up Now'}
           </button>
@@ -341,7 +341,7 @@ function DataManagement() {
       </p>
 
       {/* Push to shared server — the fix for "my data only shows on one device" */}
-      <div className="mb-3 rounded-lg border border-[var(--brand-200)] bg-[var(--brand-50)] p-3">
+      <div className="mb-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5"><CloudUpload size={14} /> Sync this device to the server</p>
@@ -350,7 +350,7 @@ function DataManagement() {
           <button
             onClick={handlePushToServer}
             disabled={syncing}
-            className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-600)] text-white text-sm font-medium rounded-lg hover:bg-[var(--brand-700)] disabled:opacity-50 transition-colors shrink-0"
+            className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors shrink-0"
           >
             {syncing ? <RefreshCw size={14} className="animate-spin" /> : <CloudUpload size={14} />}
             {syncing ? 'Pushing…' : 'Push to server'}

@@ -4,6 +4,7 @@ import { getStages } from './Jobs'
 import {
   ChevronLeft, ChevronRight, Plus, X, Eye, EyeOff, Trash2, CalendarDays,
   MapPin, HardHat, Circle, CheckCircle2, Square, ListChecks,
+  Check, ChevronUp, ChevronDown,
 } from 'lucide-react'
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -107,20 +108,20 @@ function EventEditor({ event, onClose }) {
   if (isStage) {
     const done = (proposal?.jobData?.completedStages || []).includes(event.stageKey)
     return (
-      <Shell onClose={onClose} icon={<ListChecks size={16} className="text-teal-600" />} label={done ? 'Completed milestone' : 'Scheduled milestone'}>
+      <Shell onClose={onClose} icon={<ListChecks size={16} className="text-[var(--brand-600)]" />} label={done ? 'Completed milestone' : 'Scheduled milestone'}>
         <div className="p-5 space-y-4">
           <div>
             <p className="text-sm font-semibold text-gray-800">{event.stageLabel}</p>
             <p className="text-xs text-gray-400">{proposal?.client || 'Job'}</p>
           </div>
           <button onClick={() => toggleJobStage(event.proposalId, event.stageKey)}
-            className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium border transition-colors ${done ? 'bg-green-50 text-green-700 border-green-200' : 'bg-white text-gray-700 border-gray-200 hover:border-teal-400'}`}>
+            className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium border transition-colors ${done ? 'bg-green-50 text-green-700 border-green-200' : 'bg-white text-gray-700 border-gray-200 hover:border-[var(--brand-400)]'}`}>
             {done ? <CheckCircle2 size={15} /> : <Square size={15} />} {done ? 'Completed — mark incomplete' : 'Mark complete'}
           </button>
           <div>
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Scheduled date</label>
             <input type="date" value={event.start} onChange={e => setJobStageDate(event.proposalId, event.stageKey, e.target.value)}
-              className="w-full text-sm border border-gray-200 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-teal-300" />
+              className="w-full text-sm border border-gray-200 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)]" />
             <p className="text-[11px] text-gray-400 mt-1">Rescheduling keeps it uncompleted until you check it off.</p>
           </div>
         </div>
@@ -129,7 +130,7 @@ function EventEditor({ event, onClose }) {
             className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">
             <X size={13} /> Remove from calendar
           </button>
-          <button onClick={onClose} className="ml-auto px-5 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700">Done</button>
+          <button onClick={onClose} className="ml-auto px-5 py-2 bg-[var(--brand-600)] text-white text-sm font-medium rounded-lg hover:bg-[var(--brand-700)]">Done</button>
         </div>
       </Shell>
     )
@@ -148,7 +149,7 @@ function EventEditor({ event, onClose }) {
 
   return (
     <Shell onClose={onClose}
-      icon={isJob ? <HardHat size={16} className="text-teal-600" /> : <Circle size={12} style={{ color }} fill={color} />}
+      icon={isJob ? <HardHat size={16} className="text-[var(--brand-600)]" /> : <Circle size={12} style={{ color }} fill={color} />}
       label={isJob ? 'Job' : 'Planned project'}>
       <div className="p-5 space-y-3 max-h-[70vh] overflow-y-auto">
         {isJob ? (
@@ -202,12 +203,12 @@ function EventEditor({ event, onClose }) {
                 const sdone = completed.includes(st.key)
                 return (
                   <div key={st.key} className="flex items-center gap-2">
-                    <button onClick={() => toggleJobStage(event.proposalId, st.key)} className={`shrink-0 ${sdone ? 'text-green-600' : 'text-gray-300 hover:text-teal-600'}`}>
+                    <button onClick={() => toggleJobStage(event.proposalId, st.key)} className={`shrink-0 ${sdone ? 'text-green-600' : 'text-gray-300 hover:text-[var(--brand-600)]'}`}>
                       {sdone ? <CheckCircle2 size={16} /> : <Square size={16} />}
                     </button>
                     <span className={`flex-1 text-sm truncate ${sdone ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{st.label}</span>
                     <input type="date" value={stageDates[st.key] || ''} onChange={e => setJobStageDate(event.proposalId, st.key, e.target.value)}
-                      className="text-xs border border-gray-200 rounded px-1.5 py-1 shrink-0 focus:outline-none focus:ring-1 focus:ring-teal-300" />
+                      className="text-xs border border-gray-200 rounded px-1.5 py-1 shrink-0 focus:outline-none focus:ring-1 focus:ring-[var(--brand-300)]" />
                   </div>
                 )
               })}
@@ -227,7 +228,7 @@ function EventEditor({ event, onClose }) {
             <Trash2 size={13} /> Delete
           </button>
         ) : null}
-        <button onClick={save} className="ml-auto px-5 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700">Save</button>
+        <button onClick={save} className="ml-auto px-5 py-2 bg-[var(--brand-600)] text-white text-sm font-medium rounded-lg hover:bg-[var(--brand-700)]">Save</button>
       </div>
     </Shell>
   )
@@ -270,7 +271,7 @@ export default function PMCalendar() {
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <CalendarDays size={22} className="text-teal-600" /> Job Calendar
+            <CalendarDays size={22} className="text-[var(--brand-600)]" /> Job Calendar
           </h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5">All open jobs across the board — click a day to plan, click a job to reschedule.</p>
         </div>
@@ -292,7 +293,7 @@ export default function PMCalendar() {
             {unscheduled.map(e => (
               <button key={e.id} onClick={() => setEditing(e)}
                 className="flex items-center gap-1.5 text-xs bg-white border border-amber-200 rounded-lg px-2.5 py-1.5 hover:border-amber-400">
-                <HardHat size={12} className="text-teal-600" /> {e.title}
+                <HardHat size={12} className="text-[var(--brand-600)]" /> {e.title}
               </button>
             ))}
           </div>
@@ -313,18 +314,18 @@ export default function PMCalendar() {
               <div key={i}
                 className={`min-h-[92px] border-b border-r border-gray-50 p-1.5 flex flex-col gap-1 group ${inMonth ? 'bg-white' : 'bg-gray-50/60'}`}>
                 <div className="flex items-center justify-between">
-                  <span className={`text-xs font-medium ${k === tKey ? 'bg-teal-600 text-white w-5 h-5 rounded-full flex items-center justify-center' : inMonth ? 'text-gray-600' : 'text-gray-300'}`}>
+                  <span className={`text-xs font-medium ${k === tKey ? 'bg-[var(--brand-600)] text-white w-5 h-5 rounded-full flex items-center justify-center' : inMonth ? 'text-gray-600' : 'text-gray-300'}`}>
                     {d.getDate()}
                   </span>
                   <button onClick={() => addOnDay(d)} title="Add a planned project"
-                    className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-teal-600 transition-opacity"><Plus size={13} /></button>
+                    className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-[var(--brand-600)] transition-opacity"><Plus size={13} /></button>
                 </div>
                 <div className="flex flex-col gap-0.5 overflow-hidden">
                   {evts.slice(0, 3).map(e => (
                     <button key={e.id} onClick={() => setEditing(e)}
                       className="text-left text-[11px] leading-tight px-1.5 py-0.5 rounded truncate text-white hover:opacity-90"
                       style={{ background: e.color }} title={e.title}>
-                      {e.kind === 'stage' && e.completed ? '✓ ' : ''}{e.title}
+                      {e.kind === 'stage' && e.completed ? <Check size={11} className="inline align-[-1px] mr-0.5" /> : null}{e.title}
                     </button>
                   ))}
                   {evts.length > 3 && <span className="text-[10px] text-gray-400 px-1">+{evts.length - 3} more</span>}
@@ -342,7 +343,7 @@ export default function PMCalendar() {
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded" style={{ background: '#2563eb' }} /> Planned</span>
         {hidden.length > 0 && (
           <button onClick={() => setShowHidden(v => !v)} className="flex items-center gap-1 hover:text-gray-700 ml-auto">
-            <EyeOff size={12} /> {hidden.length} hidden {showHidden ? '▲' : '▼'}
+            <EyeOff size={12} /> {hidden.length} hidden {showHidden ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           </button>
         )}
       </div>
@@ -350,7 +351,7 @@ export default function PMCalendar() {
         <div className="mt-2 bg-gray-50 border border-gray-200 rounded-xl p-3 flex gap-2 flex-wrap">
           {hidden.map(e => (
             <button key={e.id} onClick={() => toggleCalendarHiddenJob(e.proposalId)}
-              className="flex items-center gap-1.5 text-xs bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 hover:border-teal-400 text-gray-600">
+              className="flex items-center gap-1.5 text-xs bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 hover:border-[var(--brand-400)] text-gray-600">
               <Eye size={12} /> {e.title}
             </button>
           ))}

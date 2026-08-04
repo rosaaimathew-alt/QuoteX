@@ -67,7 +67,7 @@ function DiffTable({ changes, catalog, onApply, onDismiss, applied }) {
     <div className={`mt-3 rounded-xl border overflow-hidden ${applied ? 'border-green-200 bg-green-50' : 'border-blue-200 bg-blue-50'}`}>
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-current border-opacity-20">
         <span className={`text-xs font-bold uppercase tracking-wider ${applied ? 'text-green-700' : 'text-blue-700'}`}>
-          {applied ? '✓ Applied' : `${rows.length} item${rows.length !== 1 ? 's' : ''} will change`}
+          {applied ? <><CheckCircle size={12} className="inline -mt-0.5 mr-1" /> Applied</> : `${rows.length} item${rows.length !== 1 ? 's' : ''} will change`}
         </span>
         {!applied && (
           <div className="flex gap-2">
@@ -137,7 +137,7 @@ function Message({ msg, catalog, onApply }) {
     <div className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
       {/* Avatar */}
       <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-        msg.role === 'user' ? 'bg-blue-600' : 'bg-gradient-to-br from-purple-500 to-blue-600'
+        msg.role === 'user' ? 'bg-blue-600' : 'bg-[var(--brand-500)]'
       }`}>
         {msg.role === 'user'
           ? <User size={14} className="text-white" />
@@ -335,7 +335,7 @@ export default function AiChat() {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 bg-white border-b border-gray-200 shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full bg-[var(--brand-500)] flex items-center justify-center">
               <Sparkles size={15} className="text-white" />
             </div>
             <div>

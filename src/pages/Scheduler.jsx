@@ -187,7 +187,7 @@ export default function Scheduler() {
                     <div key={job.id}
                       onClick={() => navigate('/jobs')}
                       className="cursor-pointer hover:bg-gray-50 -mx-1 px-1 rounded-lg transition-colors">
-                      <div className={`w-full h-1 rounded-full mb-1.5 ${colorMap[job.id]}`} />
+                      <div className="w-full h-1 rounded-full mb-1.5 bg-gray-200" />
                       <p className="text-sm font-semibold text-gray-900">{job.client}</p>
                       {job.address && (
                         <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
