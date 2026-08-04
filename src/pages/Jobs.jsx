@@ -1597,9 +1597,21 @@ function JobCard({ proposal }) {
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden transition-all">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3.5 cursor-pointer hover:bg-gray-50 transition-colors"
+      {/* Header — click anywhere on the row (e.g. the name) to expand the full job */}
+      <div className="flex items-center gap-3 px-4 sm:px-5 py-3.5 cursor-pointer hover:bg-gray-50 transition-colors"
         onClick={() => setExpanded(e => !e)}>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-semibold text-gray-900 text-sm">{proposal.client}</span>
+            {openWarranty > 0 && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1"><AlertTriangle size={11} /> {openWarranty} warranty</span>}
+          </div>
+          <p className="text-xs text-gray-400 mt-0.5 truncate">
+            {projectTypes} · ${fmt(contractTotalOf(proposal))} · <span className="font-mono">{contractNum}</span>
+          </p>
+        </div>
+
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${statusPill.cls}`}>{statusPill.label}</span>
+
         <div className="relative w-10 h-10 shrink-0">
           <svg className="w-10 h-10 -rotate-90" viewBox="0 0 36 36">
             <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e5e7eb" strokeWidth="3" />
@@ -1610,50 +1622,29 @@ function JobCard({ proposal }) {
           <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-gray-600">{pct}%</span>
         </div>
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-gray-900 text-sm">{proposal.client}</span>
-            <span className="text-xs text-gray-400 font-mono">{contractNum}</span>
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusPill.cls}`}>{statusPill.label}</span>
-            {openWarranty > 0 && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1"><AlertTriangle size={11} /> {openWarranty} warranty</span>}
-          </div>
-          <div className="flex items-center gap-3 mt-0.5 flex-wrap text-xs text-gray-500">
-            <span className="flex items-center gap-1"><MapPin size={10} />{proposal.address || '—'}</span>
-            <span className="flex items-center gap-1"><DollarSign size={10} />${fmt(contractTotalOf(proposal))}</span>
-            <span>{projectTypes}</span>
-            {jobData.startDate && (
-              <span className="flex items-center gap-1"><CalendarDays size={10} /> {jobData.startDate}</span>
+        {!isClosed && (
+          <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setMenuOpen(o => !o)} title="More actions"
+              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
+              <MoreHorizontal size={16} />
+            </button>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-20">
+                  <button onClick={() => { setMenuOpen(false); setShowReminder(true) }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    <Mail size={14} className="text-gray-400 shrink-0" /> Send payment reminder
+                  </button>
+                  <button onClick={() => { setMenuOpen(false); setShowCloseOut(true) }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    <CheckCheck size={14} className="text-gray-400 shrink-0" /> Close out job
+                  </button>
+                </div>
+              </>
             )}
           </div>
-        </div>
-
-        <div className="shrink-0 flex items-center gap-1">
-          {!isClosed && (
-            <div className="relative" onClick={e => e.stopPropagation()}>
-              <button onClick={() => setMenuOpen(o => !o)}
-                title="More actions"
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
-                <MoreHorizontal size={16} />
-              </button>
-              {menuOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                  <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-20">
-                    <button onClick={() => { setMenuOpen(false); setShowReminder(true) }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                      <Mail size={14} className="text-gray-400 shrink-0" /> Send payment reminder
-                    </button>
-                    <button onClick={() => { setMenuOpen(false); setShowCloseOut(true) }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                      <CheckCheck size={14} className="text-gray-400 shrink-0" /> Close out job
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-          {expanded ? <ChevronUp size={15} className="text-gray-400" /> : <ChevronDown size={15} className="text-gray-400" />}
-        </div>
+        )}
       </div>
 
       {showReminder && <PaymentReminderModal proposal={proposal} onClose={() => setShowReminder(false)} />}
@@ -1811,7 +1802,8 @@ export default function Jobs() {
     if (filter === 'closed' && !isClosed) return false
     if (query) {
       const q = query.toLowerCase()
-      return [p.client, p.address, p.email].some(v => v?.toLowerCase().includes(q))
+      const contractNum = p.contractDraft?.contractNum || `EOL${String(70000 + p.id).padStart(6, '0')}`
+      return [p.client, p.address, p.email, contractNum].some(v => v?.toLowerCase().includes(q))
     }
     return true
   }).sort((a, b) => {
@@ -1848,9 +1840,9 @@ export default function Jobs() {
           ))}
         </div>
         <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-1.5 bg-white w-full sm:w-52">
-          <ClipboardList size={13} className="text-gray-400 shrink-0" />
+          <Search size={13} className="text-gray-400 shrink-0" />
           <input className="flex-1 text-sm bg-transparent outline-none placeholder:text-gray-400"
-            placeholder="Search jobs…" value={query} onChange={e => setQuery(e.target.value)} />
+            placeholder="Search name or contract #…" value={query} onChange={e => setQuery(e.target.value)} />
           {query && <button onClick={() => setQuery('')} className="text-gray-300 hover:text-gray-500"><X size={12} /></button>}
         </div>
       </div>
