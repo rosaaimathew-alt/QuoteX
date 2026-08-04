@@ -71,7 +71,7 @@ function CategoryManagerModal({ onClose }) {
                     value={editVal}
                     onChange={e => setEditVal(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditing(null) }}
-                    className="flex-1 text-sm border border-blue-300 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    className="flex-1 text-sm border border-[var(--brand-300)] rounded-lg px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-[var(--brand-200)]"
                   />
                   <button onClick={saveEdit} className="p-1 text-green-600 hover:text-green-800"><Check size={15} /></button>
                   <button onClick={() => setEditing(null)} className="p-1 text-gray-400 hover:text-gray-600"><X size={15} /></button>
@@ -80,7 +80,7 @@ function CategoryManagerModal({ onClose }) {
                 <>
                   <span className="flex-1 text-sm text-gray-800 font-medium">{cat}</span>
                   <span className="text-xs text-gray-400 mr-1">{usageCount(cat)} item{usageCount(cat) !== 1 ? 's' : ''}</span>
-                  <button onClick={() => startEdit(cat)} className="p-1 text-gray-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => startEdit(cat)} className="p-1 text-gray-300 hover:text-[var(--brand-600)] opacity-0 group-hover:opacity-100 transition-opacity">
                     <Pencil size={13} />
                   </button>
                   <button onClick={() => handleDelete(cat)} className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -99,10 +99,10 @@ function CategoryManagerModal({ onClose }) {
               onChange={e => setNewName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleAdd()}
               placeholder="New category name…"
-              className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)]"
             />
             <button onClick={handleAdd} disabled={!newName.trim()}
-              className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-40 transition-colors">
+              className="flex items-center gap-1.5 px-4 py-2 bg-[var(--brand-600)] text-white rounded-xl text-sm font-medium hover:bg-[var(--brand-700)] disabled:opacity-40 transition-colors">
               <Plus size={14} /> Add
             </button>
           </div>
@@ -459,7 +459,7 @@ function SectionsView({ catalog, onMove, onDelete, onSave }) {
                     </div>
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                       <MoveTo item={item} onMove={onMove} />
-                      <button onClick={() => setEditId(item.id)} className="p-1 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50"><Edit2 size={13} /></button>
+                      <button onClick={() => setEditId(item.id)} className="p-1 rounded text-gray-400 hover:text-[var(--brand-600)] hover:bg-[var(--brand-50)]"><Edit2 size={13} /></button>
                       <button onClick={() => onDelete(item.id)} className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50"><Trash2 size={13} /></button>
                     </div>
                   </div>
@@ -492,7 +492,7 @@ function AiSuggestBanner({ suggestions, catalog, onApply, onDismiss }) {
         </div>
         <div className="flex gap-2">
           <button onClick={onDismiss} className="text-xs px-2 py-1 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">Dismiss</button>
-          <button onClick={() => onApply(suggestions)} className="text-xs px-3 py-1 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">Apply All</button>
+          <button onClick={() => onApply(suggestions)} className="text-xs px-3 py-1 bg-[var(--brand-600)] text-white rounded-lg font-medium hover:bg-[var(--brand-700)]">Apply All</button>
         </div>
       </div>
       <div className="space-y-1.5 max-h-48 overflow-y-auto">
@@ -611,13 +611,13 @@ export default function ItemCatalog() {
           <div className="flex bg-gray-100 rounded-lg p-1">
             <button
               onClick={() => setView('table')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === 'table' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === 'table' ? 'bg-white text-[var(--brand-700)] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
             >
               <Rows3 size={14} /> Table
             </button>
             <button
               onClick={() => setView('sections')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === 'sections' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === 'sections' ? 'bg-white text-[var(--brand-700)] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
             >
               <LayoutList size={14} /> Sections
             </button>
@@ -643,7 +643,7 @@ export default function ItemCatalog() {
 
           <button
             onClick={() => setAddingNew(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+            className="flex items-center gap-1.5 px-4 py-2 bg-[var(--brand-600)] text-white rounded-lg text-sm font-medium hover:bg-[var(--brand-700)]"
           >
             <Plus size={15} /> Add Item
           </button>
@@ -675,7 +675,7 @@ export default function ItemCatalog() {
           <div className="relative flex-1 min-w-40">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
-              className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+              className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)]"
               placeholder="Search items..."
               value={search}
               onChange={e => setSearch(e.target.value)}
@@ -684,7 +684,7 @@ export default function ItemCatalog() {
           <div className="flex gap-1 flex-wrap">
             {cats.map(c => (
               <button key={c} onClick={() => setCatFilter(c)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${catFilter === c ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${catFilter === c ? 'bg-[var(--brand-600)] text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
                 {c}
               </button>
             ))}
@@ -697,7 +697,7 @@ export default function ItemCatalog() {
         <div className="relative mb-4">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
-            className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white"
+            className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)] bg-white"
             placeholder="Search items..."
             value={search}
             onChange={e => setSearch(e.target.value)}
