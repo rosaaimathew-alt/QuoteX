@@ -336,7 +336,7 @@ export default function Analyze() {
   const [tab, setTab] = useState('analyze')
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-5">
         <h2 className="text-2xl font-bold text-gray-900">Analyze</h2>
