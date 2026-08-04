@@ -233,6 +233,6 @@ export function buildDemoSeed() {
     nextSubId: 6,
     catalog: DEMO_CATALOG,
     nextCatalogId: DEMO_CATALOG.length + 1,
-    branding: { companyName: 'Evergreen Outdoor Living', plan: 'enterprise', primaryColor: '#b0894f', sidebar: '#26262b' },
+    branding: { companyName: 'Evergreen Outdoor Living', plan: 'enterprise', primaryColor: '#2c2926', sidebar: '#26262b' },
   }
 }
