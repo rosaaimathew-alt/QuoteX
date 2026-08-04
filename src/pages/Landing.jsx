@@ -5,10 +5,12 @@ import {
 } from 'lucide-react'
 import { DEMO } from '../demo'
 
-// On the demo domain the funnel CTAs launch the live sample app; on the real
-// marketing site they go to sign-in.
-const CTA = DEMO ? '/' : '/login'
-const CTA_LABEL = DEMO ? 'Launch live demo' : 'Get started'
+// "Get started" drops visitors into the live demo. It uses a real full-page link
+// (href, not a client-side route) so demo mode activates from the /demo URL.
+// "Log in" is for existing customers.
+const DEMO_HREF = '/demo'
+const CTA = '/login'
+const CTA_LABEL = 'Get started'
 
 // Brand identity for the marketing site — charcoal + brass, matching the
 // product's standard tier. Georgia display for a premium, built-to-last feel.
@@ -84,9 +86,9 @@ export default function Landing() {
           </nav>
           <div className="flex items-center gap-3">
             {!DEMO && <Link to={CTA} className="text-sm font-semibold px-3 py-2 rounded-lg transition-colors hover:bg-black/5" style={{ color: INK }}>Log in</Link>}
-            <Link to={CTA} className="text-sm font-semibold px-4 py-2 rounded-lg text-white transition-transform hover:-translate-y-0.5" style={{ background: CHARCOAL }}>
+            <a href={DEMO_HREF} className="text-sm font-semibold px-4 py-2 rounded-lg text-white transition-transform hover:-translate-y-0.5" style={{ background: CHARCOAL }}>
               {CTA_LABEL}
-            </Link>
+            </a>
           </div>
         </div>
       </header>
@@ -105,9 +107,9 @@ export default function Landing() {
             QuoteX takes contractors from first estimate to signed contract to finished job — proposals, e-signatures, change orders, and payments in one place. Stop juggling PDFs, spreadsheets, and email threads.
           </p>
           <div className="flex flex-wrap items-center gap-4">
-            <Link to={CTA} className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl text-white font-semibold text-base transition-transform hover:-translate-y-0.5" style={{ background: CHARCOAL }}>
+            <a href={DEMO_HREF} className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl text-white font-semibold text-base transition-transform hover:-translate-y-0.5" style={{ background: CHARCOAL }}>
               {CTA_LABEL} <ArrowRight size={17} />
-            </Link>
+            </a>
             <a href="#how" className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-semibold text-base transition-colors hover:bg-black/5" style={{ border: `1.5px solid rgba(33,31,28,0.18)`, color: INK }}>
               See how it works
             </a>
@@ -195,10 +197,10 @@ export default function Landing() {
                     </li>
                   ))}
                 </ul>
-                <Link to={CTA} className="text-center px-5 py-3 rounded-xl font-semibold text-sm transition-transform hover:-translate-y-0.5"
+                <a href={DEMO_HREF} className="text-center px-5 py-3 rounded-xl font-semibold text-sm transition-transform hover:-translate-y-0.5"
                   style={t.highlight ? { background: BRASS, color: CHARCOAL } : { background: CHARCOAL, color: '#fff' }}>
                   {t.cta}
-                </Link>
+                </a>
               </div>
             ))}
           </div>
@@ -215,9 +217,9 @@ export default function Landing() {
           <p className="text-lg mb-9 max-w-xl mx-auto" style={{ color: '#a9a29a' }}>
             Send a professional proposal today. Get it signed tomorrow.
           </p>
-          <Link to={CTA} className="inline-flex items-center gap-2 px-7 py-4 rounded-xl font-semibold text-base transition-transform hover:-translate-y-0.5" style={{ background: BRASS, color: CHARCOAL }}>
+          <a href={DEMO_HREF} className="inline-flex items-center gap-2 px-7 py-4 rounded-xl font-semibold text-base transition-transform hover:-translate-y-0.5" style={{ background: BRASS, color: CHARCOAL }}>
             {CTA_LABEL} <ArrowRight size={18} />
-          </Link>
+          </a>
         </div>
       </section>
 
