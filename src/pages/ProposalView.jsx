@@ -201,7 +201,7 @@ export default function ProposalView() {
         </button>
         <button
           onClick={() => { setShowSend(true); setSendSuccess(false); setSendError('') }}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700"
+          className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
         >
           <Send size={14} /> Send to Client
         </button>
@@ -281,7 +281,7 @@ export default function ProposalView() {
                   <button
                     onClick={handleSend}
                     disabled={sending || !email}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {sending ? <><Loader size={14} className="animate-spin" /> Generating PDF...</> : <><Send size={14} /> Send Proposal</>}
                   </button>

@@ -368,7 +368,7 @@ function MergeModal({ sourceGroup, allGroups, onMerge, onClose }) {
         <div className="px-5 pt-5 pb-4 border-b border-gray-100">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-              <GitMerge size={17} className="text-purple-600" /> Merge Client
+              <GitMerge size={17} className="text-gray-500" /> Merge Client
             </h3>
             <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={16} /></button>
           </div>
@@ -383,7 +383,7 @@ function MergeModal({ sourceGroup, allGroups, onMerge, onClose }) {
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
             <input autoFocus value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search clients…"
-              className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
+              className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)]" />
           </div>
         </div>
         <div className="overflow-y-auto flex-1 px-3 py-2">
@@ -393,7 +393,7 @@ function MergeModal({ sourceGroup, allGroups, onMerge, onClose }) {
             const count = g.revisions.length + 1
             return (
               <button key={g.root.id} onClick={() => onMerge(g.root.id)}
-                className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-purple-50 border border-transparent hover:border-purple-200 transition-colors mb-1">
+                className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-gray-50 border border-transparent hover:border-gray-300 transition-colors mb-1">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold text-gray-800">{g.root.client || <span className="italic text-gray-400">No name</span>}</span>
                   <span className="text-xs text-gray-400 shrink-0 ml-2">{count} proposal{count !== 1 ? 's' : ''}</span>
@@ -485,9 +485,9 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
               <div className="mt-0.5">
                 <button
                   onClick={() => setExpandedAlts(isAltExpanded ? null : p.id)}
-                  className="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 font-semibold hover:bg-purple-200"
+                  className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200 inline-flex items-center gap-1"
                 >
-                  {altCount} alt{altCount !== 1 ? 's' : ''} {isAltExpanded ? '▲' : '▼'}
+                  {altCount} alt{altCount !== 1 ? 's' : ''} {isAltExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
                 </button>
               </div>
             )}
@@ -519,34 +519,34 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
           </td>
           <td className="px-4 py-3 text-right">
             <div className="flex items-center justify-end gap-1">
-              <button onClick={() => onOpen(p)} className="p-1.5 rounded text-gray-300 hover:text-sky-600 hover:bg-sky-50" title="Open proposal">
+              <button onClick={() => onOpen(p)} className="p-1.5 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-50" title="Open proposal">
                 <Eye size={13} />
               </button>
-              <button onClick={() => onRevise(p)} className="p-1.5 rounded text-gray-300 hover:text-purple-600 hover:bg-purple-50" title="Create revision">
+              <button onClick={() => onRevise(p)} className="p-1.5 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-50" title="Create revision">
                 <Copy size={13} />
               </button>
-              <button onClick={onMerge} className="p-1.5 rounded text-gray-300 hover:text-purple-600 hover:bg-purple-50" title="Merge into another client">
+              <button onClick={onMerge} className="p-1.5 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-50" title="Merge into another client">
                 <GitMerge size={13} />
               </button>
               {altCount > 0 && (
-                <button onClick={() => onDetach(p.id)} className="p-1.5 rounded text-gray-300 hover:text-amber-600 hover:bg-amber-50" title="Separate this proposal as its own client">
+                <button onClick={() => onDetach(p.id)} className="p-1.5 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-50" title="Separate this proposal as its own client">
                   <Unlink size={13} />
                 </button>
               )}
               {p.status === 'Won' && (
-                <button onClick={() => onGenerateContract(p)} className="p-1.5 rounded text-gray-300 hover:text-green-600 hover:bg-green-50" title="Generate Contract">
+                <button onClick={() => onGenerateContract(p)} className="p-1.5 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-50" title="Generate Contract">
                   <FileSignature size={13} />
                 </button>
               )}
               {(p.status === 'Sent' || p.status === 'Followed Up') && p.email && (
-                <button onClick={() => setFollowUpProposal(p)} className="p-1.5 rounded text-gray-300 hover:text-purple-600 hover:bg-purple-50" title="Send follow-up email">
+                <button onClick={() => setFollowUpProposal(p)} className="p-1.5 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-50" title="Send follow-up email">
                   <Send size={13} />
                 </button>
               )}
-              <button onClick={() => setExpandedLog(expandedLog === p.id ? null : p.id)} className="p-1.5 rounded text-gray-300 hover:text-blue-500 hover:bg-blue-50" title="Activity log">
+              <button onClick={() => setExpandedLog(expandedLog === p.id ? null : p.id)} className="p-1.5 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-50" title="Activity log">
                 {expandedLog === p.id ? <ChevronUp size={13} /> : <MessageSquare size={13} />}
               </button>
-              <button onClick={() => deleteProposal(p.id)} className="p-1.5 rounded text-gray-300 hover:text-red-500 hover:bg-red-50" title="Delete">
+              <button onClick={() => deleteProposal(p.id)} className="p-1.5 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-50" title="Delete">
                 <Trash2 size={13} />
               </button>
             </div>
@@ -618,11 +618,11 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
                     onMerge: () => setMergeSource({ root, revisions }),
                   })}
                   {isAltExpanded && alts.map(alt => (
-                    <tr key={alt.id} className="border-t border-purple-50 bg-purple-50/40 align-top">
+                    <tr key={alt.id} className="border-t border-gray-100 bg-gray-50 align-top">
                       <td className="px-4 py-2.5 pl-8">
                         <div className="flex items-center gap-2">
                           <GitBranch size={11} className="text-[var(--brand-300)] shrink-0" />
-                          <span className="text-xs font-semibold text-purple-700 mr-1">Alt {alt.version || '—'}</span>
+                          <span className="text-xs font-semibold text-gray-600 mr-1">Alt {alt.version || '—'}</span>
                           <span className="text-xs text-gray-500">{alt.client || '—'}</span>
                         </div>
                       </td>
@@ -642,10 +642,10 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
                       <td className="px-4 py-2.5" />
                       <td className="px-4 py-2.5 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => onOpen(alt)} className="p-1 rounded text-gray-300 hover:text-sky-600 hover:bg-sky-50" title="Open"><Eye size={12} /></button>
-                          <button onClick={() => onRevise(alt)} className="p-1 rounded text-gray-300 hover:text-purple-600 hover:bg-purple-50" title="Revise"><Copy size={12} /></button>
-                          <button onClick={() => handleDetach(alt.id)} className="p-1 rounded text-gray-300 hover:text-amber-600 hover:bg-amber-50" title="Separate as new client"><Unlink size={12} /></button>
-                          <button onClick={() => deleteProposal(alt.id)} className="p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50" title="Delete"><Trash2 size={12} /></button>
+                          <button onClick={() => onOpen(alt)} className="p-1 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-50" title="Open"><Eye size={12} /></button>
+                          <button onClick={() => onRevise(alt)} className="p-1 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-50" title="Revise"><Copy size={12} /></button>
+                          <button onClick={() => handleDetach(alt.id)} className="p-1 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-50" title="Separate as new client"><Unlink size={12} /></button>
+                          <button onClick={() => deleteProposal(alt.id)} className="p-1 rounded text-gray-300 hover:text-gray-700 hover:bg-gray-50" title="Delete"><Trash2 size={12} /></button>
                         </div>
                       </td>
                     </tr>
@@ -671,12 +671,12 @@ function PipelineView({ proposals, onStatusChange }) {
         return (
           <div key={status} className="shrink-0 w-56">
             {/* Column header */}
-            <div className={`flex items-center justify-between px-3 py-2 rounded-t-lg border border-b-0 ${STATUS_COLORS[status]}`}>
+            <div className={`flex items-center justify-between px-3 py-2 rounded-t-lg border border-b-0 border-gray-200 bg-gray-50`}>
               <span className={`text-xs font-bold uppercase tracking-wider ${STATUS_STYLES[status].split(' ')[1]}`}>{status}</span>
               <span className="text-xs text-gray-400 font-medium">{cards.length}</span>
             </div>
             {/* Cards */}
-            <div className={`border border-t-0 rounded-b-lg min-h-32 space-y-2 p-2 ${STATUS_COLORS[status]}`}>
+            <div className={`border border-t-0 rounded-b-lg min-h-32 space-y-2 p-2 border-gray-200 bg-gray-50`}>
               {cards.length === 0 && (
                 <p className="text-xs text-gray-300 text-center py-4 italic">Empty</p>
               )}
@@ -792,7 +792,7 @@ function AnalyticsView({ proposals: allProposals }) {
         <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-medium">
           {['month', 'quarter', 'year'].map(p => (
             <button key={p} onClick={() => { setPeriod(p); setRefDate(new Date()) }}
-              className={`px-3 py-1.5 capitalize transition-colors ${period === p ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+              className={`px-3 py-1.5 capitalize transition-colors ${period === p ? 'bg-[var(--brand-600)] text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
               {p === 'month' ? 'Month' : p === 'quarter' ? 'Quarter' : 'Year'}
             </button>
           ))}
@@ -810,7 +810,7 @@ function AnalyticsView({ proposals: allProposals }) {
         </div>
         {!isCurrent && (
           <button onClick={() => setRefDate(new Date())}
-            className="text-xs text-indigo-600 hover:underline">
+            className="text-xs text-[var(--brand-600)] hover:underline">
             Back to current
           </button>
         )}
@@ -1126,7 +1126,7 @@ export default function ProposalTracker() {
                 onClick={() => setPeriodFilter(id)}
                 className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
                   periodFilter === id
-                    ? 'bg-indigo-600 text-white'
+                    ? 'bg-[var(--brand-600)] text-white'
                     : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-50'
                 }`}
               >

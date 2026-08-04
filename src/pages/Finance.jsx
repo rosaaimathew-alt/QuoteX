@@ -336,7 +336,7 @@ export default function Finance() {
           { label: 'Cards', value: cards.length, icon: CreditCard, color: 'text-teal-500' },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="flex items-center gap-1.5 mb-1"><s.icon size={14} className={s.color} /><span className="text-xs font-semibold uppercase tracking-widest text-gray-400">{s.label}</span></div>
+            <div className="flex items-center gap-1.5 mb-1"><s.icon size={14} className="text-gray-400" /><span className="text-xs font-semibold uppercase tracking-widest text-gray-400">{s.label}</span></div>
             <p className="text-xl font-bold text-gray-900">{s.value}</p>
           </div>
         ))}
@@ -353,17 +353,17 @@ export default function Finance() {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {perCard.map(c => (
-              <div key={c.id} className="rounded-xl p-4 text-white relative overflow-hidden" style={{ background: c.color }}>
+              <div key={c.id} className="rounded-xl p-4 bg-white border border-gray-200 relative overflow-hidden" style={{ borderLeftColor: c.color, borderLeftWidth: '4px' }}>
                 <div className="flex items-start justify-between">
-                  <CreditCard size={18} className="opacity-80" />
+                  <CreditCard size={18} style={{ color: c.color }} />
                   <div className="flex gap-1">
-                    <button onClick={() => setEditingCard(c)} className="text-white/70 hover:text-white"><Pencil size={13} /></button>
-                    <button onClick={() => { if (window.confirm('Delete this card? Expenses stay but lose their card label.')) deleteFinanceCard(c.id) }} className="text-white/70 hover:text-white"><Trash2 size={13} /></button>
+                    <button onClick={() => setEditingCard(c)} className="text-gray-300 hover:text-gray-600"><Pencil size={13} /></button>
+                    <button onClick={() => { if (window.confirm('Delete this card? Expenses stay but lose their card label.')) deleteFinanceCard(c.id) }} className="text-gray-300 hover:text-red-500"><Trash2 size={13} /></button>
                   </div>
                 </div>
-                <p className="font-semibold mt-3">{c.label}{c.last4 ? ` ••${c.last4}` : ''}</p>
-                <p className="text-xs text-white/70">{c.owner || 'Unassigned'}</p>
-                <p className="text-2xl font-bold mt-2">${fmt(c.spent)}</p>
+                <p className="font-semibold mt-3 text-gray-900">{c.label}{c.last4 ? ` ••${c.last4}` : ''}</p>
+                <p className="text-xs text-gray-400">{c.owner || 'Unassigned'}</p>
+                <p className="text-2xl font-bold mt-2 text-gray-900">${fmt(c.spent)}</p>
               </div>
             ))}
           </div>

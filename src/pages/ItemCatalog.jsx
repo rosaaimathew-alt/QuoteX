@@ -127,7 +127,7 @@ function MoveTo({ item, onMove }) {
     <div className="relative">
       <button
         onClick={() => setOpen(v => !v)}
-        className="p-1 rounded text-gray-300 hover:text-purple-600 hover:bg-purple-50"
+        className="p-1 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100"
         title="Move to category"
       >
         <MoveRight size={14} />
@@ -141,7 +141,7 @@ function MoveTo({ item, onMove }) {
               <button
                 key={cat}
                 onClick={() => { onMove(item.id, cat); setOpen(false) }}
-                className="w-full text-left px-3 py-1.5 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700"
+                className="w-full text-left px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-800"
               >
                 {cat}
               </button>
@@ -266,20 +266,20 @@ function TableView({ filtered, editId, setEditId, onSave, onDelete, onMove, addi
           <tbody className="divide-y divide-gray-50">
             {addingNew && (
               <>
-                <tr className="bg-green-50">
+                <tr className="bg-gray-50">
                   <td className="px-4 py-2 w-6"></td>
-                  <td className="px-4 py-2"><input className="w-full text-sm border border-green-300 rounded px-2 py-1 focus:outline-none" placeholder="Item name" value={newForm.name} onChange={e => setNewForm(f => ({ ...f, name: e.target.value }))} /></td>
-                  <td className="px-4 py-2"><select className="text-sm border border-green-300 rounded px-2 py-1" value={newForm.category} onChange={e => setNewForm(f => ({ ...f, category: e.target.value }))}>{CATEGORIES.map(c => <option key={c}>{c}</option>)}</select></td>
-                  <td className="px-4 py-2"><select className="text-sm border border-green-300 rounded px-2 py-1" value={newForm.unit} onChange={e => setNewForm(f => ({ ...f, unit: e.target.value }))}>{UNITS.map(u => <option key={u}>{u}</option>)}</select></td>
-                  <td className="px-4 py-2"><input type="number" min="0" className="w-20 text-sm border border-green-300 rounded px-2 py-1" value={newForm.unitPrice} onChange={e => setNewForm(f => ({ ...f, unitPrice: parseFloat(e.target.value) || 0 }))} /></td>
+                  <td className="px-4 py-2"><input className="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none" placeholder="Item name" value={newForm.name} onChange={e => setNewForm(f => ({ ...f, name: e.target.value }))} /></td>
+                  <td className="px-4 py-2"><select className="text-sm border border-gray-300 rounded px-2 py-1" value={newForm.category} onChange={e => setNewForm(f => ({ ...f, category: e.target.value }))}>{CATEGORIES.map(c => <option key={c}>{c}</option>)}</select></td>
+                  <td className="px-4 py-2"><select className="text-sm border border-gray-300 rounded px-2 py-1" value={newForm.unit} onChange={e => setNewForm(f => ({ ...f, unit: e.target.value }))}>{UNITS.map(u => <option key={u}>{u}</option>)}</select></td>
+                  <td className="px-4 py-2"><input type="number" min="0" className="w-20 text-sm border border-gray-300 rounded px-2 py-1" value={newForm.unitPrice} onChange={e => setNewForm(f => ({ ...f, unitPrice: parseFloat(e.target.value) || 0 }))} /></td>
                   <td className="px-4 py-2 text-gray-400 text-xs">—</td>
                   <td className="px-4 py-2 text-gray-400 text-xs text-center">1</td>
                   <td className="px-4 py-2"><ConfidenceBadge value={70} /></td>
                   <td className="px-4 py-2"><div className="flex gap-1"><button onClick={saveNew} className="p-1 rounded text-green-600 hover:bg-green-100"><Check size={14} /></button><button onClick={() => setAddingNew(false)} className="p-1 rounded text-gray-400 hover:bg-gray-100"><X size={14} /></button></div></td>
                 </tr>
-                <tr className="bg-green-50 border-b border-green-100">
+                <tr className="bg-gray-50 border-b border-gray-100">
                   <td colSpan={9} className="px-4 pb-3">
-                    <textarea rows={2} className="w-full text-xs border border-green-300 rounded px-2 py-1 focus:outline-none resize-none text-gray-600 italic mb-2" placeholder="Scope description..." value={newForm.description} onChange={e => setNewForm(f => ({ ...f, description: e.target.value }))} />
+                    <textarea rows={2} className="w-full text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none resize-none text-gray-600 italic mb-2" placeholder="Scope description..." value={newForm.description} onChange={e => setNewForm(f => ({ ...f, description: e.target.value }))} />
                     <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                       <p className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-2">Internal Cost Breakdown (not client-facing)</p>
                       <div className="flex gap-4 flex-wrap">
@@ -388,7 +388,7 @@ function SectionsView({ catalog, onMove, onDelete, onSave }) {
           onDragLeave={() => setDragOver(null)}
           onDrop={() => handleDrop(cat)}
           className={`bg-white rounded-xl border-2 transition-colors overflow-hidden ${
-            dragOver === cat ? 'border-purple-400 bg-purple-50' : 'border-gray-200'
+            dragOver === cat ? 'border-[var(--brand-400)] bg-[var(--brand-50)]' : 'border-gray-200'
           }`}
         >
           {/* Section header — also a drop target */}
@@ -401,7 +401,7 @@ function SectionsView({ catalog, onMove, onDelete, onSave }) {
               <span className="font-semibold text-gray-800">{cat}</span>
               <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">{items.length}</span>
               {dragOver === cat && (
-                <span className="text-xs text-purple-600 font-medium animate-pulse">Drop here →</span>
+                <span className="text-xs text-[var(--brand-600)] font-medium animate-pulse">Drop here →</span>
               )}
             </div>
             <span className="text-xs text-gray-400">
@@ -471,28 +471,28 @@ function AiSuggestBanner({ suggestions, catalog, onApply, onDismiss }) {
   if (!rows.length) return null
 
   return (
-    <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-4">
+    <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Sparkles size={15} className="text-[var(--brand-500)]" />
-          <span className="text-sm font-semibold text-purple-800">AI Category Suggestions</span>
-          <span className="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">{rows.length} item{rows.length !== 1 ? 's' : ''}</span>
+          <span className="text-sm font-semibold text-gray-800">AI Category Suggestions</span>
+          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{rows.length} item{rows.length !== 1 ? 's' : ''}</span>
         </div>
         <div className="flex gap-2">
-          <button onClick={onDismiss} className="text-xs px-2 py-1 border border-purple-300 text-purple-600 rounded-lg hover:bg-purple-100">Dismiss</button>
-          <button onClick={() => onApply(suggestions)} className="text-xs px-3 py-1 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700">Apply All</button>
+          <button onClick={onDismiss} className="text-xs px-2 py-1 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">Dismiss</button>
+          <button onClick={() => onApply(suggestions)} className="text-xs px-3 py-1 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">Apply All</button>
         </div>
       </div>
       <div className="space-y-1.5 max-h-48 overflow-y-auto">
         {rows.map(({ item, newCategory }) => (
-          <div key={item.id} className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border border-purple-100 text-sm">
+          <div key={item.id} className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border border-gray-100 text-sm">
             <span className="flex-1 text-gray-800 font-medium truncate">{item.name}</span>
             <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{item.category}</span>
             <MoveRight size={12} className="text-[var(--brand-400)] shrink-0" />
-            <span className="text-xs text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full font-medium">{newCategory}</span>
+            <span className="text-xs text-[var(--brand-700)] bg-[var(--brand-100)] px-2 py-0.5 rounded-full font-medium">{newCategory}</span>
             <button
               onClick={() => onApply([{ id: item.id, category: newCategory }])}
-              className="text-xs text-purple-600 hover:underline shrink-0"
+              className="text-xs text-[var(--brand-600)] hover:underline shrink-0"
             >
               Apply
             </button>
@@ -615,7 +615,7 @@ export default function ItemCatalog() {
           <button
             onClick={handleAiSuggest}
             disabled={suggesting}
-            className="flex items-center gap-1.5 px-3 py-2 border border-purple-300 bg-purple-50 text-purple-700 rounded-lg text-sm font-medium hover:bg-purple-100 disabled:opacity-50 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 bg-white text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
           >
             {suggesting ? <Loader size={14} className="animate-spin" /> : <Sparkles size={14} />}
             {suggesting ? 'Analyzing…' : 'AI Suggest'}

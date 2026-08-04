@@ -175,14 +175,14 @@ function SalesHeatMap({ proposals }) {
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-5">
       <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-wrap gap-3">
         <div className="flex items-center gap-2">
-          <MapPin size={15} className="text-indigo-500" />
+          <MapPin size={15} className="text-gray-400" />
           <div>
             <h2 className="font-semibold text-gray-900 text-sm">Sales by Area — NC &amp; SC</h2>
             <p className="text-xs text-gray-400 mt-0.5">Circle size &amp; color show where you do the most business</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {mapping && <span className="text-xs text-indigo-400 animate-pulse mr-1">Mapping…</span>}
+          {mapping && <span className="text-xs text-gray-400 animate-pulse mr-1">Mapping…</span>}
           <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
             {tabBtn(setFilter, 'all', filter, 'All Jobs')}
             {tabBtn(setFilter, 'won', filter, 'Won Only')}
@@ -320,10 +320,10 @@ function PastJobPanel() {
         className="w-full flex items-center justify-between px-5 py-3.5 text-left"
       >
         <div className="flex items-center gap-2">
-          <Clock size={15} className="text-indigo-500" />
+          <Clock size={15} className="text-gray-400" />
           <span className="text-sm font-semibold text-gray-800">Log Past Jobs</span>
           {totalLogged > 0 && (
-            <span className="text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full font-medium">
+            <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full font-medium">
               {totalLogged} logged
             </span>
           )}
@@ -354,22 +354,22 @@ function PastJobPanel() {
                 <input placeholder="Client name *" value={form.client}
                   onChange={e => setF('client', e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && submitWon()}
-                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
                 <input placeholder="Address (optional)" value={form.address}
                   onChange={e => setF('address', e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && submitWon()}
-                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
                 <select value={form.projectType} onChange={e => setF('projectType', e.target.value)}
-                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
                   {PROJECT_TYPES.map(t => <option key={t}>{t}</option>)}
                 </select>
                 <input type="date" value={form.saleDate} onChange={e => setF('saleDate', e.target.value)}
-                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
                 <div className="flex gap-2">
                   <input type="number" placeholder="Total $" value={form.total}
                     onChange={e => setF('total', e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && submitWon()}
-                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
                   <button onClick={submitWon}
                     className="flex items-center gap-1 px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">
                     <Plus size={14} /> Add
@@ -422,12 +422,12 @@ function PastJobPanel() {
                   <label className="text-xs text-gray-500 font-medium block mb-1">How many?</label>
                   <input type="number" min="1" max="500" value={bulk.count}
                     onChange={e => setB('count', e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
                 </div>
                 <div>
                   <label className="text-xs text-gray-500 font-medium block mb-1">Status</label>
                   <select value={bulk.status} onChange={e => setB('status', e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
                     <option value="Lost">Lost</option>
                     <option value="MIA">MIA (no response)</option>
                   </select>
@@ -435,12 +435,12 @@ function PastJobPanel() {
                 <div>
                   <label className="text-xs text-gray-500 font-medium block mb-1">From date</label>
                   <input type="date" value={bulk.startDate} onChange={e => setB('startDate', e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
                 </div>
                 <div>
                   <label className="text-xs text-gray-500 font-medium block mb-1">To date</label>
                   <input type="date" value={bulk.endDate} onChange={e => setB('endDate', e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
                 </div>
               </div>
               {error && tab === 'nonwon' && <p className="text-xs text-red-600 mb-2">{error}</p>}
@@ -450,7 +450,7 @@ function PastJobPanel() {
                 </p>
               )}
               <button onClick={submitBulk}
-                className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">
+                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
                 <Plus size={14} /> Add {bulk.count || '?'} {bulk.status} Proposals
               </button>
 
@@ -701,7 +701,7 @@ function StatCard({ icon: Icon, label, value, sub, color = 'blue' }) {
   }
   return (
     <div className="bg-white rounded-xl border border-gray-200 px-5 py-4 flex items-center gap-4">
-      <div className={`p-2.5 rounded-lg ${colors[color]}`}><Icon size={18} /></div>
+      <div className="p-2.5 rounded-lg bg-gray-100 text-gray-500"><Icon size={18} /></div>
       <div>
         <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">{label}</p>
         <p className="text-xl font-bold text-gray-900 leading-tight">{value}</p>
@@ -869,7 +869,7 @@ function TrendChart({ months, activeTypes, allTypes }) {
         <div className="absolute left-1/2 -translate-x-1/2 top-0 pointer-events-none z-10 bg-white border border-gray-200 rounded-xl shadow-lg px-3 py-2.5 text-xs min-w-[140px]"
           style={{ transform: `translateX(calc(${tooltip.x / W * 100}% - 50%))`, top: 0 }}>
           <p className="font-semibold text-gray-800 mb-1.5">{tip.labelFull}</p>
-          {activeTypes.has('Total') && <p className="text-indigo-600 font-medium">Total: {fmtK(tip.total)}</p>}
+          {activeTypes.has('Total') && <p className="text-blue-600 font-medium">Total: {fmtK(tip.total)}</p>}
           {allTypes.filter(t => activeTypes.has(t) && tip.byType[t] > 0).map(t => (
             <p key={t} style={{ color: typeStroke(t, allTypes) }}>{t}: {fmtK(tip.byType[t])}</p>
           ))}
@@ -1082,7 +1082,7 @@ export default function Analytics() {
               </div>
               <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
                 {stats.typeRows.map(r => (
-                  <span key={r.type} className={`text-xs px-2 py-0.5 rounded-full font-medium ${TYPE_LIGHT[r.type] || 'bg-gray-100 text-gray-600'}`}>
+                  <span key={r.type} className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-600">
                     {r.type} {r.pct.toFixed(0)}%
                   </span>
                 ))}

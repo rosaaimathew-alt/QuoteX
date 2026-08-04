@@ -328,7 +328,7 @@ export default function ProfitabilityTracker() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center gap-1.5 mb-1">
-            <DollarSign size={14} className="text-blue-500" />
+            <DollarSign size={14} className="text-gray-400" />
             <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">Won Revenue</span>
           </div>
           <p className="text-2xl font-bold text-gray-900">{fmtSh(stats.totalRev)}</p>
@@ -336,7 +336,7 @@ export default function ProfitabilityTracker() {
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center gap-1.5 mb-1">
-            <TrendingDown size={14} className="text-orange-500" />
+            <TrendingDown size={14} className="text-gray-400" />
             <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">Total Costs</span>
           </div>
           <p className="text-2xl font-bold text-gray-900">{stats.withCosts > 0 ? fmtSh(stats.totalCost) : '—'}</p>
@@ -344,7 +344,7 @@ export default function ProfitabilityTracker() {
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center gap-1.5 mb-1">
-            <TrendingUp size={14} className="text-green-500" />
+            <TrendingUp size={14} className="text-gray-400" />
             <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">Gross Profit</span>
           </div>
           <p className={`text-2xl font-bold ${stats.withCosts > 0 ? (stats.totalProfit >= 0 ? 'text-green-600' : 'text-red-600') : 'text-gray-900'}`}>
@@ -358,7 +358,7 @@ export default function ProfitabilityTracker() {
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center gap-1.5 mb-1">
-            <Target size={14} className="text-purple-500" />
+            <Target size={14} className="text-gray-400" />
             <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">Avg Margin</span>
           </div>
           <p className={`text-2xl font-bold ${stats.avgMargin !== null ? MARGIN_COLOR(stats.avgMargin) : 'text-gray-900'}`}>
@@ -368,7 +368,7 @@ export default function ProfitabilityTracker() {
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center gap-1.5 mb-1">
-            <BarChart2 size={14} className="text-indigo-500" />
+            <BarChart2 size={14} className="text-gray-400" />
             <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">Close Rate</span>
           </div>
           <p className={`text-2xl font-bold ${closeStats.rate !== null ? (closeStats.rate >= 50 ? 'text-green-600' : closeStats.rate >= 30 ? 'text-amber-600' : 'text-red-600') : 'text-gray-900'}`}>

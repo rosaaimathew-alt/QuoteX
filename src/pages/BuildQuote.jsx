@@ -224,11 +224,11 @@ export default function BuildQuote() {
               onClick={() => setShowBreakdown(v => !v)}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${
                 showBreakdown
-                  ? 'bg-green-50 border-green-300 text-green-700'
+                  ? 'bg-gray-100 border-gray-300 text-gray-800'
                   : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
               }`}
             >
-              <span className={`relative w-8 h-4 rounded-full transition-colors shrink-0 ${showBreakdown ? 'bg-green-500' : 'bg-gray-300'}`}>
+              <span className={`relative w-8 h-4 rounded-full transition-colors shrink-0 ${showBreakdown ? 'bg-gray-700' : 'bg-gray-300'}`}>
                 <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform ${showBreakdown ? 'translate-x-4' : 'translate-x-0.5'}`} />
               </span>
               {showBreakdown ? 'Scope Visible' : 'Scope Hidden'}
@@ -238,11 +238,11 @@ export default function BuildQuote() {
               onClick={() => setIsAlaCarte(v => !v)}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${
                 isAlaCarte
-                  ? 'bg-purple-50 border-purple-300 text-purple-700'
+                  ? 'bg-gray-100 border-gray-300 text-gray-800'
                   : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
               }`}
             >
-              <span className={`relative w-8 h-4 rounded-full transition-colors shrink-0 ${isAlaCarte ? 'bg-purple-500' : 'bg-gray-300'}`}>
+              <span className={`relative w-8 h-4 rounded-full transition-colors shrink-0 ${isAlaCarte ? 'bg-gray-700' : 'bg-gray-300'}`}>
                 <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform ${isAlaCarte ? 'translate-x-4' : 'translate-x-0.5'}`} />
               </span>
               {isAlaCarte ? 'A La Carte' : 'Summed Total'}

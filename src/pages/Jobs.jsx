@@ -7,6 +7,7 @@ import {
   FileSignature, ClipboardList, MapPin, DollarSign, X, Plus,
   AlertTriangle, CheckCheck, Clock, Wrench, FileText, Mail, Send,
   Search, Trash2, Link2, ExternalLink, PenLine, RefreshCw,
+  HardHat, CloudSun,
 } from 'lucide-react'
 
 const fmt    = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
@@ -541,7 +542,7 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
             Cancel
           </button>
           <button onClick={() => handleSave(false)} disabled={!description.trim() || sending}
-            className="px-4 py-2 border border-gray-300 rounded-xl text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40">
+            className="px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40">
             Save Draft
           </button>
           <button onClick={() => handleSave(true)} disabled={!description.trim() || sending || !proposal.email}
@@ -615,7 +616,7 @@ function BudgetTab({ proposal }) {
         {[
           { label: 'Contract Value',    value: `$${fmtD(totals.revenue)}`,   color: 'text-gray-900' },
           { label: 'Materials Budget',  value: `$${fmtD(totals.matCost)}`,   color: 'text-blue-700' },
-          { label: 'Sub Budget',        value: `$${fmtD(totals.subCost)}`,   color: 'text-purple-700' },
+          { label: 'Sub Budget',        value: `$${fmtD(totals.subCost)}`,   color: 'text-gray-700' },
           { label: 'Gross Profit',      value: `$${fmtD(totals.margin)}${overallMarginPct !== null ? ` (${overallMarginPct}%)` : ''}`,
             color: totals.margin >= 0 ? 'text-green-700' : 'text-red-600' },
         ].map(c => (
@@ -646,7 +647,7 @@ function BudgetTab({ proposal }) {
                 <td className="px-3 py-2.5 text-gray-500">{r.qty}</td>
                 <td className="px-3 py-2.5 font-semibold text-gray-900">${fmtD(r.revenue)}</td>
                 <td className="px-3 py-2.5 text-blue-700">{r.matCost > 0 ? `$${fmtD(r.matCost)}` : <span className="text-gray-300">—</span>}</td>
-                <td className="px-3 py-2.5 text-purple-700">{r.subCost > 0 ? `$${fmtD(r.subCost)}` : <span className="text-gray-300">—</span>}</td>
+                <td className="px-3 py-2.5 text-gray-700">{r.subCost > 0 ? `$${fmtD(r.subCost)}` : <span className="text-gray-300">—</span>}</td>
                 <td className="px-3 py-2.5 text-gray-700">{r.totalCost > 0 ? `$${fmtD(r.totalCost)}` : <span className="text-gray-300">—</span>}</td>
                 <td className="px-3 py-2.5">
                   {r.totalCost > 0 ? (
@@ -663,7 +664,7 @@ function BudgetTab({ proposal }) {
               <td colSpan={2} className="px-3 py-2.5 font-bold text-gray-700 uppercase text-xs tracking-wider">TOTAL</td>
               <td className="px-3 py-2.5 font-bold text-gray-900">${fmtD(totals.revenue)}</td>
               <td className="px-3 py-2.5 font-bold text-blue-700">${fmtD(totals.matCost)}</td>
-              <td className="px-3 py-2.5 font-bold text-purple-700">${fmtD(totals.subCost)}</td>
+              <td className="px-3 py-2.5 font-bold text-gray-700">${fmtD(totals.subCost)}</td>
               <td className="px-3 py-2.5 font-bold text-gray-700">${fmtD(totals.totalCost)}</td>
               <td className="px-3 py-2.5 font-bold text-green-700">
                 ${fmtD(totals.margin)}{overallMarginPct !== null ? ` (${overallMarginPct}%)` : ''}
@@ -860,11 +861,7 @@ function ChangeOrdersTab({ proposal }) {
       )}
 
       {cos.map(co => (
-        <div key={co.id} className={`border rounded-xl p-3 ${
-          co.status === 'Approved' ? 'border-green-200 bg-green-50' :
-          co.status === 'Sent for Signature' ? 'border-blue-200 bg-blue-50' :
-          co.status === 'Rejected' ? 'border-red-100' : 'border-gray-100'
-        }`}>
+        <div key={co.id} className="border border-gray-200 rounded-xl p-3 bg-white">
           <div className="flex items-start justify-between gap-2 mb-1.5">
             <div className="flex-1 min-w-0">
               <p className="text-xs font-mono text-gray-400">{co.coNumber || '—'}</p>
@@ -1042,8 +1039,8 @@ function DailyLogTab({ proposal }) {
           <div className="flex items-center justify-between gap-2 mb-1">
             <div className="flex items-center gap-3 flex-wrap">
               <span className="text-xs font-semibold text-gray-700">{fmtDate(log.date)}</span>
-              {log.crew && <span className="text-xs text-gray-500">👷 {log.crew}</span>}
-              {log.weather && <span className="text-xs text-gray-500">🌤 {log.weather}</span>}
+              {log.crew && <span className="text-xs text-gray-500 flex items-center gap-1"><HardHat size={11} /> {log.crew}</span>}
+              {log.weather && <span className="text-xs text-gray-500 flex items-center gap-1"><CloudSun size={11} /> {log.weather}</span>}
             </div>
             <button onClick={() => deleteDailyLog(proposal.id, log.id)}
               className="text-gray-300 hover:text-red-500 shrink-0"><X size={13} /></button>
@@ -1448,15 +1445,15 @@ function CloseOutModal({ proposal, onClose }) {
         </div>
 
         <div className="px-5 py-4 space-y-4">
-          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-            <p className="text-sm font-semibold text-emerald-800 mb-1">Ready to close this job?</p>
-            <p className="text-xs text-emerald-700">This will mark the job as complete and check off the Final Payment and Job Closed stages.</p>
+          <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+            <p className="text-sm font-semibold text-green-800 mb-1">Ready to close this job?</p>
+            <p className="text-xs text-green-700">This will mark the job as complete and check off the Final Payment and Job Closed stages.</p>
           </div>
 
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Completion Date</label>
             <input type="date" value={completionDate} onChange={e => setCompletionDate(e.target.value)}
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-300" />
+              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300" />
           </div>
 
           <label className="flex items-center gap-3 cursor-pointer">
@@ -1472,7 +1469,7 @@ function CloseOutModal({ proposal, onClose }) {
 
           <div className="flex gap-2 pt-1">
             <button onClick={closeOut} disabled={closing}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-40 transition-colors">
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors">
               {closing ? 'Closing…' : <><CheckCheck size={15} /> Close Job</>}
             </button>
             <button onClick={() => onClose(false)} className="flex-1 py-2.5 border border-gray-200 text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
@@ -1559,7 +1556,7 @@ function JobCard({ proposal }) {
 
   return (
     <div className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-all ${
-      isClosed ? 'border-emerald-200' : pct > 0 ? 'border-blue-100' : 'border-gray-100'
+      isClosed ? 'border-green-200' : pct > 0 ? 'border-blue-100' : 'border-gray-100'
     }`}>
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3.5 cursor-pointer hover:bg-gray-50 transition-colors"
@@ -1578,8 +1575,8 @@ function JobCard({ proposal }) {
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-gray-900 text-sm">{proposal.client}</span>
             <span className="text-xs text-gray-400 font-mono">{contractNum}</span>
-            {isClosed && <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">Closed</span>}
-            {openWarranty > 0 && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">⚠ {openWarranty} warranty</span>}
+            {isClosed && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Closed</span>}
+            {openWarranty > 0 && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1"><AlertTriangle size={11} /> {openWarranty} warranty</span>}
           </div>
           <div className="flex items-center gap-3 mt-0.5 flex-wrap text-xs text-gray-500">
             <span className="flex items-center gap-1"><MapPin size={10} />{proposal.address || '—'}</span>
@@ -1587,12 +1584,12 @@ function JobCard({ proposal }) {
             <span>{projectTypes}</span>
           </div>
           <div className="mt-1.5 h-1 bg-gray-100 rounded-full overflow-hidden w-full max-w-xs">
-            <div className={`h-full rounded-full transition-all ${isClosed ? 'bg-emerald-400' : 'bg-blue-400'}`}
+            <div className={`h-full rounded-full transition-all ${isClosed ? 'bg-blue-500' : 'bg-blue-400'}`}
               style={{ width: `${pct}%` }} />
           </div>
           <p className="text-[10px] text-gray-400 mt-0.5">
             {noType
-              ? <span className="text-amber-500 font-medium">⚠ Set job type to load stages</span>
+              ? <span className="text-amber-500 font-medium inline-flex items-center gap-1"><AlertTriangle size={10} /> Set job type to load stages</span>
               : `${done} of ${stages.length} stages complete`}
           </p>
         </div>
@@ -1615,7 +1612,7 @@ function JobCard({ proposal }) {
                 <button
                   onClick={e => { e.stopPropagation(); setShowCloseOut(true) }}
                   title="Close out job"
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors">
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
                   <CheckCheck size={13} />
                 </button>
               </>
@@ -1701,11 +1698,11 @@ function JobCard({ proposal }) {
                       <button key={stage.key} onClick={() => toggleJobStage(proposal.id, stage.key)}
                         className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-left transition-all ${
                           done
-                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                            ? 'bg-green-50 text-green-800 border border-green-200'
                             : 'bg-gray-50 text-gray-600 border border-gray-100 hover:border-blue-200 hover:bg-blue-50'
                         }`}>
                         {done
-                          ? <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                          ? <CheckCircle2 size={15} className="text-green-500 shrink-0" />
                           : <Circle size={15} className="text-gray-300 shrink-0" />}
                         <span className={done ? 'line-through opacity-60' : ''}>{stage.label}</span>
                       </button>
