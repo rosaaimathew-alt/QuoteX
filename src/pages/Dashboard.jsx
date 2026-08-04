@@ -217,7 +217,7 @@ export default function Dashboard() {
         </div>
         <button
           onClick={() => navigate('/quote')}
-          className="flex items-center gap-2 px-4 py-2 bg-sky-600 text-white text-sm font-medium rounded-lg hover:bg-sky-700 transition-colors shadow-sm"
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-600)] text-white text-sm font-medium rounded-lg hover:bg-[var(--brand-700)] transition-colors shadow-sm"
         >
           <Plus size={15} /> New Quote
         </button>
