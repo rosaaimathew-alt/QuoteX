@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { LayoutDashboard, FileText, BookOpen, ClipboardList, BarChart2, Inbox, MessageSquareMore, Search, X, Settings as SettingsIcon, Sun, Moon, Users, FileSignature, LogOut, TrendingUp, Menu, HardHat, Wrench, CalendarDays, PieChart, Wallet } from 'lucide-react'
 import { Component, useEffect, useState, useRef } from 'react'
 import Dashboard from './pages/Dashboard'
@@ -32,23 +32,35 @@ import { canAccessRoute, landingRoute } from './plans'
 import { canRoleAccess, roleLanding } from './roles'
 import { TodoDock } from './components/TodoPanel'
 
-const NAV = [
-  { to: '/',        label: 'Dashboard',       icon: LayoutDashboard },
-  { to: '/clients', label: 'Clients',          icon: Users },
-  { to: '/analyze', label: 'Analyze',          icon: FileText },
-  { to: '/ai',      label: 'AI Assistant',     icon: MessageSquareMore },
-  { to: '/catalog', label: 'Item Catalog',     icon: BookOpen },
-  { to: '/quote',      label: 'Build Quote',      icon: ClipboardList },
-  { to: '/tracker',   label: 'Proposal Tracker', icon: BarChart2 },
-  { to: '/analytics', label: 'Analytics',         icon: PieChart },
-  { to: '/contracts',    label: 'Contracts',       icon: FileSignature },
-  { to: '/jobs',         label: 'Job Management', icon: HardHat },
-  { to: '/subs',         label: 'Subcontractors', icon: Wrench },
-  { to: '/scheduler',   label: 'Scheduler',      icon: CalendarDays },
-  { to: '/profitability',label: 'Profitability',  icon: TrendingUp },
-  { to: '/finance',      label: 'Finance',        icon: Wallet },
-  { to: '/inbox',        label: 'Inbox',          icon: Inbox },
+// Nav grouped into labeled sections. Same routes and order of use as before —
+// only chunked so the sidebar reads as four short lists instead of one wall.
+const NAV_SECTIONS = [
+  { section: 'Sales', items: [
+    { to: '/',        label: 'Dashboard',       icon: LayoutDashboard },
+    { to: '/clients', label: 'Clients',          icon: Users },
+    { to: '/analyze', label: 'Analyze',          icon: FileText },
+    { to: '/ai',      label: 'AI Assistant',     icon: MessageSquareMore },
+    { to: '/catalog', label: 'Item Catalog',     icon: BookOpen },
+    { to: '/quote',   label: 'Build Quote',      icon: ClipboardList },
+    { to: '/tracker', label: 'Proposal Tracker', icon: BarChart2 },
+  ] },
+  { section: 'Operations', items: [
+    { to: '/contracts', label: 'Contracts',      icon: FileSignature },
+    { to: '/jobs',      label: 'Job Management',  icon: HardHat },
+    { to: '/subs',      label: 'Subcontractors',  icon: Wrench },
+    { to: '/scheduler', label: 'Scheduler',       icon: CalendarDays },
+  ] },
+  { section: 'Money', items: [
+    { to: '/analytics',     label: 'Analytics',     icon: PieChart },
+    { to: '/profitability', label: 'Profitability', icon: TrendingUp },
+    { to: '/finance',       label: 'Finance',       icon: Wallet },
+  ] },
+  { section: 'Comms', items: [
+    { to: '/inbox', label: 'Inbox', icon: Inbox },
+  ] },
 ]
+// Flat list preserved for lookups (page title, etc.)
+const NAV = NAV_SECTIONS.flatMap(s => s.items)
 
 const STATUS_BADGE = {
   Won:           'bg-green-100 text-green-700',
@@ -192,6 +204,11 @@ function AppShell() {
   const [inboxUnread, setInboxUnread] = useState(0)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
+  const location  = useLocation()
+  const pageTitle = location.pathname === '/settings'
+    ? 'Settings'
+    : (NAV.find(i => i.to === location.pathname)?.label || '')
+
   const isDark = theme === 'dark'
   const closeSidebar = () => setSidebarOpen(false)
 
@@ -272,34 +289,45 @@ function AppShell() {
           </button>
         </div>
 
-        {/* Nav links */}
-        <nav className="flex-1 py-4 space-y-0.5 px-2 overflow-y-auto">
-          {NAV.filter(({ to }) => canAccessRoute(plan, to) && canRoleAccess(role, to)).map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === '/'}
-              onClick={closeSidebar}
-              className={({ isActive }) =>
-                `flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive ? 'brand-nav-active' : 'brand-nav-inactive'
-                }`
-              }
-            >
-              <Icon size={16} />
-              <span className="flex-1">{label}</span>
-              {to === '/tracker' && dueCount > 0 && (
-                <span className="bg-amber-400 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
-                  {dueCount}
-                </span>
-              )}
-              {to === '/inbox' && inboxUnread > 0 && (
-                <span className="brand-badge bg-white text-xs font-bold rounded-full min-w-4 h-4 px-1 flex items-center justify-center leading-none">
-                  {inboxUnread}
-                </span>
-              )}
-            </NavLink>
-          ))}
+        {/* Nav links — grouped into labeled sections */}
+        <nav className="flex-1 py-3 space-y-4 px-2 overflow-y-auto">
+          {NAV_SECTIONS.map(({ section, items }) => {
+            const visible = items.filter(({ to }) => canAccessRoute(plan, to) && canRoleAccess(role, to))
+            if (visible.length === 0) return null
+            return (
+              <div key={section}>
+                <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider brand-footer opacity-60">{section}</p>
+                <div className="space-y-0.5">
+                  {visible.map(({ to, label, icon: Icon }) => (
+                    <NavLink
+                      key={to}
+                      to={to}
+                      end={to === '/'}
+                      onClick={closeSidebar}
+                      className={({ isActive }) =>
+                        `flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                          isActive ? 'brand-nav-active' : 'brand-nav-inactive'
+                        }`
+                      }
+                    >
+                      <Icon size={16} />
+                      <span className="flex-1">{label}</span>
+                      {to === '/tracker' && dueCount > 0 && (
+                        <span className="bg-amber-400 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                          {dueCount}
+                        </span>
+                      )}
+                      {to === '/inbox' && inboxUnread > 0 && (
+                        <span className="brand-badge bg-white text-xs font-bold rounded-full min-w-4 h-4 px-1 flex items-center justify-center leading-none">
+                          {inboxUnread}
+                        </span>
+                      )}
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
         </nav>
 
         <div className="px-2 pb-2">
@@ -344,6 +372,7 @@ function AppShell() {
           >
             <Menu size={20} />
           </button>
+          {pageTitle && <span className="text-sm font-semibold text-gray-800 truncate">{pageTitle}</span>}
           <div className="ml-auto hidden sm:block">
             <GlobalSearch />
           </div>
