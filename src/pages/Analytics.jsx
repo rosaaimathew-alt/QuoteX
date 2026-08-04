@@ -350,7 +350,7 @@ function PastJobPanel() {
               <p className="text-xs text-gray-400 mb-3">
                 Enter jobs sold before you started using QuoteX. They'll count toward revenue totals and the trendline.
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 mb-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
                 <input placeholder="Client name *" value={form.client}
                   onChange={e => setF('client', e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && submitWon()}
@@ -365,18 +365,18 @@ function PastJobPanel() {
                 </select>
                 <input type="date" value={form.saleDate} onChange={e => setF('saleDate', e.target.value)}
                   className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
-                <div className="flex gap-2">
-                  <input type="number" placeholder="Total $" value={form.total}
-                    onChange={e => setF('total', e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && submitWon()}
-                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
-                  <button onClick={submitWon}
-                    className="flex items-center gap-1 px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">
-                    <Plus size={14} /> Add
-                  </button>
-                </div>
+                <input type="number" placeholder="Total $" value={form.total}
+                  onChange={e => setF('total', e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && submitWon()}
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
               </div>
-              {error && tab === 'won' && <p className="text-xs text-red-600 mb-2">{error}</p>}
+              {error && tab === 'won' && <p className="text-xs text-red-600 mt-2">{error}</p>}
+              <div className="flex justify-end mt-2">
+                <button onClick={submitWon}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-[var(--brand-600)] text-white rounded-lg text-sm font-medium hover:bg-[var(--brand-700)] transition-colors">
+                  <Plus size={14} /> Add job
+                </button>
+              </div>
 
               {wonHistorical.length > 0 && (
                 <div className="mt-4 border-t border-gray-100 pt-4">
@@ -906,6 +906,7 @@ export default function Analytics() {
   const [showTrendMenu, setShowTrendMenu] = useState(false)
   const [showHeatMap, setShowHeatMap] = useState(false)
   const [showTypeBreakdown, setShowTypeBreakdown] = useState(false)
+  const [showReasons, setShowReasons] = useState(false)
 
   const { stats, trendMonths, allTypes } = useMemo(() => {
     const won  = proposals.filter(p => p.status === 'Won')
@@ -1014,8 +1015,6 @@ export default function Analytics() {
         <h1 className="text-xl font-bold text-gray-900">Analytics</h1>
         <p className="text-sm text-gray-400 mt-0.5">Business performance &amp; seasonality across all proposals</p>
       </div>
-
-      <PastJobPanel />
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
@@ -1131,9 +1130,9 @@ export default function Analytics() {
         )}
       </Collapsible>
 
-      <div className="mb-5">
-        {/* Win / loss reasons */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-4">
+      {/* Win / loss reasons — collapsible */}
+      <Collapsible icon={Award} title="Why You Win / Lose" open={showReasons} onToggle={() => setShowReasons(o => !o)}>
+        <div className="space-y-4">
           <div>
             <div className="flex items-center gap-2 mb-2">
               <Award size={14} className="text-emerald-500" />
@@ -1171,7 +1170,10 @@ export default function Analytics() {
             )}
           </div>
         </div>
-      </div>
+      </Collapsible>
+
+      {/* Log Past Jobs — moved to the bottom (infrequently used) */}
+      <PastJobPanel />
     </div>
   )
 }
