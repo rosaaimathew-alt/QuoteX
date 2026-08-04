@@ -67,11 +67,11 @@ function KpiCard({ icon: Icon, label, value, sub, color, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="bg-white rounded-xl border border-gray-200 p-4 text-left hover:border-sky-300 hover:shadow-md transition-all group w-full"
+      className="bg-white rounded-xl border border-gray-200 p-4 text-left hover:border-gray-300 hover:shadow-md transition-all group w-full"
     >
       <div className="flex items-start justify-between mb-2">
-        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>
-          <Icon size={17} className="text-white" />
+        <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-gray-100">
+          <Icon size={17} className="text-gray-500" />
         </div>
         <ChevronRight size={14} className="text-gray-300 group-hover:text-[var(--brand-500)] mt-1 transition-colors" />
       </div>
@@ -85,10 +85,10 @@ function KpiCard({ icon: Icon, label, value, sub, color, onClick }) {
 // ── Quick Action Card ─────────────────────────────────────────────────────────
 function ActionCard({ icon: Icon, label, description, color, action, actionLabel, secondaryAction, secondaryLabel }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-col gap-3 hover:border-sky-200 hover:shadow-sm transition-all">
+    <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-col gap-3 hover:border-gray-300 hover:shadow-sm transition-all">
       <div className="flex items-center gap-3">
-        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${color}`}>
-          <Icon size={17} className="text-white" />
+        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-gray-100">
+          <Icon size={17} className="text-gray-500" />
         </div>
         <div className="min-w-0">
           <p className="text-sm font-semibold text-gray-900">{label}</p>
@@ -98,7 +98,7 @@ function ActionCard({ icon: Icon, label, description, color, action, actionLabel
       <div className="flex gap-2">
         <button
           onClick={action}
-          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-sky-600 text-white text-xs font-medium rounded-lg hover:bg-sky-700 transition-colors"
+          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 border border-gray-200 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors"
         >
           {actionLabel} <ArrowRight size={11} />
         </button>
@@ -314,7 +314,7 @@ export default function Dashboard() {
                 <button
                   key={p}
                   onClick={() => { setPeriod(p); setRefDate(new Date()) }}
-                  className={`px-3 py-1.5 capitalize transition-colors ${period === p ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+                  className={`px-3 py-1.5 capitalize transition-colors ${period === p ? 'bg-[var(--brand-600)] text-white' : 'text-gray-500 hover:bg-gray-50'}`}
                 >
                   {p === 'month' ? 'Mo' : p === 'quarter' ? 'Qtr' : 'Yr'}
                 </button>
@@ -339,7 +339,7 @@ export default function Dashboard() {
               </button>
             </div>
             <div className="flex items-center gap-3 text-xs">
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-indigo-200 inline-block" /> Bid</span>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-[var(--brand-300)] inline-block" /> Bid</span>
               <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-400 inline-block" /> Won</span>
             </div>
           </div>
@@ -362,7 +362,7 @@ export default function Dashboard() {
                   {seg.total > 0 ? (
                     <>
                       <div
-                        className={`w-full rounded-t-sm transition-all ${seg.isCurrent ? 'bg-indigo-400' : 'bg-indigo-200'}`}
+                        className={`w-full rounded-t-sm transition-all ${seg.isCurrent ? 'bg-[var(--brand-400)]' : 'bg-[var(--brand-200)]'}`}
                         style={{ height: `${bidH}%` }}
                       />
                       {seg.won > 0 && (
