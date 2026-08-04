@@ -31,6 +31,7 @@ import { applyBrandStyles, applyTheme, DEFAULT_BRAND_COLOR } from './brand'
 import { canAccessRoute, landingRoute } from './plans'
 import { canRoleAccess, roleLanding } from './roles'
 import { TodoDock } from './components/TodoPanel'
+import { DEMO, resetDemo } from './demo'
 
 // Nav grouped into labeled sections. Same routes and order of use as before —
 // only chunked so the sidebar reads as four short lists instead of one wall.
@@ -354,7 +355,7 @@ function AppShell() {
             >
               {isDark ? <Sun size={15} /> : <Moon size={15} />}
             </button>
-            <button onClick={logout} className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors brand-nav-inactive hover:bg-white/10">
+            <button onClick={DEMO ? resetDemo : logout} title={DEMO ? 'Reset demo data' : 'Log out'} className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors brand-nav-inactive hover:bg-white/10">
               <LogOut size={15} />
             </button>
           </div>
@@ -363,6 +364,15 @@ function AppShell() {
 
       {/* Main column */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        {/* Demo banner */}
+        {DEMO && (
+          <div className="bg-[var(--brand-600)] text-white text-xs px-4 py-1.5 flex items-center justify-center gap-3 no-print shrink-0">
+            <span className="font-medium">🎬 Demo — sample data only. Your changes stay in this browser and never affect real accounts.</span>
+            <button onClick={resetDemo} className="underline underline-offset-2 hover:opacity-80 font-medium shrink-0">
+              Reset demo
+            </button>
+          </div>
+        )}
         {/* Top header */}
         <header className="h-12 bg-white border-b border-gray-200 flex items-center gap-3 px-4 no-print shrink-0">
           {/* Hamburger — mobile only */}

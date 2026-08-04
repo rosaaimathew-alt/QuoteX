@@ -1,4 +1,5 @@
 import { Navigate } from 'react-router-dom'
+import { DEMO } from '../demo'
 
 function getToken() {
   return localStorage.getItem('qx_token')
@@ -24,6 +25,8 @@ export function logout() {
 }
 
 export default function AuthGuard({ children }) {
+  // Demo builds are a public sandbox with no real data — skip the login gate.
+  if (DEMO) return children
   if (!isTokenValid(getToken())) return <Navigate to="/login" replace />
   return children
 }

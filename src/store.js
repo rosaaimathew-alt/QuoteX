@@ -1,6 +1,15 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { supabase } from './supabase'
+import { DEMO, DEMO_STORE_KEY, buildDemoSeed } from './demo'
+
+// Demo builds persist ONLY to the visitor's own browser under a separate key and
+// never touch the backend / Vercel KV — see smartStorage swap in persist config.
+const demoLocalStorage = {
+  getItem:    (name) => { try { return localStorage.getItem(name) } catch { return null } },
+  setItem:    (name, value) => { try { localStorage.setItem(name, value) } catch { /* ignore */ } },
+  removeItem: (name) => { try { localStorage.removeItem(name) } catch { /* ignore */ } },
+}
 
 // Smart storage: the shared server (Vercel KV via /api/store) is the source of
 // truth. Every signed-in write is pushed up automatically, and every read
@@ -1220,8 +1229,8 @@ export const useStore = create(
         })),
     }),
     {
-      name: 'quotex-store',
-      storage: createJSONStorage(() => smartStorage),
+      name: DEMO ? DEMO_STORE_KEY : 'quotex-store',
+      storage: createJSONStorage(() => (DEMO ? demoLocalStorage : smartStorage)),
       version: 6,
       migrate: (persisted) => {
         const persistedCatalog = persisted?.catalog
@@ -1338,6 +1347,18 @@ export const useStore = create(
         }
       },
       merge: (persistedState, currentState) => {
+        // Demo builds are fully isolated — never inject the real restored
+        // proposals; the demo seed populates sample data separately.
+        if (DEMO) {
+          return {
+            ...currentState,
+            ...persistedState,
+            branding: normalizeBranding(persistedState?.branding),
+            catalog: (persistedState?.catalog?.length > 0)
+              ? persistedState.catalog
+              : currentState.catalog,
+          }
+        }
         // Always ensure restored proposals are present — runs on every load
         const stored = persistedState?.proposals || []
         const ginaExists = stored.some(p =>
@@ -1428,3 +1449,16 @@ export const useStore = create(
     }
   )
 )
+
+// Demo mode: seed the sandbox with fictional sample data the first time a
+// visitor loads it (i.e. when their browser has no demo data yet).
+if (DEMO && typeof window !== 'undefined') {
+  const seedIfEmpty = () => {
+    const s = useStore.getState()
+    if (!s.proposals || s.proposals.length === 0) {
+      useStore.setState(buildDemoSeed())
+    }
+  }
+  if (useStore.persist?.hasHydrated?.()) seedIfEmpty()
+  else useStore.persist?.onFinishHydration?.(seedIfEmpty)
+}
