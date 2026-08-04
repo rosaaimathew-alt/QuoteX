@@ -113,8 +113,7 @@ function SubForm({ initial = {}, onSave, onCancel }) {
 function SubCard({ sub }) {
   const { updateSubcontractor, deleteSubcontractor } = useStore()
   const [editing, setEditing] = useState(false)
-  const [showIncidents, setShowIncidents] = useState(false)
-  const [showCois, setShowCois] = useState(false)
+  const [open, setOpen] = useState(false)
   const [incidentText, setIncidentText] = useState('')
   const fileRef = useRef(null)
 
@@ -137,7 +136,6 @@ function SubCard({ sub }) {
     const dataUrl = await readFileAsDataUrl(file)
     const coi = { id: Date.now(), name: file.name, type: file.type, size: file.size, dataUrl, uploadedAt: new Date().toISOString() }
     updateSubcontractor(sub.id, { cois: [coi, ...cois] })
-    setShowCois(true)
   }
   const removeCoi = (id) => updateSubcontractor(sub.id, { cois: cois.filter(c => c.id !== id) })
 
@@ -152,17 +150,20 @@ function SubCard({ sub }) {
   return (
     <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5 hover:border-gray-300 transition-colors">
       <div className="flex items-start justify-between gap-3 mb-2">
-        <div className="flex items-start gap-3 min-w-0">
+        <button onClick={() => setOpen(o => !o)} className="flex items-start gap-3 min-w-0 text-left flex-1">
           <div className="w-10 h-10 rounded-xl bg-[var(--brand-100)] text-[var(--brand-700)] flex items-center justify-center shrink-0 font-bold text-sm">
             {initials(sub.name)}
           </div>
           <div className="min-w-0">
-            <p className="font-semibold text-gray-900 text-sm">{sub.name}</p>
+            <p className="font-semibold text-gray-900 text-sm flex items-center gap-1.5">
+              {sub.name}
+              {open ? <ChevronUp size={13} className="text-gray-400" /> : <ChevronDown size={13} className="text-gray-400" />}
+            </p>
             {sub.trade && (
               <span className="inline-block mt-1 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">{sub.trade}</span>
             )}
           </div>
-        </div>
+        </button>
         <div className="flex items-center gap-1 shrink-0">
           <button onClick={() => setEditing(true)} className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
             <Edit2 size={13} />
@@ -202,90 +203,101 @@ function SubCard({ sub }) {
         {sub.notes && <p className="text-xs text-gray-500 mt-1 whitespace-pre-wrap">{sub.notes}</p>}
       </div>
 
-      {/* Certificates of Insurance */}
-      <div className="mt-3 pt-3 border-t border-gray-100">
-        <div className="flex items-center justify-between gap-2">
-          <button onClick={() => setShowCois(o => !o)}
-            className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors">
-            <ShieldCheck size={12} className={cois.length > 0 ? 'text-green-500' : 'text-gray-400'} />
-            Insurance (COI){cois.length > 0 && <span className="text-gray-400">({cois.length})</span>}
-            {showCois ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-          </button>
-          <button onClick={() => fileRef.current?.click()}
-            className="flex items-center gap-1 text-xs font-medium text-[var(--brand-700)] hover:text-[var(--brand-800)] transition-colors">
-            <Upload size={12} /> Upload
-          </button>
-          <input ref={fileRef} type="file" accept=".pdf,image/*" className="hidden"
-            onChange={e => { uploadCoi(e.target.files?.[0]); e.target.value = '' }} />
+      {/* Insurance summary chip — always visible so gaps are obvious at a glance */}
+      {!open && (
+        <div className="mt-3 flex items-center gap-3 text-[11px]">
+          <span className={`inline-flex items-center gap-1 ${cois.length > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+            <ShieldCheck size={12} /> {cois.length > 0 ? 'COI on file' : 'No COI'}
+          </span>
+          {incidents.length > 0 && (
+            <span className="inline-flex items-center gap-1 text-amber-600">
+              <AlertTriangle size={12} /> {incidents.length} incident{incidents.length !== 1 ? 's' : ''}
+            </span>
+          )}
         </div>
-        {showCois && (
-          <div className="mt-2 space-y-1.5">
-            {cois.length === 0 ? (
-              <p className="text-xs text-gray-400 italic">No COI on file. Upload the latest certificate.</p>
-            ) : (
-              cois.map((coi, idx) => (
-                <div key={coi.id} className="flex items-center justify-between gap-2 bg-gray-50 rounded-lg px-2.5 py-1.5">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <FileText size={13} className="text-gray-400 shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-xs text-gray-700 truncate">{coi.name}</p>
-                      <p className="text-[10px] text-gray-400">
-                        {idx === 0 && <span className="text-green-600 font-medium">Latest · </span>}
-                        {fmtDate(coi.uploadedAt)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <a href={coi.dataUrl} download={coi.name} className="p-1 rounded text-gray-400 hover:text-[var(--brand-700)]" title="Download">
-                      <Download size={13} />
-                    </a>
-                    <button onClick={() => removeCoi(coi.id)} className="p-1 rounded text-gray-300 hover:text-red-500" title="Remove"><X size={13} /></button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        )}
-      </div>
+      )}
 
-      {/* Incidents — office logs incidents to justify the rating */}
-      <div className="mt-3 pt-3 border-t border-gray-100">
-        <button onClick={() => setShowIncidents(o => !o)}
-          className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors">
-          <AlertTriangle size={12} className="text-gray-400" />
-          Incidents{incidents.length > 0 && <span className="text-gray-400">({incidents.length})</span>}
-          {showIncidents ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-        </button>
-        {showIncidents && (
-          <div className="mt-2 space-y-2">
-            <div className="flex gap-2">
-              <input value={incidentText} onChange={e => setIncidentText(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') addIncident() }}
-                placeholder="Log an incident (missed schedule, rework, no-show…)"
-                className="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)]" />
-              <button onClick={addIncident} disabled={!incidentText.trim()}
-                className="px-3 py-1.5 bg-[var(--brand-600)] text-white text-xs font-medium rounded-lg hover:bg-[var(--brand-700)] disabled:opacity-40 transition-colors shrink-0">
-                Add
+      {/* Profile detail — Insurance + Incidents, only when the profile is open */}
+      {open && (
+        <>
+          {/* Certificates of Insurance */}
+          <div className="mt-3 pt-3 border-t border-gray-100">
+            <div className="flex items-center justify-between gap-2">
+              <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-600">
+                <ShieldCheck size={12} className={cois.length > 0 ? 'text-green-500' : 'text-gray-400'} />
+                Insurance (COI){cois.length > 0 && <span className="text-gray-400 font-normal">({cois.length})</span>}
+              </span>
+              <button onClick={() => fileRef.current?.click()}
+                className="flex items-center gap-1 text-xs font-medium text-[var(--brand-700)] hover:text-[var(--brand-800)] transition-colors">
+                <Upload size={12} /> Upload
               </button>
+              <input ref={fileRef} type="file" accept=".pdf,image/*" className="hidden"
+                onChange={e => { uploadCoi(e.target.files?.[0]); e.target.value = '' }} />
             </div>
-            {incidents.length === 0 ? (
-              <p className="text-xs text-gray-400 italic">No incidents logged.</p>
-            ) : (
-              <div className="space-y-1.5">
-                {incidents.map(inc => (
-                  <div key={inc.id} className="flex items-start justify-between gap-2 bg-gray-50 rounded-lg px-2.5 py-1.5">
-                    <div className="min-w-0">
-                      <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">{inc.text}</p>
-                      <p className="text-[10px] text-gray-400 mt-0.5">{fmtDate(inc.date)}</p>
+            <div className="mt-2 space-y-1.5">
+              {cois.length === 0 ? (
+                <p className="text-xs text-gray-400 italic">No COI on file. Upload the latest certificate.</p>
+              ) : (
+                cois.map((coi, idx) => (
+                  <div key={coi.id} className="flex items-center justify-between gap-2 bg-gray-50 rounded-lg px-2.5 py-1.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileText size={13} className="text-gray-400 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs text-gray-700 truncate">{coi.name}</p>
+                        <p className="text-[10px] text-gray-400">
+                          {idx === 0 && <span className="text-green-600 font-medium">Latest · </span>}
+                          {fmtDate(coi.uploadedAt)}
+                        </p>
+                      </div>
                     </div>
-                    <button onClick={() => removeIncident(inc.id)} className="text-gray-300 hover:text-red-500 shrink-0" title="Remove incident"><X size={12} /></button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <a href={coi.dataUrl} download={coi.name} className="p-1 rounded text-gray-400 hover:text-[var(--brand-700)]" title="Download">
+                        <Download size={13} />
+                      </a>
+                      <button onClick={() => removeCoi(coi.id)} className="p-1 rounded text-gray-300 hover:text-red-500" title="Remove"><X size={13} /></button>
+                    </div>
                   </div>
-                ))}
-              </div>
-            )}
+                ))
+              )}
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Incidents — office logs incidents to justify the rating */}
+          <div className="mt-3 pt-3 border-t border-gray-100">
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-600">
+              <AlertTriangle size={12} className="text-gray-400" />
+              Incidents{incidents.length > 0 && <span className="text-gray-400 font-normal">({incidents.length})</span>}
+            </span>
+            <div className="mt-2 space-y-2">
+              <div className="flex gap-2">
+                <input value={incidentText} onChange={e => setIncidentText(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') addIncident() }}
+                  placeholder="Log an incident (missed schedule, rework, no-show…)"
+                  className="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)]" />
+                <button onClick={addIncident} disabled={!incidentText.trim()}
+                  className="px-3 py-1.5 bg-[var(--brand-600)] text-white text-xs font-medium rounded-lg hover:bg-[var(--brand-700)] disabled:opacity-40 transition-colors shrink-0">
+                  Add
+                </button>
+              </div>
+              {incidents.length === 0 ? (
+                <p className="text-xs text-gray-400 italic">No incidents logged.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {incidents.map(inc => (
+                    <div key={inc.id} className="flex items-start justify-between gap-2 bg-gray-50 rounded-lg px-2.5 py-1.5">
+                      <div className="min-w-0">
+                        <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">{inc.text}</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">{fmtDate(inc.date)}</p>
+                      </div>
+                      <button onClick={() => removeIncident(inc.id)} className="text-gray-300 hover:text-red-500 shrink-0" title="Remove incident"><X size={12} /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }
