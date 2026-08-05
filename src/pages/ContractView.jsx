@@ -232,6 +232,82 @@ const CB = ({ checked }) => (
   </span>
 )
 
+// Demo-only generic contract. Rendered ONLY when DEMO is true, in place of the
+// real proprietary contract, so the sandbox never exposes the real company's
+// address, terms, or legal template. None of this affects real contracts.
+function DemoContractDoc({ innerRef, companyName, client, address, contractNum, scopeLines = [], total = 0, docStyle, bodyPad }) {
+  const money = (n) => '$' + Number(n || 0).toLocaleString('en-US')
+  const dep = Math.round(total * 0.2)
+  const prog = Math.round(total * 0.4)
+  const fin = Math.max(0, total - dep - prog)
+  const lines = scopeLines.filter(Boolean)
+  return (
+    <div ref={innerRef} className="bg-white shadow-lg print:shadow-none" style={docStyle}>
+      <div className="bg-amber-50 border-b border-amber-200 text-amber-800 text-center text-xs font-semibold py-2 px-4">
+        SAMPLE CONTRACT · FOR DEMONSTRATION ONLY — fictional company &amp; terms, not a binding agreement.
+      </div>
+      <div className={bodyPad}>
+        <div className="flex justify-between items-start mb-1">
+          <div>
+            <div className="text-xl font-black tracking-widest leading-tight" style={{ fontFamily: 'Arial, sans-serif' }}>{companyName}</div>
+            <p className="text-xs text-gray-500 mt-1">1200 Demo Parkway, Suite 100 · Sampleton, ST 00000 · (555) 555-0100</p>
+          </div>
+          <div className="text-2xl font-bold" style={{ fontFamily: 'Arial, sans-serif' }}>CONTRACT</div>
+        </div>
+        <div className="border-b-2 border-gray-900 mb-5" />
+
+        <p className="text-sm mb-3">Contract #: <strong>{contractNum}</strong></p>
+        <p className="text-sm mb-6 text-justify">
+          This sample agreement is made between <strong>{companyName}</strong> (Builder) and <strong>{client || 'the Purchaser'}</strong> (Purchaser)
+          for work to be performed at <strong>{address || 'the project premises'}</strong>. It is placeholder text used to demonstrate the
+          software and is <strong>not a real or binding contract</strong>.
+        </p>
+
+        <h3 className="font-bold text-sm mb-2">Scope of Work</h3>
+        <table className="w-full text-sm border-collapse mb-6">
+          <tbody>
+            {lines.length ? lines.map((l, i) => (
+              <tr key={l.id || i}>
+                <td className="border border-gray-300 px-3 py-2">{l.name || l.text || 'Work item'}</td>
+                <td className="border border-gray-300 px-3 py-2 text-right whitespace-nowrap">{money(l.price)}</td>
+              </tr>
+            )) : (
+              <tr><td className="border border-gray-300 px-3 py-2 text-gray-400 italic" colSpan={2}>Scope items from the proposal appear here.</td></tr>
+            )}
+            <tr className="font-bold bg-gray-50">
+              <td className="border border-gray-300 px-3 py-2">Total</td>
+              <td className="border border-gray-300 px-3 py-2 text-right">{money(total)}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3 className="font-bold text-sm mb-2">Sample Payment Schedule</h3>
+        <table className="w-full text-sm border-collapse mb-6">
+          <tbody>
+            <tr><td className="border border-gray-300 px-3 py-2">Deposit at signing (20%)</td><td className="border border-gray-300 px-3 py-2 text-right">{money(dep)}</td></tr>
+            <tr><td className="border border-gray-300 px-3 py-2">Progress payment (40%)</td><td className="border border-gray-300 px-3 py-2 text-right">{money(prog)}</td></tr>
+            <tr><td className="border border-gray-300 px-3 py-2">Final payment on completion (40%)</td><td className="border border-gray-300 px-3 py-2 text-right">{money(fin)}</td></tr>
+          </tbody>
+        </table>
+
+        <h3 className="font-bold text-sm mb-2">Sample Terms &amp; Conditions</h3>
+        <ol className="text-sm list-decimal pl-5 space-y-2 mb-8 text-justify">
+          <li>Builder will furnish the labor and materials needed to complete the scope of work described above.</li>
+          <li>Any change to the scope will be documented in a written change order signed by both parties before work proceeds.</li>
+          <li>Builder will obtain the applicable permits; Purchaser will provide reasonable site access during normal work hours.</li>
+          <li>Workmanship is warrantied for one (1) year from completion. Materials carry their respective manufacturer warranties.</li>
+          <li>This document is a demonstration sample only and creates no legal obligation of any kind.</li>
+        </ol>
+
+        <div className="grid grid-cols-2 gap-10 mt-10">
+          <div><div className="border-b border-gray-500 pb-6" /><p className="text-xs text-gray-600 mt-1">PURCHASER SIGNATURE / DATE</p></div>
+          <div><div className="border-b border-gray-500 pb-6" /><p className="text-xs text-gray-600 mt-1">BUILDER SIGNATURE / DATE</p></div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function ContractView() {
   const navigate           = useNavigate()
   const branding             = useStore(s => s.branding)
@@ -1324,13 +1400,10 @@ export default function ContractView() {
           CONTRACT PACKAGE
       ══════════════════════════════════════════════════════════════ */}
       <div className="max-w-4xl mx-auto my-6 px-4 pb-16">
+        {DEMO ? (
+          <DemoContractDoc innerRef={contractDocRef} companyName={companyName} client={client} address={address} contractNum={contractNum} scopeLines={scopeLines} total={total} docStyle={docStyle} bodyPad={bodyPad} />
+        ) : (
         <div ref={contractDocRef} className="bg-white shadow-lg print:shadow-none" style={docStyle}>
-
-          {DEMO && (
-            <div className="bg-amber-50 border-b border-amber-200 text-amber-800 text-center text-xs font-semibold py-2 px-4">
-              SAMPLE CONTRACT · FOR DEMONSTRATION ONLY — fictional company &amp; terms, not a binding agreement.
-            </div>
-          )}
 
           {/* ── PAGE 1 · Contract opening + payment schedule ─────── */}
           <div className={bodyPad}>
@@ -2252,6 +2325,7 @@ export default function ContractView() {
           )}
 
         </div>
+        )}
       </div>
 
       {/* ── Google Drive / eSign Modal ───────────────────────────────── */}
