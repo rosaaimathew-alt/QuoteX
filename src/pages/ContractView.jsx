@@ -1,8 +1,41 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Printer, Send, ChevronDown, ChevronUp, Lock, Sparkles, Loader2, X, Save, BookOpen, Bold } from 'lucide-react'
 import { useStore } from '../store'
 import { generatePalette, DEFAULT_BRAND_COLOR } from '../brand'
+import { DEMO } from '../demo'
+
+// Demo-only: the sandbox must never show the real company's name or legal
+// partner in a sample contract. These swaps run ONLY when DEMO is true, against
+// the rendered contract node — real contracts are byte-for-byte unchanged.
+const DEMO_SWAPS = DEMO ? [
+  [/Ebony Outdoor Living/g, 'Evergreen Outdoor Living'],
+  [/EBONY OUTDOOR LIVING/g, 'EVERGREEN OUTDOOR LIVING'],
+  [/Ebony O\.L\.?/g, 'Evergreen O.L.'],
+  [/—EBONY—/g, '—EVERGREEN—'],
+  [/ALL IN ONE SOLUTIONS/g, 'SUMMIT GENERAL CONTRACTING'],
+  [/All-In-One Solutions/g, 'Summit General Contracting'],
+  [/All in one Solutions/g, 'Summit General Contracting'],
+  [/All-In-One/g, 'Summit GC'],
+  [/\bEbony\b/g, 'Evergreen'],
+] : []
+
+function scrubDemoContract(root) {
+  if (!DEMO || !root) return
+  const apply = (s) => DEMO_SWAPS.reduce((acc, [re, rep]) => acc.replace(re, rep), s)
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+  const nodes = []
+  while (walker.nextNode()) nodes.push(walker.currentNode)
+  for (const n of nodes) {
+    const out = apply(n.nodeValue)
+    if (out !== n.nodeValue) n.nodeValue = out
+  }
+  root.querySelectorAll('[placeholder]').forEach((el) => {
+    const v = el.getAttribute('placeholder') || ''
+    const out = apply(v)
+    if (out !== v) el.setAttribute('placeholder', out)
+  })
+}
 
 // Render **bold** and __underline__ markdown as <strong>/<u>
 export function renderBold(text) {
@@ -275,6 +308,10 @@ export default function ContractView() {
   const [mergeModal,           setMergeModal]           = useState(null) // { template, missing: [{txt, checked}] }
 
   const contractDocRef = useRef(null)
+
+  // Demo sandbox: swap real company/partner names for the fictional demo company
+  // after every render (runs only when DEMO is on; a no-op on the real site).
+  useLayoutEffect(() => { if (DEMO) scrubDemoContract(contractDocRef.current) })
   const [showSignModal, setShowSignModal] = useState(false)
   const [googleAuthed,  setGoogleAuthed]  = useState(false)
   const [signing,       setSigning]       = useState(false)
@@ -1288,6 +1325,12 @@ export default function ContractView() {
       ══════════════════════════════════════════════════════════════ */}
       <div className="max-w-4xl mx-auto my-6 px-4 pb-16">
         <div ref={contractDocRef} className="bg-white shadow-lg print:shadow-none" style={docStyle}>
+
+          {DEMO && (
+            <div className="bg-amber-50 border-b border-amber-200 text-amber-800 text-center text-xs font-semibold py-2 px-4">
+              SAMPLE CONTRACT · FOR DEMONSTRATION ONLY — fictional company &amp; terms, not a binding agreement.
+            </div>
+          )}
 
           {/* ── PAGE 1 · Contract opening + payment schedule ─────── */}
           <div className={bodyPad}>
