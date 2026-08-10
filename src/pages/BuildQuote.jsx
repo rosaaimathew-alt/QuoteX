@@ -14,6 +14,8 @@ const DECK_UNITS = ['SF', 'LF', 'EA', 'LS']
 const DECK_BOARD_LENGTHS = [12, 16, 20]           // composite boards are sold in these lengths
 const DECK_BOARD_FACE_IN = 5.5                    // 1"×5.5" profile face width
 const DECK_RISER_MAX_IN = 8.25                    // max riser height → step count
+const DECK_MAX_BOARD_FT = 20                      // longest stock board
+const DECK_GAP_SLACK_FT = 0.5                     // end expansion gaps let a board round up ~a foot
 const DECK_DIFFICULTY_FLAT = { Standard: 0, Moderate: 750, Complex: 1800 }  // flat $ adder
 // Decking brands → collections → sell $/LF (demo placeholder pricing).
 const DECK_BRANDS = {
@@ -22,22 +24,21 @@ const DECK_BRANDS = {
   'Trex':             { Transcend: 5.30, 'Enhance Naturals': 3.80, Select: 3.20 },
   'Pressure-Treated': { '5/4 Pine': 1.90, '2x6 Premium': 2.40 },
 }
-// Board LF to buy PER ROW to span the width, using stock lengths with the least
-// waste. For widths ≤ 20' this is a single board rounded up (18' → 20'). For
-// wider spans it's the min-waste combination of stock boards, butt-jointed and
-// staggered on joists (e.g. 22' → 12'+12' = 24').
-const deckBoardLength = (widthFt) => {
-  const w = Math.ceil(Number(widthFt) || 0)
-  if (w <= 0) return 0
-  const dp = Array(w + 1).fill(Infinity)
-  dp[0] = 0
-  for (let i = 1; i <= w; i++) {
-    for (const L of DECK_BOARD_LENGTHS) {
-      const prev = Math.max(0, i - L)
-      if (dp[prev] !== Infinity) dp[i] = Math.min(dp[i], dp[prev] + L)
-    }
-  }
-  return dp[w]
+// Decking layout — NO butt joints. The picture frame absorbs width at the ends;
+// once the remaining run is longer than a 20' board a spline splits it into
+// equal runs, each covered by the smallest stock board (end gaps let it round up
+// ~a foot). Works for any span using 12/16/20' stock. Returns the plan.
+function deckLayout(Wft, frameCourses) {
+  const face = DECK_BOARD_FACE_IN / 12
+  const frameAbsorb = 2 * frameCourses * face          // both end borders
+  const fieldRun = Math.max(0, Wft - frameAbsorb)      // ft the field boards span
+  const splineW = face                                 // single spline board
+  let splines = 0
+  while (fieldRun > 0 && (fieldRun - splines * splineW) / (splines + 1) > DECK_MAX_BOARD_FT + DECK_GAP_SLACK_FT && splines < 12) splines++
+  const sections = splines + 1
+  const sectionRun = fieldRun > 0 ? (fieldRun - splines * splineW) / sections : 0
+  const boardFt = DECK_BOARD_LENGTHS.find(L => sectionRun <= L + DECK_GAP_SLACK_FT) ?? DECK_MAX_BOARD_FT
+  return { frameCourses, fieldRun, splines, sections, sectionRun, boardFt }
 }
 
 function DeckAssemblyPanel({ onClose, onAdd }) {
@@ -58,11 +59,19 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
   const perimeter = 2 * (W + D)
   const heightIn  = Hft * 12
   const stepCount = heightIn > 0 ? Math.ceil(heightIn / DECK_RISER_MAX_IN) : 0
-  const courses   = D > 0 ? Math.ceil((D * 12) / DECK_BOARD_FACE_IN) : 0
-  const boardLen  = deckBoardLength(W)
-  const deckingLF = courses * boardLen
   const treadLF   = stepCount * SW
-  const borderCourses = border === 'Double' ? 2 : border === 'Single' ? 1 : 0  // runs all the way around
+
+  // ── Decking layout (frame + spline, no butt joints) ──
+  const borderCourses = border === 'Double' ? 2 : border === 'Single' ? 1 : 0   // frame runs all the way around
+  const plan = deckLayout(W, borderCourses)
+  const { splines, sections, boardFt, sectionRun } = plan
+  const frameAbsorbFt = 2 * borderCourses * (DECK_BOARD_FACE_IN / 12)
+  const fieldDepthFt  = Math.max(0, D - frameAbsorbFt)                            // front/back borders reduce depth
+  const fieldRows     = Math.ceil((fieldDepthFt * 12) / DECK_BOARD_FACE_IN)
+  const deckingLF     = fieldRows * sections * boardFt                            // field boards, full stock lengths
+  const borderLF      = perimeter * borderCourses
+  const splineDeckingLF = splines * fieldDepthFt                                  // single spline board runs the depth
+  const splineJoistLF   = splines * 2 * D                                         // double sister joist per spline
 
   const brandRate  = DECK_BRANDS[brand]?.[collection] ?? 5
   const collections = Object.keys(DECK_BRANDS[brand] || {})
@@ -72,15 +81,17 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
     switch (key) {
       case 'framing':    return unit === 'SF' ? area : unit === 'LF' ? perimeter : 1
       case 'decking': {
-        const base = unit === 'LF' ? deckingLF : unit === 'SF' ? area : unit === 'EA' ? courses : 1
+        const base = unit === 'LF' ? deckingLF : unit === 'SF' ? area : unit === 'EA' ? fieldRows : 1
         return borderCourses > 0 ? Math.ceil(base * (1 + fieldWastePct / 100)) : base  // border adds field cut-in waste
       }
       case 'stairs':     return unit === 'EA' ? stepCount : unit === 'LF' ? treadLF : unit === 'SF' ? treadLF : 1
       case 'railing':    return unit === 'LF' ? perimeter : unit === 'EA' ? 4 : 1
       case 'landing':    return unit === 'EA' ? LA : unit === 'SF' ? LA * 16 : 1
-      case 'border':     return unit === 'LF' ? perimeter * borderCourses : unit === 'EA' ? borderCourses : 1
+      case 'border':     return unit === 'LF' ? borderLF : unit === 'EA' ? borderCourses : 1
       case 'blocking':   return unit === 'LF' ? perimeter : 1
-      case 'borderlabor':return unit === 'LF' ? perimeter * borderCourses : 1
+      case 'borderlabor':return unit === 'LF' ? borderLF : 1
+      case 'spline':     return unit === 'LF' ? splineDeckingLF : unit === 'EA' ? splines : 1
+      case 'splinejoist':return unit === 'LF' ? splineJoistLF : unit === 'EA' ? splines * 2 : 1
       case 'difficulty': return 1
       default:           return 1
     }
@@ -95,6 +106,8 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
     { key: 'border',     label: 'Border decking',         unit: 'LF', rate: brandRate, cost: +(brandRate * 0.62).toFixed(2), qty: null, fromBrand: true, borderOnly: true },
     { key: 'blocking',   label: 'Picture-frame blocking', unit: 'LF', rate: 3.5, cost: 2.2, qty: null, borderOnly: true },
     { key: 'borderlabor',label: 'Border labor / miters',  unit: 'LF', rate: 4,   cost: 2,   qty: null, borderOnly: true },
+    { key: 'spline',     label: 'Spline decking',         unit: 'LF', rate: brandRate, cost: +(brandRate * 0.62).toFixed(2), qty: null, fromBrand: true, splineOnly: true },
+    { key: 'splinejoist',label: 'Spline sister joist',    unit: 'LF', rate: 9,   cost: 6,   qty: null, splineOnly: true },
     { key: 'difficulty', label: 'Framing difficulty', unit: 'LS', rate: 0,    cost: 0,   qty: null, flat: true },
   ])
   const patch = (key, p) => setComps(cs => cs.map(c => c.key === key ? { ...c, ...p } : c))
@@ -109,7 +122,7 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
     setComps(cs => cs.map(c => c.key === 'difficulty' ? { ...c, rate: DECK_DIFFICULTY_FLAT[difficulty] ?? 0 } : c))
   }, [difficulty])
 
-  const rows = comps.filter(c => !c.borderOnly || borderCourses > 0).map(c => {
+  const rows = comps.filter(c => (!c.borderOnly || borderCourses > 0) && (!c.splineOnly || splines > 0)).map(c => {
     const qty  = c.qty != null ? c.qty : autoQty(c.key, c.unit)
     return { ...c, qty, line: qty * c.rate, lineCost: qty * c.cost }
   })
@@ -121,7 +134,8 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
   const railQty = rows.find(r => r.key === 'railing')?.qty || 0
   const description = (() => {
     let d = `Design and build a ${W} ft × ${D} ft (${area} sq ft) deck using ${brand} ${collection} decking.`
-    if (deckingLF > 0) d += ` Decking to purchase: ${deckingLF} LF (${courses} rows × ${boardLen} ft boards).`
+    if (deckingLF > 0) d += ` Decking: ${fieldRows} rows × ${sections} run${sections > 1 ? 's' : ''} of ${boardFt} ft (${deckingLF} LF).`
+    if (splines > 0)   d += ` ${splines} spline${splines > 1 ? 's' : ''} with double sister joist${splines > 1 ? 's' : ''} — no butt joints.`
     if (stepCount > 0) d += ` Stairs: ${stepCount} steps at ${SW} ft wide for ${Hft} ft of elevation.`
     if (railQty > 0)   d += ` ${Math.round(railQty)} LF of railing.`
     if (borderCourses > 0) d += ` ${border} mitered picture-frame border around all sides.`
@@ -200,8 +214,9 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
       <div className="bg-[var(--brand-50)] border border-[var(--brand-100)] rounded-lg px-3 py-2 mb-4 text-xs text-gray-600 space-y-0.5">
         <p>📐 <strong>{area} SF</strong> deck · perimeter <strong>{perimeter} LF</strong></p>
         <p>🪜 Steps: ⌈{heightIn}" ÷ {DECK_RISER_MAX_IN}"⌉ = <strong>{stepCount} steps</strong> at {SW} ft wide</p>
-        <p>🪵 Decking: {courses} rows × {boardLen} ft/row{W > 20 ? ' (butt-jointed — over 20 ft)' : ''} to span {W} ft = <strong>{deckingLF} LF</strong></p>
-        {borderCourses > 0 && <p>🖼️ Border: {border.toLowerCase()}, mitered, all sides = {perimeter} LF × {borderCourses} = <strong>{perimeter * borderCourses} LF</strong> · +{fieldWastePct}% field waste</p>}
+        <p>🪵 Decking: {fieldRows} rows × {sections} run{sections > 1 ? 's' : ''} of <strong>{boardFt} ft</strong> board = <strong>{deckingLF} LF</strong> {borderCourses > 0 ? `(+${fieldWastePct}% field waste)` : ''}</p>
+        {splines > 0 && <p>🔩 Span needs <strong>{splines} spline{splines > 1 ? 's' : ''}</strong> ({sections} runs of {boardFt} ft, no butt joints) + double sister joist = {splineJoistLF} LF framing</p>}
+        {borderCourses > 0 && <p>🖼️ Border: {border.toLowerCase()}, mitered, all sides = <strong>{borderLF} LF</strong></p>}
       </div>
 
       {/* Component table — each variable + its metric is editable */}
