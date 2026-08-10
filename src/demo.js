@@ -39,6 +39,7 @@ export function resetDemo() {
 // Fictional outdoor-living pricing catalog for the demo. Made-up items and
 // prices — NOT anyone's real pricing sheet.
 const DEMO_CATALOG = [
+  { id: 13, name: 'Deck — Build to Spec (formula)',        description: 'Configure framing, decking, steps, landings, height and difficulty; price, cost and scope auto-calculate.', unit: 'EA', unitPrice: 0, minPrice: 0, maxPrice: 0, count: 0, category: 'Decks', confidence: 100, assembly: 'deck' },
   { id: 1,  name: 'Composite Deck (Trex Transcend)',       description: 'Supply and install composite decking with hidden fasteners over existing or new framing.',                 unit: 'SF', unitPrice: 42, minPrice: 36, maxPrice: 52, count: 24, category: 'Decks',            confidence: 95 },
   { id: 2,  name: 'Pressure-Treated Deck Framing',          description: 'Build pressure-treated deck substructure with joists, beams, and posts to code.',                            unit: 'SF', unitPrice: 18, minPrice: 15, maxPrice: 24, count: 21, category: 'Decks',            confidence: 94 },
   { id: 3,  name: 'Aluminum Deck Railing',                  description: 'Supply and install powder-coated aluminum railing with balusters.',                                          unit: 'LF', unitPrice: 62, minPrice: 52, maxPrice: 78, count: 19, category: 'Decks',            confidence: 92 },

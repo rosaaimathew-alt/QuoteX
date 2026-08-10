@@ -12,7 +12,7 @@ const MARGIN_DEFAULT = 30
 // the quote total keeps auto-summing and nothing is entered by hand.
 const DECK_DIFFICULTY = { Standard: 1, Moderate: 1.15, Complex: 1.3 }
 
-function DeckAssemblyModal({ onClose, onAdd }) {
+function DeckAssemblyPanel({ onClose, onAdd }) {
   const [area, setArea]         = useState(384)
   const [height, setHeight]     = useState(3)
   const [steps, setSteps]       = useState(0)
@@ -73,15 +73,13 @@ function DeckAssemblyModal({ onClose, onAdd }) {
   )
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-5">
+    <div className="bg-white rounded-2xl border-2 border-[var(--brand-300)] shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">
           <div>
             <p className="text-xs font-medium text-[var(--brand-600)] uppercase tracking-wide">Formula item · prototype</p>
             <h2 className="text-lg font-bold text-gray-900">Deck Builder</h2>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100"><X size={18} /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100" title="Close builder"><X size={18} /></button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -155,7 +153,6 @@ function DeckAssemblyModal({ onClose, onAdd }) {
           </button>
           <button onClick={onClose} className="flex-1 py-2.5 border border-gray-200 text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
         </div>
-      </div>
     </div>
   )
 }
@@ -248,6 +245,8 @@ export default function BuildQuote() {
     .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()))
 
   const addItem = (item) => {
+    // Formula/assembly items open their inline builder instead of adding a flat line.
+    if (DEMO && item.assembly === 'deck') { setActiveAssembly('deck'); return }
     setLines(prev => {
       const existing = prev.find(l => l.catalogId === item.id)
       if (existing) return prev.map(l => l.catalogId === item.id ? { ...l, qty: l.qty + 1 } : l)
@@ -276,7 +275,7 @@ export default function BuildQuote() {
 
   const removeLine = (id) => setLines(prev => prev.filter(l => l.id !== id))
 
-  const [showDeck, setShowDeck] = useState(false)
+  const [activeAssembly, setActiveAssembly] = useState(null)
   const addAssemblyLine = (line) => setLines(prev => [...prev, line])
 
   const addBlankLine = () => setLines(prev => [...prev, {
@@ -359,7 +358,9 @@ export default function BuildQuote() {
             <button key={item.id} onClick={() => addItem(item)}
               className="w-full text-left px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors group">
               <p className="text-xs font-medium text-gray-800 group-hover:text-blue-700 leading-tight">{item.name}</p>
-              <p className="text-xs text-gray-400 mt-0.5">${item.unitPrice}/{item.unit}</p>
+              {item.assembly
+                ? <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold text-[var(--brand-700)] bg-[var(--brand-100)] px-1.5 py-0.5 rounded-full"><Calculator size={10} /> Builder</span>
+                : <p className="text-xs text-gray-400 mt-0.5">${item.unitPrice}/{item.unit}</p>}
             </button>
           ))}
         </div>
@@ -422,14 +423,6 @@ export default function BuildQuote() {
                 <Save size={14} /> Save as Template
               </button>
             )}
-            {DEMO && (
-              <button
-                onClick={() => setShowDeck(true)}
-                className="flex items-center gap-1.5 px-3 py-2 border border-[var(--brand-300)] text-[var(--brand-700)] rounded-lg text-sm hover:bg-[var(--brand-50)]"
-              >
-                <Calculator size={14} /> Deck Builder
-              </button>
-            )}
             <button
               onClick={goToProposal}
               disabled={!lines.length}
@@ -439,6 +432,14 @@ export default function BuildQuote() {
             </button>
           </div>
         </div>
+
+        {/* Inline formula-item builder (opened from the catalog) */}
+        {DEMO && activeAssembly === 'deck' && (
+          <DeckAssemblyPanel
+            onClose={() => setActiveAssembly(null)}
+            onAdd={line => { addAssemblyLine(line); setActiveAssembly(null) }}
+          />
+        )}
 
         {/* Customer info */}
         <div className="bg-white rounded-xl border border-gray-200 p-4">
@@ -635,11 +636,6 @@ export default function BuildQuote() {
           )}
         </div>
       </div>
-
-      {/* Deck assembly (formula item) — demo prototype */}
-      {DEMO && showDeck && (
-        <DeckAssemblyModal onClose={() => setShowDeck(false)} onAdd={addAssemblyLine} />
-      )}
 
       {/* Save Template Modal */}
       {showSaveTemplate && (
