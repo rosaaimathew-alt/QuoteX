@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Plus, Trash2, ChevronDown, ChevronUp, Eye, EyeOff, BookTemplate, X, Save, Copy, BookPlus, Check, Calculator } from 'lucide-react'
 import { useStore } from '../store'
@@ -42,13 +42,34 @@ function deckLayout(Wft, frameCourses) {
 }
 
 function DeckAssemblyPanel({ onClose, onAdd }) {
+  const catalog = useStore(s => s.catalog)
+  // Decking options come straight from the catalog's "… Porch Floor Upgrade" items
+  // (priced per LF, full price + cost) so the tool uses your real numbers with no
+  // re-entry. DECK_BRANDS are placeholder fallbacks only when the catalog has none.
+  const brands = useMemo(() => {
+    const out = {}
+    for (const c of catalog) {
+      if (!/porch\s*floor\s*upgrade/i.test(c.name || '')) continue
+      const coll = (c.name || '').replace(/porch\s*floor\s*upgrade/i, '').trim() || c.name
+      const cost = (Number(c.costMaterials) || 0) + (Number(c.costSub) || 0)
+      out['From your catalog'] = out['From your catalog'] || {}
+      out['From your catalog'][coll] = { rate: Number(c.unitPrice) || 0, cost: cost || +((Number(c.unitPrice) || 0) * 0.62).toFixed(2) }
+    }
+    for (const [bn, cols] of Object.entries(DECK_BRANDS)) {
+      out[bn] = out[bn] || {}
+      for (const [cn, v] of Object.entries(cols)) out[bn][cn] = { rate: v, cost: +(v * 0.62).toFixed(2) }
+    }
+    return out
+  }, [catalog])
+  const brandNames = Object.keys(brands)
+
   const [width, setWidth]       = useState(20)
   const [depth, setDepth]       = useState(16)
   const [height, setHeight]     = useState(3)      // ft above grade
   const [stairWidth, setStairWidth] = useState(4)  // ft, 1-ft increments
   const [landings, setLandings] = useState(0)
-  const [brand, setBrand]       = useState('Trex')
-  const [collection, setCollection] = useState('Transcend')
+  const [brand, setBrand]       = useState(brandNames[0])
+  const [collection, setCollection] = useState(() => Object.keys(brands[brandNames[0]] || {})[0])
   const [difficulty, setDifficulty] = useState('Standard')
   const [border, setBorder]     = useState('None')       // None / Single / Double picture frame
   const [fieldWastePct, setFieldWastePct] = useState(8)  // extra field-decking waste when bordered
@@ -85,8 +106,10 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
   const riserBuyLF  = riserBoards * 16
   const rimBuyLF    = rimBoards * 16
 
-  const brandRate  = DECK_BRANDS[brand]?.[collection] ?? 5
-  const collections = Object.keys(DECK_BRANDS[brand] || {})
+  const sel = brands[brand]?.[collection]
+  const brandRate  = sel?.rate ?? 5
+  const brandCost  = sel?.cost ?? +(brandRate * 0.62).toFixed(2)
+  const collections = Object.keys(brands[brand] || {})
 
   // Auto quantity for each component given its unit — the "how a builder measures it" logic.
   const autoQty = (key, unit) => {
@@ -113,16 +136,16 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
 
   const [comps, setComps] = useState([
     { key: 'framing',    label: 'Framing',            unit: 'SF', rate: 14,   cost: 9,   qty: null },
-    { key: 'decking',    label: 'Decking boards',     unit: 'LF', rate: brandRate, cost: +(brandRate * 0.62).toFixed(2), qty: null, fromBrand: true },
+    { key: 'decking',    label: 'Decking boards',     unit: 'LF', rate: brandRate, cost: brandCost, qty: null, fromBrand: true },
     { key: 'stairs',     label: 'Stairs',             unit: 'EA', rate: 145,  cost: 90,  qty: null },
     { key: 'railing',    label: 'Railing',            unit: 'LF', rate: 52,   cost: 30,  qty: null },
     { key: 'landing',    label: 'Landing',            unit: 'EA', rate: 1200, cost: 700, qty: null },
     { key: 'risers',     label: 'Step risers (1×12 fascia)', unit: 'LF', rate: 9, cost: 5.5, qty: null, stepOnly: true },
     { key: 'fascia',     label: 'Matching fascia (rim)',     unit: 'LF', rate: 9, cost: 5.5, qty: null, fasciaOnly: true },
-    { key: 'border',     label: 'Border decking',         unit: 'LF', rate: brandRate, cost: +(brandRate * 0.62).toFixed(2), qty: null, fromBrand: true, borderOnly: true },
+    { key: 'border',     label: 'Border decking',         unit: 'LF', rate: brandRate, cost: brandCost, qty: null, fromBrand: true, borderOnly: true },
     { key: 'blocking',   label: 'Picture-frame blocking', unit: 'LF', rate: 3.5, cost: 2.2, qty: null, borderOnly: true },
     { key: 'borderlabor',label: 'Border labor / miters',  unit: 'LF', rate: 4,   cost: 2,   qty: null, borderOnly: true },
-    { key: 'spline',     label: 'Spline decking',         unit: 'LF', rate: brandRate, cost: +(brandRate * 0.62).toFixed(2), qty: null, fromBrand: true, splineOnly: true },
+    { key: 'spline',     label: 'Spline decking',         unit: 'LF', rate: brandRate, cost: brandCost, qty: null, fromBrand: true, splineOnly: true },
     { key: 'splinejoist',label: 'Spline sister joist',    unit: 'LF', rate: 9,   cost: 6,   qty: null, splineOnly: true },
     { key: 'difficulty', label: 'Framing difficulty', unit: 'LS', rate: 0,    cost: 0,   qty: null, flat: true },
   ])
@@ -131,7 +154,7 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
   // Keep decking rate synced to the chosen brand/collection until the user overrides it.
   useEffect(() => {
     setComps(cs => cs.map(c => c.fromBrand
-      ? { ...c, rate: brandRate, cost: +(brandRate * 0.62).toFixed(2) } : c))
+      ? { ...c, rate: brandRate, cost: brandCost } : c))
   }, [brandRate])
   // Flat difficulty adder driven by the dropdown.
   useEffect(() => {
@@ -217,8 +240,8 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
 
       {/* Materials / difficulty */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
-        {drop('Decking brand', brand, e => { const b = e.target.value; setBrand(b); setCollection(Object.keys(DECK_BRANDS[b])[0]); patch('decking', { fromBrand: true }) }, Object.keys(DECK_BRANDS))}
-        {drop('Collection', collection, e => { setCollection(e.target.value); patch('decking', { fromBrand: true }) }, collections)}
+        {drop('Decking brand', brand, e => { const b = e.target.value; setBrand(b); setCollection(Object.keys(brands[b] || {})[0]); patch('decking', { fromBrand: true }); patch('border', { fromBrand: true }); patch('spline', { fromBrand: true }) }, brandNames)}
+        {drop('Collection', collection, e => { setCollection(e.target.value); patch('decking', { fromBrand: true }); patch('border', { fromBrand: true }); patch('spline', { fromBrand: true }) }, collections)}
         {drop('Framing difficulty (flat)', difficulty, e => setDifficulty(e.target.value), Object.keys(DECK_DIFFICULTY_FLAT))}
       </div>
 
