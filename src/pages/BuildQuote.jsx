@@ -559,14 +559,6 @@ export default function BuildQuote() {
           </div>
         </div>
 
-        {/* Inline formula-item builder (opened from the catalog) */}
-        {DEMO && activeAssembly === 'deck' && (
-          <DeckAssemblyPanel
-            onClose={() => setActiveAssembly(null)}
-            onAdd={line => { addAssemblyLine(line); setActiveAssembly(null) }}
-          />
-        )}
-
         {/* Customer info */}
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Customer Info</p>
@@ -612,6 +604,14 @@ export default function BuildQuote() {
             </div>
           </div>
         </div>
+
+        {/* Inline formula-item builder (opened from the catalog) — sits in the scope area */}
+        {DEMO && activeAssembly === 'deck' && (
+          <DeckAssemblyPanel
+            onClose={() => setActiveAssembly(null)}
+            onAdd={line => { addAssemblyLine(line); setActiveAssembly(null) }}
+          />
+        )}
 
         {/* Lines */}
         <div className="bg-white rounded-xl border border-gray-200 flex-1">
