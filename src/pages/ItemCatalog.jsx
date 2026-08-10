@@ -658,7 +658,6 @@ export default function ItemCatalog() {
   const [editId, setEditId]       = useState(null)
   const [addingNew, setAddingNew] = useState(false)
   const [managingCats, setManagingCats] = useState(false)
-  const [deckPricing, setDeckPricing] = useState(false)
   const [newForm, setNewForm] = useState({ name: '', description: '', category: CATEGORIES[0] || 'General', unit: 'EA', unitPrice: 0, minPrice: 0, maxPrice: 0, count: 1, confidence: 70 })
 
   // AI suggest state
@@ -770,14 +769,6 @@ export default function ItemCatalog() {
           </button>
 
           <button
-            onClick={() => setDeckPricing(true)}
-            className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 bg-white text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-            title="Edit the rates the Deck Builder uses"
-          >
-            <Calculator size={14} /> Deck Pricing
-          </button>
-
-          <button
             onClick={() => setAddingNew(true)}
             className="flex items-center gap-1.5 px-4 py-2 bg-[var(--brand-600)] text-white rounded-lg text-sm font-medium hover:bg-[var(--brand-700)]"
           >
@@ -787,7 +778,6 @@ export default function ItemCatalog() {
       </div>
 
       {managingCats && <CategoryManagerModal onClose={() => setManagingCats(false)} />}
-      {deckPricing && <DeckPricingModal onClose={() => setDeckPricing(false)} />}
 
       {/* AI suggestions banner */}
       {suggestError && (
