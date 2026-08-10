@@ -259,12 +259,12 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
 
       {/* Recommendations */}
       <div className="bg-[var(--brand-50)] border border-[var(--brand-100)] rounded-lg px-3 py-2 mb-4 text-xs text-gray-600 space-y-0.5">
-        <p>📐 <strong>{area} SF</strong> deck · perimeter <strong>{perimeter} LF</strong></p>
-        <p>🪜 Steps: ⌈{heightIn}" ÷ {DECK_RISER_MAX_IN}"⌉ = <strong>{stepCount} steps</strong> at {SW} ft wide</p>
-        <p>🪵 Decking: {fieldRows} rows × {sections} run{sections > 1 ? 's' : ''} of <strong>{boardFt} ft</strong> board = <strong>{deckingLF} LF</strong> {borderCourses > 0 ? `(+${fieldWastePct}% field waste)` : ''}</p>
-        {splines > 0 && <p>🔩 Span needs <strong>{splines} spline{splines > 1 ? 's' : ''}</strong> ({sections} runs of {boardFt} ft, no butt joints) + double sister joist = {splineJoistLF} LF framing</p>}
-        {borderCourses > 0 && <p>🖼️ Border: {border.toLowerCase()}, mitered, all sides = <strong>{borderLF} LF</strong></p>}
-        {(fasciaOn || stepCount > 0) && <p>🧱 Fascia 1×12 (16′ only): {fasciaOn ? `${perimeter} LF rim` : ''}{fasciaOn && stepCount > 0 ? ' + ' : ''}{stepCount > 0 ? `${stepCount}×${SW}′ = ${riserNeedLF} LF risers` : ''} → <strong>{rimBoards + riserBoards} boards</strong> ({rimBuyLF + riserBuyLF} LF)</p>}
+        <p><strong>{area} SF</strong> deck · perimeter <strong>{perimeter} LF</strong></p>
+        <p>Steps: ⌈{heightIn}" ÷ {DECK_RISER_MAX_IN}"⌉ = <strong>{stepCount} steps</strong> at {SW} ft wide</p>
+        <p>Decking: {fieldRows} rows × {sections} run{sections > 1 ? 's' : ''} of <strong>{boardFt} ft</strong> board = <strong>{deckingLF} LF</strong> {borderCourses > 0 ? `(+${fieldWastePct}% field waste)` : ''}</p>
+        {splines > 0 && <p>Span needs <strong>{splines} spline{splines > 1 ? 's' : ''}</strong> ({sections} runs of {boardFt} ft, no butt joints) + double sister joist = {splineJoistLF} LF framing</p>}
+        {borderCourses > 0 && <p>Border: {border.toLowerCase()}, mitered, all sides = <strong>{borderLF} LF</strong></p>}
+        {(fasciaOn || stepCount > 0) && <p>Fascia 1×12 (16′ only): {fasciaOn ? `${perimeter} LF rim` : ''}{fasciaOn && stepCount > 0 ? ' + ' : ''}{stepCount > 0 ? `${stepCount}×${SW}′ = ${riserNeedLF} LF risers` : ''} → <strong>{rimBoards + riserBoards} boards</strong> ({rimBuyLF + riserBuyLF} LF)</p>}
       </div>
 
       {/* Component table — each variable + its metric is editable */}
