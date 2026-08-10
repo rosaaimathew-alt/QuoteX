@@ -104,16 +104,18 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
   const splineDeckingLF = splines * fieldDepthFt                                  // single spline board runs the depth
   const splineJoistLF   = splines * 2 * D                                         // double sister joist per spline
 
-  // ── Matching 1×12 fascia (sold in 16' lengths only) ──
-  // Wraps the deck rim, AND every step riser is cut from the same fascia board,
-  // so risers are always counted when there are steps.
-  const fasciaOn    = fascia === 'Matching'
-  const riserNeedLF = stepCount * SW                                              // riser LF = steps × stair width
-  const rimNeedLF   = fasciaOn ? perimeter : 0                                    // deck-rim fascia LF
-  const riserBoards = riserNeedLF > 0 ? Math.ceil(riserNeedLF / 16) : 0           // 16' boards
-  const rimBoards   = rimNeedLF   > 0 ? Math.ceil(rimNeedLF   / 16) : 0
-  const riserBuyLF  = riserBoards * 16
-  const rimBuyLF    = rimBoards * 16
+  // ── Matching 1×12 fascia (sold in 16' boards only) ──
+  // Rim wraps the 3 exposed sides — the side against the house gets none.
+  // Steps add their front risers PLUS a skirt board down each side of the stairs.
+  const fasciaOn         = fascia === 'Matching'
+  const riserFrontLF     = stepCount * SW                                         // step-front risers, LF
+  const rimNeedLF        = fasciaOn ? Math.max(0, perimeter - W) : 0              // 3 sides (skip house/width side)
+  const riserFrontBoards = riserFrontLF > 0 ? Math.ceil(riserFrontLF / 16) : 0    // 16' boards
+  const stairSideBoards  = stepCount > 0 ? 2 * Math.ceil(stepCount / 16) : 0      // 1 skirt board per side, up to 16 steps
+  const stepFasciaBoards = riserFrontBoards + stairSideBoards                     // all step-related fascia boards
+  const rimBoards        = rimNeedLF > 0 ? Math.ceil(rimNeedLF / 16) : 0
+  const riserBuyLF       = stepFasciaBoards * 16
+  const rimBuyLF         = rimBoards * 16
 
   const sel = brands[brand]?.[collection]
   const brandRate  = sel?.rate ?? 5
@@ -141,8 +143,8 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
       case 'borderlabor':return unit === 'LF' ? borderLF : 1
       case 'spline':     return unit === 'LF' ? splineDeckingLF : unit === 'EA' ? splines : 1
       case 'splinejoist':return unit === 'LF' ? splineJoistLF : unit === 'EA' ? splines * 2 : 1
-      case 'risers':     return unit === 'LF' ? riserBuyLF : unit === 'EA' ? riserBoards : 1  // 1×12 fascia, 16' boards
-      case 'fascia':     return unit === 'LF' ? rimBuyLF : unit === 'EA' ? rimBoards : 1      // 1×12 fascia, 16' boards
+      case 'risers':     return unit === 'EA' ? stepFasciaBoards : unit === 'LF' ? riserBuyLF : 1  // fronts + stair sides, 16' boards
+      case 'fascia':     return unit === 'EA' ? rimBoards : unit === 'LF' ? rimBuyLF : 1           // rim, 3 sides, 16' boards
       case 'difficulty': return 1
       default:           return 1
     }
@@ -158,8 +160,8 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
     { key: 'stairs',     label: 'Stairs',             unit: r('stairs').unit,  rate: r('stairs').rate,  cost: r('stairs').cost,  qty: null, fromRates: true },
     { key: 'railing',    label: 'Railing',            unit: r('railing').unit, rate: r('railing').rate, cost: r('railing').cost, qty: null, fromRates: true },
     { key: 'landing',    label: 'Landing',            unit: r('landing').unit, rate: r('landing').rate, cost: r('landing').cost, qty: null, fromRates: true },
-    { key: 'risers',     label: 'Step risers (1×12 fascia, 16′ boards)', unit: 'EA', rate: fasciaRate, cost: fasciaCost, qty: null, stepOnly: true, fromFascia: true },
-    { key: 'fascia',     label: 'Matching fascia (rim, 16′ boards)',     unit: 'EA', rate: fasciaRate, cost: fasciaCost, qty: null, fasciaOnly: true, fromFascia: true },
+    { key: 'risers',     label: 'Step fascia — fronts + sides (16′ boards)', unit: 'EA', rate: fasciaRate, cost: fasciaCost, qty: null, stepOnly: true, fromFascia: true },
+    { key: 'fascia',     label: 'Rim fascia — 3 sides (16′ boards)',         unit: 'EA', rate: fasciaRate, cost: fasciaCost, qty: null, fasciaOnly: true, fromFascia: true },
     { key: 'border',     label: 'Border decking',         unit: 'LF', rate: brandRate, cost: brandCost, qty: null, fromBrand: true, borderOnly: true },
     { key: 'blocking',   label: 'Picture-frame blocking', unit: r('blocking').unit, rate: r('blocking').rate, cost: r('blocking').cost, qty: null, borderOnly: true, fromRates: true },
     { key: 'borderlabor',label: 'Border labor / miters',  unit: r('borderlabor').unit, rate: r('borderlabor').rate, cost: r('borderlabor').cost, qty: null, borderOnly: true, fromRates: true },
@@ -281,7 +283,14 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
         <p>Decking: {fieldRows} rows × {sections} run{sections > 1 ? 's' : ''} of <strong>{boardFt} ft</strong> board = <strong>{deckingLF} LF</strong> {borderCourses > 0 ? `(+${fieldWastePct}% field waste)` : ''}</p>
         {splines > 0 && <p>Span needs <strong>{splines} spline{splines > 1 ? 's' : ''}</strong> ({sections} runs of {boardFt} ft, no butt joints) + double sister joist = {splineJoistLF} LF framing</p>}
         {borderCourses > 0 && <p>Border: {border.toLowerCase()}, mitered, all sides = <strong>{borderLF} LF</strong></p>}
-        {(fasciaOn || stepCount > 0) && <p>Fascia 1×12 (16′ only): {fasciaOn ? `${perimeter} LF rim` : ''}{fasciaOn && stepCount > 0 ? ' + ' : ''}{stepCount > 0 ? `${stepCount}×${SW}′ = ${riserNeedLF} LF risers` : ''} → <strong>{rimBoards + riserBoards} boards</strong> ({rimBuyLF + riserBuyLF} LF)</p>}
+        {(fasciaOn || stepCount > 0) && (
+          <p>Fascia 1×12 (16′ boards):{' '}
+            {fasciaOn && <>rim {rimNeedLF} LF (3 sides) = <strong>{rimBoards}</strong></>}
+            {fasciaOn && stepCount > 0 && ' · '}
+            {stepCount > 0 && <>step fronts {riserFrontLF} LF = <strong>{riserFrontBoards}</strong> + <strong>{stairSideBoards}</strong> stair-side</>}
+            {' '}→ <strong>{rimBoards + stepFasciaBoards} boards</strong>
+          </p>
+        )}
       </div>
 
       {/* Component table — each variable + its metric is editable */}
