@@ -13,6 +13,7 @@ const DECK_UNITS = ['SF', 'LF', 'EA', 'LS']
 const DECK_BOARD_LENGTHS = [12, 16, 20]           // composite boards are sold in these lengths
 const DECK_BOARD_FACE_IN = 5.5                    // 1"×5.5" profile face width
 const DECK_RISER_MAX_IN = 8.25                    // max riser height → step count
+const DECK_TREAD_BOARDS = 2                       // deck boards per stair tread (~11" run)
 const DECK_MAX_BOARD_FT = 20                      // longest stock board
 const DECK_GAP_SLACK_FT = 0.5                     // end expansion gaps let a board round up ~a foot
 const DECK_DIFFICULTY_FLAT = { Standard: 0, Moderate: 750, Complex: 1800 }  // flat $ adder
@@ -91,6 +92,7 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
   const heightIn  = Hft * 12
   const stepCount = heightIn > 0 ? Math.ceil(heightIn / DECK_RISER_MAX_IN) : 0
   const treadLF   = stepCount * SW
+  const treadDeckingLF = treadLF * DECK_TREAD_BOARDS   // decking that surfaces each stair tread
 
   // ── Decking layout (frame + spline, no butt joints) ──
   const borderCourses = border === 'Double' ? 2 : border === 'Single' ? 1 : 0   // frame runs all the way around
@@ -136,6 +138,7 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
         return borderCourses > 0 ? Math.ceil(base * (1 + fieldWastePct / 100)) : base  // border adds field cut-in waste
       }
       case 'stairs':     return unit === 'EA' ? stepCount : unit === 'LF' ? treadLF : unit === 'SF' ? treadLF : 1
+      case 'treads':     return unit === 'LF' ? treadDeckingLF : unit === 'EA' ? stepCount * DECK_TREAD_BOARDS : 1  // decking on stair treads
       case 'railing':    return unit === 'LF' ? perimeter : unit === 'EA' ? 4 : 1
       case 'landing':    return unit === 'EA' ? LA : unit === 'SF' ? LA * 16 : 1
       case 'border':     return unit === 'LF' ? borderLF : unit === 'EA' ? borderCourses : 1
@@ -157,7 +160,8 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
   const [comps, setComps] = useState([
     { key: 'framing',    label: 'Framing',            unit: r('framing').unit, rate: r('framing').rate, cost: r('framing').cost, qty: null, fromRates: true },
     { key: 'decking',    label: 'Decking boards',     unit: 'LF', rate: brandRate, cost: brandCost, qty: null, fromBrand: true },
-    { key: 'stairs',     label: 'Stairs',             unit: r('stairs').unit,  rate: r('stairs').rate,  cost: r('stairs').cost,  qty: null, fromRates: true },
+    { key: 'stairs',     label: 'Stairs (framing per step)', unit: r('stairs').unit, rate: r('stairs').rate, cost: r('stairs').cost, qty: null, fromRates: true },
+    { key: 'treads',     label: 'Stair tread decking',       unit: 'LF', rate: brandRate, cost: brandCost, qty: null, fromBrand: true, stepOnly: true },
     { key: 'railing',    label: 'Railing',            unit: r('railing').unit, rate: r('railing').rate, cost: r('railing').cost, qty: null, fromRates: true },
     { key: 'landing',    label: 'Landing',            unit: r('landing').unit, rate: r('landing').rate, cost: r('landing').cost, qty: null, fromRates: true },
     { key: 'risers',     label: 'Step fascia — fronts + sides (16′ boards)', unit: 'EA', rate: fasciaRate, cost: fasciaCost, qty: null, stepOnly: true, fromFascia: true },
@@ -281,6 +285,7 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
         <p><strong>{area} SF</strong> deck · perimeter <strong>{perimeter} LF</strong></p>
         <p>Steps: ⌈{heightIn}" ÷ {DECK_RISER_MAX_IN}"⌉ = <strong>{stepCount} steps</strong> at {SW} ft wide</p>
         <p>Decking: {fieldRows} rows × {sections} run{sections > 1 ? 's' : ''} of <strong>{boardFt} ft</strong> board = <strong>{deckingLF} LF</strong> {borderCourses > 0 ? `(+${fieldWastePct}% field waste)` : ''}</p>
+        {stepCount > 0 && <p>Stair treads: {stepCount} steps × {SW}′ × {DECK_TREAD_BOARDS} boards = <strong>{treadDeckingLF} LF</strong> decking</p>}
         {splines > 0 && <p>Span needs <strong>{splines} spline{splines > 1 ? 's' : ''}</strong> ({sections} runs of {boardFt} ft, no butt joints) + double sister joist = {splineJoistLF} LF framing</p>}
         {borderCourses > 0 && <p>Border: {border.toLowerCase()}, mitered, all sides = <strong>{borderLF} LF</strong></p>}
         {(fasciaOn || stepCount > 0) && (
