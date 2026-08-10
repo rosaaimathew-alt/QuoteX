@@ -416,6 +416,32 @@ export const useStore = create(
           },
         })),
 
+      // User-defined shared components — manual-qty lines the contractor adds once
+      // (e.g. "$1,000 per extra foot of height"); they appear on every deck quote.
+      deckCustomComponents: [],
+
+      addDeckCustomComponent: (comp) =>
+        set((s) => ({
+          deckCustomComponents: [
+            ...s.deckCustomComponents,
+            {
+              id: `dcc-${Math.random().toString(36).slice(2, 9)}`,
+              label: (comp?.label || '').trim() || 'Custom component',
+              unit: comp?.unit || 'EA',
+              rate: Number(comp?.rate) || 0,
+              cost: Number(comp?.cost) || 0,
+            },
+          ],
+        })),
+
+      updateDeckCustomComponent: (id, changes) =>
+        set((s) => ({
+          deckCustomComponents: s.deckCustomComponents.map(c => c.id === id ? { ...c, ...changes } : c),
+        })),
+
+      removeDeckCustomComponent: (id) =>
+        set((s) => ({ deckCustomComponents: s.deckCustomComponents.filter(c => c.id !== id) })),
+
       // ── Catalog categories (user-editable) ───────────────────────────────
       catalogCategories: [
         'Fencing','Gates','Demo','Materials','Labor','Framing','Concrete','Electrical',

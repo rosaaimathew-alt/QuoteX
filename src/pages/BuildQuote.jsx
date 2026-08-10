@@ -44,6 +44,12 @@ function deckLayout(Wft, frameCourses) {
 function DeckAssemblyPanel({ onClose, onAdd }) {
   const catalog = useStore(s => s.catalog)
   const rates   = useStore(s => s.deckComponentRates) || DECK_COMPONENT_DEFAULTS
+  const customComponents        = useStore(s => s.deckCustomComponents) || []
+  const setDeckComponentRate    = useStore(s => s.setDeckComponentRate)
+  const addDeckCustomComponent  = useStore(s => s.addDeckCustomComponent)
+  const updateDeckCustomComponent = useStore(s => s.updateDeckCustomComponent)
+  const removeDeckCustomComponent = useStore(s => s.removeDeckCustomComponent)
+  const updateCatalogItem       = useStore(s => s.updateCatalogItem)
   // Decking options come straight from the catalog's "… Porch Floor Upgrade" items
   // (priced per LF, full price + cost) so the tool uses your real numbers with no
   // re-entry. DECK_BRANDS are placeholder fallbacks only when the catalog has none.
@@ -156,6 +162,8 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
   // Shared component rates come from the Deck Pricing editor (deckComponentRates);
   // decking + fascia come from the selected collection (per-collection prices).
   const r = (key) => rates?.[key] || DECK_COMPONENT_DEFAULTS[key]
+  // A saved custom component → a manual-qty row (quantity filled in per quote).
+  const toCustomComp = (c) => ({ key: `c:${c.id}`, customId: c.id, label: c.label, unit: c.unit, rate: c.rate, cost: c.cost, qty: 0, custom: true })
 
   const [comps, setComps] = useState([
     { key: 'framing',    label: 'Framing',            unit: r('framing').unit, rate: r('framing').rate, cost: r('framing').cost, qty: null, fromRates: true },
@@ -172,8 +180,39 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
     { key: 'spline',     label: 'Spline decking',         unit: 'LF', rate: brandRate, cost: brandCost, qty: null, fromBrand: true, splineOnly: true },
     { key: 'splinejoist',label: 'Spline sister joist',    unit: r('splinejoist').unit, rate: r('splinejoist').rate, cost: r('splinejoist').cost, qty: null, splineOnly: true, fromRates: true },
     { key: 'difficulty', label: 'Framing difficulty', unit: 'LS', rate: 0,    cost: 0,   qty: null, flat: true },
+    ...customComponents.map(toCustomComp),
   ])
   const patch = (key, p) => setComps(cs => cs.map(c => c.key === key ? { ...c, ...p } : c))
+
+  // Keep the custom-component lines in sync with the saved list: add new ones, drop
+  // removed ones, refresh label/unit/rate/cost — but preserve the per-quote quantity.
+  useEffect(() => {
+    setComps(cs => {
+      const ids = new Set(customComponents.map(c => c.id))
+      let next = cs
+        .filter(c => !c.custom || ids.has(c.customId))
+        .map(c => {
+          if (!c.custom) return c
+          const src = customComponents.find(x => x.id === c.customId)
+          return src ? { ...c, label: src.label, unit: src.unit, rate: src.rate, cost: src.cost } : c
+        })
+      const have = new Set(next.filter(c => c.custom).map(c => c.customId))
+      customComponents.forEach(c => { if (!have.has(c.id)) next = [...next, toCustomComp(c)] })
+      return next
+    })
+  }, [customComponents])
+
+  // Edits made in the tool persist as the default: shared rates → deckComponentRates,
+  // per-collection fascia → the collection's catalog item, custom → the saved component.
+  const persistRateCost = (c) => {
+    if (c.custom)          updateDeckCustomComponent(c.customId, { rate: c.rate, cost: c.cost })
+    else if (c.fromRates)  setDeckComponentRate(c.key, { rate: c.rate, cost: c.cost })
+    else if (c.fromFascia) {
+      if (sel?.id) updateCatalogItem(sel.id, { fasciaRate: c.rate, fasciaCost: c.cost })
+      else         setDeckComponentRate('fascia', { rate: c.rate, cost: c.cost })
+    }
+  }
+  const [newComp, setNewComp] = useState({ label: '', unit: 'EA', rate: '', cost: '' })
 
   // Keep decking rate synced to the chosen brand/collection until the user overrides it.
   useEffect(() => {
@@ -314,9 +353,20 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
           <tbody>
             {rows.map(r => (
               <tr key={r.key} className="border-t border-gray-100">
-                <td className="py-1.5 pr-2 text-gray-700">{r.label}</td>
+                <td className="py-1.5 pr-2 text-gray-700">
+                  {r.custom ? (
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => removeDeckCustomComponent(r.customId)} title="Remove component"
+                        className="text-gray-300 hover:text-red-500 shrink-0"><Trash2 size={13} /></button>
+                      <input value={r.label} onChange={e => patch(r.key, { label: e.target.value })}
+                        onBlur={() => updateDeckCustomComponent(r.customId, { label: r.label })}
+                        className="w-full min-w-0 bg-transparent border-b border-transparent hover:border-gray-200 focus:border-[var(--brand-300)] focus:outline-none text-gray-700" />
+                    </div>
+                  ) : r.label}
+                </td>
                 <td className="py-1.5 px-1">
-                  <select value={r.unit} disabled={r.flat} onChange={e => patch(r.key, { unit: e.target.value, qty: null })} className={cell}>
+                  <select value={r.unit} disabled={r.flat} onChange={e => patch(r.key, { unit: e.target.value, ...(r.custom ? {} : { qty: null }) })}
+                    onBlur={() => r.custom && updateDeckCustomComponent(r.customId, { unit: r.unit })} className={cell}>
                     {DECK_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                   </select>
                 </td>
@@ -326,16 +376,38 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
                 </td>
                 <td className="py-1.5 px-1">
                   <input type="number" value={r.rate}
-                    onChange={e => patch(r.key, { rate: parseFloat(e.target.value) || 0, ...(r.key === 'decking' ? { fromBrand: false } : {}) })} className={cell} />
+                    onChange={e => patch(r.key, { rate: parseFloat(e.target.value) || 0, ...(r.key === 'decking' ? { fromBrand: false } : {}) })}
+                    onBlur={() => persistRateCost(r)} className={cell} />
                 </td>
                 <td className="py-1.5 px-1">
-                  <input type="number" value={r.cost} onChange={e => patch(r.key, { cost: parseFloat(e.target.value) || 0 })} className={cell} />
+                  <input type="number" value={r.cost} onChange={e => patch(r.key, { cost: parseFloat(e.target.value) || 0 })}
+                    onBlur={() => persistRateCost(r)} className={cell} />
                 </td>
                 <td className="py-1.5 pl-2 text-right font-medium text-gray-900 whitespace-nowrap">{money(r.line)}</td>
               </tr>
             ))}
           </tbody>
         </table>
+
+        {/* Add a shared component — appears on every deck quote, quantity filled in per quote */}
+        <div className="flex items-center gap-1.5 flex-wrap mt-2 pt-2 border-t border-gray-100">
+          <input value={newComp.label} onChange={e => setNewComp(n => ({ ...n, label: e.target.value }))}
+            placeholder="Add component (e.g. Height premium)"
+            className="flex-1 min-w-[10rem] text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--brand-200)]" />
+          <select value={newComp.unit} onChange={e => setNewComp(n => ({ ...n, unit: e.target.value }))}
+            className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none">
+            {DECK_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+          </select>
+          <input type="number" value={newComp.rate} onChange={e => setNewComp(n => ({ ...n, rate: e.target.value }))}
+            placeholder="Rate $" className="w-24 text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--brand-200)]" />
+          <input type="number" value={newComp.cost} onChange={e => setNewComp(n => ({ ...n, cost: e.target.value }))}
+            placeholder="Cost $" className="w-24 text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--brand-200)]" />
+          <button onClick={() => { if (!newComp.label.trim()) return; addDeckCustomComponent(newComp); setNewComp({ label: '', unit: 'EA', rate: '', cost: '' }) }}
+            disabled={!newComp.label.trim()}
+            className="flex items-center gap-1 px-3 py-1.5 bg-[var(--brand-600)] text-white text-sm font-medium rounded-lg hover:bg-[var(--brand-700)] disabled:opacity-40 transition-colors">
+            <Plus size={14} /> Add
+          </button>
+        </div>
       </div>
 
       {/* Totals */}
