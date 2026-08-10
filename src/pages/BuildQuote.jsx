@@ -133,19 +133,26 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
     }
   }
 
+  // Read each component's default rate/cost/unit from the matching "Deck Components"
+  // catalog item (tagged deckComp) — so defaults are edited once in the catalog.
+  const catItem = (comp) => catalog.find(c => c.deckComp === comp)
+  const cRate = (comp, fb) => { const i = catItem(comp); return i ? (Number(i.unitPrice) || 0) : fb }
+  const cCost = (comp, fb) => { const i = catItem(comp); return i ? ((Number(i.costMaterials) || 0) + (Number(i.costSub) || 0)) : fb }
+  const cUnit = (comp, fb) => { const i = catItem(comp); return i ? (i.unit || fb) : fb }
+
   const [comps, setComps] = useState([
-    { key: 'framing',    label: 'Framing',            unit: 'SF', rate: 14,   cost: 9,   qty: null },
+    { key: 'framing',    label: 'Framing',            unit: cUnit('framing', 'SF'), rate: cRate('framing', 14),  cost: cCost('framing', 9),   qty: null },
     { key: 'decking',    label: 'Decking boards',     unit: 'LF', rate: brandRate, cost: brandCost, qty: null, fromBrand: true },
-    { key: 'stairs',     label: 'Stairs',             unit: 'EA', rate: 145,  cost: 90,  qty: null },
-    { key: 'railing',    label: 'Railing',            unit: 'LF', rate: 52,   cost: 30,  qty: null },
-    { key: 'landing',    label: 'Landing',            unit: 'EA', rate: 1200, cost: 700, qty: null },
-    { key: 'risers',     label: 'Step risers (1×12 fascia)', unit: 'LF', rate: 9, cost: 5.5, qty: null, stepOnly: true },
-    { key: 'fascia',     label: 'Matching fascia (rim)',     unit: 'LF', rate: 9, cost: 5.5, qty: null, fasciaOnly: true },
+    { key: 'stairs',     label: 'Stairs',             unit: cUnit('stairs', 'EA'),  rate: cRate('stairs', 145),  cost: cCost('stairs', 90),   qty: null },
+    { key: 'railing',    label: 'Railing',            unit: cUnit('railing', 'LF'), rate: cRate('railing', 52),  cost: cCost('railing', 30),  qty: null },
+    { key: 'landing',    label: 'Landing',            unit: cUnit('landing', 'EA'), rate: cRate('landing', 1200), cost: cCost('landing', 700), qty: null },
+    { key: 'risers',     label: 'Step risers (1×12 fascia)', unit: 'LF', rate: cRate('fascia', 9), cost: cCost('fascia', 5.5), qty: null, stepOnly: true },
+    { key: 'fascia',     label: 'Matching fascia (rim)',     unit: 'LF', rate: cRate('fascia', 9), cost: cCost('fascia', 5.5), qty: null, fasciaOnly: true },
     { key: 'border',     label: 'Border decking',         unit: 'LF', rate: brandRate, cost: brandCost, qty: null, fromBrand: true, borderOnly: true },
-    { key: 'blocking',   label: 'Picture-frame blocking', unit: 'LF', rate: 3.5, cost: 2.2, qty: null, borderOnly: true },
-    { key: 'borderlabor',label: 'Border labor / miters',  unit: 'LF', rate: 4,   cost: 2,   qty: null, borderOnly: true },
+    { key: 'blocking',   label: 'Picture-frame blocking', unit: 'LF', rate: cRate('blocking', 3.5), cost: cCost('blocking', 2.2), qty: null, borderOnly: true },
+    { key: 'borderlabor',label: 'Border labor / miters',  unit: 'LF', rate: cRate('borderlabor', 4), cost: cCost('borderlabor', 2), qty: null, borderOnly: true },
     { key: 'spline',     label: 'Spline decking',         unit: 'LF', rate: brandRate, cost: brandCost, qty: null, fromBrand: true, splineOnly: true },
-    { key: 'splinejoist',label: 'Spline sister joist',    unit: 'LF', rate: 9,   cost: 6,   qty: null, splineOnly: true },
+    { key: 'splinejoist',label: 'Spline sister joist',    unit: 'LF', rate: cRate('splinejoist', 9), cost: cCost('splinejoist', 6), qty: null, splineOnly: true },
     { key: 'difficulty', label: 'Framing difficulty', unit: 'LS', rate: 0,    cost: 0,   qty: null, flat: true },
   ])
   const patch = (key, p) => setComps(cs => cs.map(c => c.key === key ? { ...c, ...p } : c))

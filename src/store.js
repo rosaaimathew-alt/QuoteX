@@ -273,6 +273,30 @@ const SEED_CATALOG = [
   { id: 10, name: 'Concrete Footing (per post)', description: 'Pour concrete footing for fence post, including excavation.', unit: 'EA', unitPrice: 28, minPrice: 22, maxPrice: 35, count: 20, category: 'Materials', confidence: 96 },
 ]
 
+// Editable deck-component defaults. These live in the Item Catalog (a "Deck
+// Components" category) so the Deck Builder reads each rate + cost from here —
+// set them once, no more editing rates inside the builder. Tagged with `deckComp`
+// so the builder matches them reliably regardless of exact name.
+export const DECK_DEFAULT_ITEMS = [
+  { id: 'deck-framing',   deckComp: 'framing',     name: 'Deck Framing',            description: 'Pressure-treated deck substructure — joists, beams, posts.', unit: 'SF', unitPrice: 14,   minPrice: 14,   maxPrice: 14,   costMaterials: 9,   costSub: 0, count: 0, category: 'Deck Components', confidence: 100 },
+  { id: 'deck-stairs',    deckComp: 'stairs',      name: 'Deck Stairs (per step)',  description: 'Stringers, tread and hardware, per step.',                    unit: 'EA', unitPrice: 145,  minPrice: 145,  maxPrice: 145,  costMaterials: 90,  costSub: 0, count: 0, category: 'Deck Components', confidence: 100 },
+  { id: 'deck-railing',   deckComp: 'railing',     name: 'Deck Railing',            description: 'Railing with balusters, per LF.',                             unit: 'LF', unitPrice: 52,   minPrice: 52,   maxPrice: 52,   costMaterials: 30,  costSub: 0, count: 0, category: 'Deck Components', confidence: 100 },
+  { id: 'deck-landing',   deckComp: 'landing',     name: 'Deck Landing',            description: 'Stair landing / platform, each.',                             unit: 'EA', unitPrice: 1200, minPrice: 1200, maxPrice: 1200, costMaterials: 700, costSub: 0, count: 0, category: 'Deck Components', confidence: 100 },
+  { id: 'deck-fascia',    deckComp: 'fascia',      name: 'Deck Fascia (1×12)',      description: 'Matching 1×12 fascia — rim wrap and step risers, per LF.',    unit: 'LF', unitPrice: 9,    minPrice: 9,    maxPrice: 9,    costMaterials: 5.5, costSub: 0, count: 0, category: 'Deck Components', confidence: 100 },
+  { id: 'deck-blocking',  deckComp: 'blocking',    name: 'Picture-Frame Blocking',  description: '2× blocking ladder under a picture-frame border, per LF.',    unit: 'LF', unitPrice: 3.5,  minPrice: 3.5,  maxPrice: 3.5,  costMaterials: 2.2, costSub: 0, count: 0, category: 'Deck Components', confidence: 100 },
+  { id: 'deck-borderlabor', deckComp: 'borderlabor', name: 'Border Labor / Miters', description: 'Added labor to cut in and miter a picture-frame border, per LF.', unit: 'LF', unitPrice: 4, minPrice: 4, maxPrice: 4, costMaterials: 0, costSub: 2, count: 0, category: 'Deck Components', confidence: 100 },
+  { id: 'deck-splinejoist', deckComp: 'splinejoist', name: 'Spline Sister Joist',   description: 'Doubled sister joist under a decking spline, per LF.',        unit: 'LF', unitPrice: 9,    minPrice: 9,    maxPrice: 9,    costMaterials: 6,   costSub: 0, count: 0, category: 'Deck Components', confidence: 100 },
+]
+
+// Ensure the deck-component defaults exist in a catalog array (append any missing
+// by their deckComp tag) without disturbing the user's own items or edits.
+const withDeckDefaults = (catalog) => {
+  const list = Array.isArray(catalog) ? catalog : []
+  const have = new Set(list.map(c => c.deckComp).filter(Boolean))
+  const missing = DECK_DEFAULT_ITEMS.filter(d => !have.has(d.deckComp))
+  return missing.length ? [...list, ...missing] : list
+}
+
 export const PROPOSAL_STATUSES = ['Draft', 'Sent', 'Followed Up', 'Negotiating', 'Won', 'Lost', 'MIA', 'Archived']
 
 // 'Archived' = an earlier revision the customer didn't move forward with, but
@@ -1354,9 +1378,9 @@ export const useStore = create(
             ...currentState,
             ...persistedState,
             branding: normalizeBranding(persistedState?.branding),
-            catalog: (persistedState?.catalog?.length > 0)
+            catalog: withDeckDefaults((persistedState?.catalog?.length > 0)
               ? persistedState.catalog
-              : currentState.catalog,
+              : currentState.catalog),
           }
         }
         // Always ensure restored proposals are present — runs on every load
@@ -1427,10 +1451,11 @@ export const useStore = create(
           ...persistedState,
           proposals,
           branding: normalizeBranding(persistedState?.branding),
-          // Catalog: always prefer stored data; only fall back to seed when truly empty
-          catalog: (persistedState?.catalog?.length > 0)
+          // Catalog: always prefer stored data; only fall back to seed when truly empty.
+          // Always ensure the editable deck-component defaults are present.
+          catalog: withDeckDefaults((persistedState?.catalog?.length > 0)
             ? persistedState.catalog
-            : currentState.catalog,
+            : currentState.catalog),
         }
       },
       // Storage is async (KV). Mark hydration complete FIRST so writes are now
@@ -1456,7 +1481,9 @@ if (DEMO && typeof window !== 'undefined') {
   const seedIfEmpty = () => {
     const s = useStore.getState()
     if (!s.proposals || s.proposals.length === 0) {
-      useStore.setState(buildDemoSeed())
+      const seed = buildDemoSeed()
+      seed.catalog = withDeckDefaults(seed.catalog)   // include editable deck-component defaults
+      useStore.setState(seed)
     }
   }
   if (useStore.persist?.hasHydrated?.()) seedIfEmpty()
