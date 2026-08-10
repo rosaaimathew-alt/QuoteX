@@ -273,36 +273,32 @@ const SEED_CATALOG = [
   { id: 10, name: 'Concrete Footing (per post)', description: 'Pour concrete footing for fence post, including excavation.', unit: 'EA', unitPrice: 28, minPrice: 22, maxPrice: 35, count: 20, category: 'Materials', confidence: 96 },
 ]
 
-// Editable deck-component defaults. These live in the Item Catalog (a "Deck
-// Components" category) so the Deck Builder reads each rate + cost from here —
-// set them once, no more editing rates inside the builder. Tagged with `deckComp`
-// so the builder matches them reliably regardless of exact name.
-export const DECK_DEFAULT_ITEMS = [
-  { id: 'deck-framing',   deckComp: 'framing',     name: 'Deck Framing',            description: 'Pressure-treated deck substructure — joists, beams, posts.', unit: 'SF', unitPrice: 14,   minPrice: 14,   maxPrice: 14,   costMaterials: 9,   costSub: 0, count: 0, category: 'Deck Components', confidence: 100 },
-  { id: 'deck-stairs',    deckComp: 'stairs',      name: 'Deck Stairs (per step)',  description: 'Stringers, tread and hardware, per step.',                    unit: 'EA', unitPrice: 145,  minPrice: 145,  maxPrice: 145,  costMaterials: 90,  costSub: 0, count: 0, category: 'Deck Components', confidence: 100 },
-  { id: 'deck-railing',   deckComp: 'railing',     name: 'Deck Railing',            description: 'Railing with balusters, per LF.',                             unit: 'LF', unitPrice: 52,   minPrice: 52,   maxPrice: 52,   costMaterials: 30,  costSub: 0, count: 0, category: 'Deck Components', confidence: 100 },
-  { id: 'deck-landing',   deckComp: 'landing',     name: 'Deck Landing',            description: 'Stair landing / platform, each.',                             unit: 'EA', unitPrice: 1200, minPrice: 1200, maxPrice: 1200, costMaterials: 700, costSub: 0, count: 0, category: 'Deck Components', confidence: 100 },
-  { id: 'deck-fascia',    deckComp: 'fascia',      name: 'Deck Fascia (1×12)',      description: 'Matching 1×12 fascia — rim wrap and step risers, per LF.',    unit: 'LF', unitPrice: 9,    minPrice: 9,    maxPrice: 9,    costMaterials: 5.5, costSub: 0, count: 0, category: 'Deck Components', confidence: 100 },
-  { id: 'deck-blocking',  deckComp: 'blocking',    name: 'Picture-Frame Blocking',  description: '2× blocking ladder under a picture-frame border, per LF.',    unit: 'LF', unitPrice: 3.5,  minPrice: 3.5,  maxPrice: 3.5,  costMaterials: 2.2, costSub: 0, count: 0, category: 'Deck Components', confidence: 100 },
-  { id: 'deck-borderlabor', deckComp: 'borderlabor', name: 'Border Labor / Miters', description: 'Added labor to cut in and miter a picture-frame border, per LF.', unit: 'LF', unitPrice: 4, minPrice: 4, maxPrice: 4, costMaterials: 0, costSub: 2, count: 0, category: 'Deck Components', confidence: 100 },
-  { id: 'deck-splinejoist', deckComp: 'splinejoist', name: 'Spline Sister Joist',   description: 'Doubled sister joist under a decking spline, per LF.',        unit: 'LF', unitPrice: 9,    minPrice: 9,    maxPrice: 9,    costMaterials: 6,   costSub: 0, count: 0, category: 'Deck Components', confidence: 100 },
-]
-
-// Ensure the deck-component defaults exist in a catalog array (append any missing
-// by their deckComp tag) without disturbing the user's own items or edits.
-const withDeckDefaults = (catalog) => {
-  const list = Array.isArray(catalog) ? catalog : []
-  const have = new Set(list.map(c => c.deckComp).filter(Boolean))
-  const missing = DECK_DEFAULT_ITEMS.filter(d => !have.has(d.deckComp))
-  return missing.length ? [...list, ...missing] : list
+// Deck Builder pricing lives in one place (the "Deck Builder Pricing" editor,
+// opened from the Item Catalog) instead of loose catalog rows.
+//
+//  • Per-collection prices (decking $/LF AND fascia $/LF) ride on each
+//    "… Porch Floor Upgrade" catalog item — decking in unitPrice/cost, fascia in
+//    the fasciaRate/fasciaCost fields — so every collection carries its own two prices.
+//  • Shared component rates (framing, stairs, railing, etc.) that don't vary by
+//    collection live in the `deckComponentRates` slice below.
+// The Deck Builder reads from both; nothing is typed twice.
+export const DECK_COMPONENT_DEFAULTS = {
+  framing:     { label: 'Framing',                unit: 'SF', rate: 14,   cost: 9 },
+  stairs:      { label: 'Stairs (per step)',      unit: 'EA', rate: 145,  cost: 90 },
+  railing:     { label: 'Railing',                unit: 'LF', rate: 52,   cost: 30 },
+  landing:     { label: 'Landing',                unit: 'EA', rate: 1200, cost: 700 },
+  blocking:    { label: 'Picture-frame blocking', unit: 'LF', rate: 3.5,  cost: 2.2 },
+  borderlabor: { label: 'Border labor / miters',  unit: 'LF', rate: 4,    cost: 2 },
+  splinejoist: { label: 'Spline sister joist',    unit: 'LF', rate: 9,    cost: 6 },
+  fascia:      { label: 'Fascia 1×12 (default)',  unit: 'LF', rate: 9,    cost: 5.5 },
 }
 
-// The deck-component items live in a "Deck Components" category. The Item Catalog
-// only renders categories present in `catalogCategories`, so make sure it's there.
-const DECK_CATEGORY = 'Deck Components'
-const withDeckCategory = (cats) => {
-  const list = Array.isArray(cats) ? cats : []
-  return list.includes(DECK_CATEGORY) ? list : [...list, DECK_CATEGORY]
+// One-time cleanup: an earlier build injected "Deck Components" catalog items
+// (tagged `deckComp`). That approach was dropped in favor of the Deck Pricing
+// editor, so strip those orphaned rows from any catalog on load.
+const stripDeckItems = (catalog) => {
+  const list = Array.isArray(catalog) ? catalog : []
+  return list.some(c => c?.deckComp) ? list.filter(c => !c?.deckComp) : list
 }
 
 export const PROPOSAL_STATUSES = ['Draft', 'Sent', 'Followed Up', 'Negotiating', 'Won', 'Lost', 'MIA', 'Archived']
@@ -407,11 +403,24 @@ export const useStore = create(
       deleteCatalogItem: (id) =>
         set((s) => ({ catalog: s.catalog.filter((c) => c.id !== id) })),
 
+      // ── Deck Builder shared component rates (edited in the Deck Pricing editor) ──
+      // Per-collection decking + fascia prices live on the catalog items themselves;
+      // these are the rates that DON'T vary by collection.
+      deckComponentRates: JSON.parse(JSON.stringify(DECK_COMPONENT_DEFAULTS)),
+
+      setDeckComponentRate: (key, changes) =>
+        set((s) => ({
+          deckComponentRates: {
+            ...s.deckComponentRates,
+            [key]: { ...(s.deckComponentRates?.[key] || DECK_COMPONENT_DEFAULTS[key]), ...changes },
+          },
+        })),
+
       // ── Catalog categories (user-editable) ───────────────────────────────
       catalogCategories: [
         'Fencing','Gates','Demo','Materials','Labor','Framing','Concrete','Electrical',
         'Plumbing','Roofing','Flooring','Drywall','Painting','HVAC','Windows','Doors',
-        'Tile','Insulation','Siding','General','Deck Components',
+        'Tile','Insulation','Siding','General',
       ],
 
       addCatalogCategory: (name) =>
@@ -1367,11 +1376,11 @@ export const useStore = create(
           scopeExamples:      persisted?.scopeExamples      || [],
           jobCosts:           persisted?.jobCosts           || {},
           standaloneChangeOrders: persisted?.standaloneChangeOrders || [],
-          catalogCategories:  withDeckCategory(persisted?.catalogCategories  || [
+          catalogCategories:  persisted?.catalogCategories  || [
             'Fencing','Gates','Demo','Materials','Labor','Framing','Concrete','Electrical',
             'Plumbing','Roofing','Flooring','Drywall','Painting','HVAC','Windows','Doors',
             'Tile','Insulation','Siding','General',
-          ]),
+          ],
           projectTypes: persisted?.projectTypes || [
             'Open Deck','Screen Porches','Eze-Breeze Porches','Open Porches',
             'Porch Conversions','Sunrooms','Hardscapes',
@@ -1386,10 +1395,9 @@ export const useStore = create(
             ...currentState,
             ...persistedState,
             branding: normalizeBranding(persistedState?.branding),
-            catalog: withDeckDefaults((persistedState?.catalog?.length > 0)
+            catalog: stripDeckItems((persistedState?.catalog?.length > 0)
               ? persistedState.catalog
               : currentState.catalog),
-            catalogCategories: withDeckCategory(persistedState?.catalogCategories || currentState.catalogCategories),
           }
         }
         // Always ensure restored proposals are present — runs on every load
@@ -1462,10 +1470,9 @@ export const useStore = create(
           branding: normalizeBranding(persistedState?.branding),
           // Catalog: always prefer stored data; only fall back to seed when truly empty.
           // Always ensure the editable deck-component defaults are present.
-          catalog: withDeckDefaults((persistedState?.catalog?.length > 0)
+          catalog: stripDeckItems((persistedState?.catalog?.length > 0)
             ? persistedState.catalog
             : currentState.catalog),
-          catalogCategories: withDeckCategory(persistedState?.catalogCategories || currentState.catalogCategories),
         }
       },
       // Storage is async (KV). Mark hydration complete FIRST so writes are now
@@ -1491,9 +1498,7 @@ if (DEMO && typeof window !== 'undefined') {
   const seedIfEmpty = () => {
     const s = useStore.getState()
     if (!s.proposals || s.proposals.length === 0) {
-      const seed = buildDemoSeed()
-      seed.catalog = withDeckDefaults(seed.catalog)   // include editable deck-component defaults
-      useStore.setState(seed)
+      useStore.setState(buildDemoSeed())
     }
   }
   if (useStore.persist?.hasHydrated?.()) seedIfEmpty()

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Plus, Trash2, ChevronDown, ChevronUp, Eye, EyeOff, BookTemplate, X, Save, Copy, BookPlus, Check, Calculator } from 'lucide-react'
-import { useStore } from '../store'
+import { useStore, DECK_COMPONENT_DEFAULTS } from '../store'
 
 const MARGIN_DEFAULT = 30
 
@@ -42,6 +42,7 @@ function deckLayout(Wft, frameCourses) {
 
 function DeckAssemblyPanel({ onClose, onAdd }) {
   const catalog = useStore(s => s.catalog)
+  const rates   = useStore(s => s.deckComponentRates) || DECK_COMPONENT_DEFAULTS
   // Decking options come straight from the catalog's "… Porch Floor Upgrade" items
   // (priced per LF, full price + cost) so the tool uses your real numbers with no
   // re-entry. DECK_BRANDS are placeholder fallbacks only when the catalog has none.
@@ -52,11 +53,20 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
       const coll = (c.name || '').replace(/porch\s*floor\s*upgrade/i, '').trim() || c.name
       const cost = (Number(c.costMaterials) || 0) + (Number(c.costSub) || 0)
       out['From your catalog'] = out['From your catalog'] || {}
-      out['From your catalog'][coll] = { rate: Number(c.unitPrice) || 0, cost: cost || +((Number(c.unitPrice) || 0) * 0.62).toFixed(2) }
+      // Each collection carries TWO prices: decking $/LF (unitPrice/cost) and its own
+      // matching fascia $/LF (fasciaRate/fasciaCost). Fascia falls back to the shared
+      // default when a collection hasn't set its own.
+      out['From your catalog'][coll] = {
+        id: c.id,
+        rate: Number(c.unitPrice) || 0,
+        cost: cost || +((Number(c.unitPrice) || 0) * 0.62).toFixed(2),
+        fasciaRate: c.fasciaRate != null ? Number(c.fasciaRate) : null,
+        fasciaCost: c.fasciaCost != null ? Number(c.fasciaCost) : null,
+      }
     }
     for (const [bn, cols] of Object.entries(DECK_BRANDS)) {
       out[bn] = out[bn] || {}
-      for (const [cn, v] of Object.entries(cols)) out[bn][cn] = { rate: v, cost: +(v * 0.62).toFixed(2) }
+      for (const [cn, v] of Object.entries(cols)) out[bn][cn] = { rate: v, cost: +(v * 0.62).toFixed(2), fasciaRate: null, fasciaCost: null }
     }
     return out
   }, [catalog])
@@ -109,6 +119,11 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
   const brandRate  = sel?.rate ?? 5
   const brandCost  = sel?.cost ?? +(brandRate * 0.62).toFixed(2)
   const collections = Object.keys(brands[brand] || {})
+  // Fascia is matched to the decking collection, so its price is per-collection —
+  // use the collection's own fascia price, falling back to the shared default rate.
+  const fasciaDef   = rates.fascia || DECK_COMPONENT_DEFAULTS.fascia
+  const fasciaRate  = sel?.fasciaRate != null ? sel.fasciaRate : fasciaDef.rate
+  const fasciaCost  = sel?.fasciaCost != null ? sel.fasciaCost : fasciaDef.cost
 
   // Auto quantity for each component given its unit — the "how a builder measures it" logic.
   const autoQty = (key, unit) => {
@@ -133,26 +148,23 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
     }
   }
 
-  // Read each component's default rate/cost/unit from the matching "Deck Components"
-  // catalog item (tagged deckComp) — so defaults are edited once in the catalog.
-  const catItem = (comp) => catalog.find(c => c.deckComp === comp)
-  const cRate = (comp, fb) => { const i = catItem(comp); return i ? (Number(i.unitPrice) || 0) : fb }
-  const cCost = (comp, fb) => { const i = catItem(comp); return i ? ((Number(i.costMaterials) || 0) + (Number(i.costSub) || 0)) : fb }
-  const cUnit = (comp, fb) => { const i = catItem(comp); return i ? (i.unit || fb) : fb }
+  // Shared component rates come from the Deck Pricing editor (deckComponentRates);
+  // decking + fascia come from the selected collection (per-collection prices).
+  const r = (key) => rates?.[key] || DECK_COMPONENT_DEFAULTS[key]
 
   const [comps, setComps] = useState([
-    { key: 'framing',    label: 'Framing',            unit: cUnit('framing', 'SF'), rate: cRate('framing', 14),  cost: cCost('framing', 9),   qty: null },
+    { key: 'framing',    label: 'Framing',            unit: r('framing').unit, rate: r('framing').rate, cost: r('framing').cost, qty: null, fromRates: true },
     { key: 'decking',    label: 'Decking boards',     unit: 'LF', rate: brandRate, cost: brandCost, qty: null, fromBrand: true },
-    { key: 'stairs',     label: 'Stairs',             unit: cUnit('stairs', 'EA'),  rate: cRate('stairs', 145),  cost: cCost('stairs', 90),   qty: null },
-    { key: 'railing',    label: 'Railing',            unit: cUnit('railing', 'LF'), rate: cRate('railing', 52),  cost: cCost('railing', 30),  qty: null },
-    { key: 'landing',    label: 'Landing',            unit: cUnit('landing', 'EA'), rate: cRate('landing', 1200), cost: cCost('landing', 700), qty: null },
-    { key: 'risers',     label: 'Step risers (1×12 fascia)', unit: 'LF', rate: cRate('fascia', 9), cost: cCost('fascia', 5.5), qty: null, stepOnly: true },
-    { key: 'fascia',     label: 'Matching fascia (rim)',     unit: 'LF', rate: cRate('fascia', 9), cost: cCost('fascia', 5.5), qty: null, fasciaOnly: true },
+    { key: 'stairs',     label: 'Stairs',             unit: r('stairs').unit,  rate: r('stairs').rate,  cost: r('stairs').cost,  qty: null, fromRates: true },
+    { key: 'railing',    label: 'Railing',            unit: r('railing').unit, rate: r('railing').rate, cost: r('railing').cost, qty: null, fromRates: true },
+    { key: 'landing',    label: 'Landing',            unit: r('landing').unit, rate: r('landing').rate, cost: r('landing').cost, qty: null, fromRates: true },
+    { key: 'risers',     label: 'Step risers (1×12 fascia)', unit: 'LF', rate: fasciaRate, cost: fasciaCost, qty: null, stepOnly: true, fromFascia: true },
+    { key: 'fascia',     label: 'Matching fascia (rim)',     unit: 'LF', rate: fasciaRate, cost: fasciaCost, qty: null, fasciaOnly: true, fromFascia: true },
     { key: 'border',     label: 'Border decking',         unit: 'LF', rate: brandRate, cost: brandCost, qty: null, fromBrand: true, borderOnly: true },
-    { key: 'blocking',   label: 'Picture-frame blocking', unit: 'LF', rate: cRate('blocking', 3.5), cost: cCost('blocking', 2.2), qty: null, borderOnly: true },
-    { key: 'borderlabor',label: 'Border labor / miters',  unit: 'LF', rate: cRate('borderlabor', 4), cost: cCost('borderlabor', 2), qty: null, borderOnly: true },
+    { key: 'blocking',   label: 'Picture-frame blocking', unit: r('blocking').unit, rate: r('blocking').rate, cost: r('blocking').cost, qty: null, borderOnly: true, fromRates: true },
+    { key: 'borderlabor',label: 'Border labor / miters',  unit: r('borderlabor').unit, rate: r('borderlabor').rate, cost: r('borderlabor').cost, qty: null, borderOnly: true, fromRates: true },
     { key: 'spline',     label: 'Spline decking',         unit: 'LF', rate: brandRate, cost: brandCost, qty: null, fromBrand: true, splineOnly: true },
-    { key: 'splinejoist',label: 'Spline sister joist',    unit: 'LF', rate: cRate('splinejoist', 9), cost: cCost('splinejoist', 6), qty: null, splineOnly: true },
+    { key: 'splinejoist',label: 'Spline sister joist',    unit: r('splinejoist').unit, rate: r('splinejoist').rate, cost: r('splinejoist').cost, qty: null, splineOnly: true, fromRates: true },
     { key: 'difficulty', label: 'Framing difficulty', unit: 'LS', rate: 0,    cost: 0,   qty: null, flat: true },
   ])
   const patch = (key, p) => setComps(cs => cs.map(c => c.key === key ? { ...c, ...p } : c))
@@ -162,6 +174,11 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
     setComps(cs => cs.map(c => c.fromBrand
       ? { ...c, rate: brandRate, cost: brandCost } : c))
   }, [brandRate])
+  // Fascia (rim + risers) follows the selected collection's own fascia price.
+  useEffect(() => {
+    setComps(cs => cs.map(c => c.fromFascia
+      ? { ...c, rate: fasciaRate, cost: fasciaCost } : c))
+  }, [fasciaRate, fasciaCost])
   // Flat difficulty adder driven by the dropdown.
   useEffect(() => {
     setComps(cs => cs.map(c => c.key === 'difficulty' ? { ...c, rate: DECK_DIFFICULTY_FLAT[difficulty] ?? 0 } : c))

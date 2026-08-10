@@ -2,9 +2,9 @@ import { useState, useRef, Fragment } from 'react'
 import {
   Search, Edit2, Eye, Trash2, Plus, Check, X, GripVertical,
   ChevronDown, ChevronRight, LayoutList, Rows3,
-  Sparkles, Loader, MoveRight, Settings2, Pencil, Lock, Unlock,
+  Sparkles, Loader, MoveRight, Settings2, Pencil, Lock, Unlock, Calculator,
 } from 'lucide-react'
-import { useStore } from '../store'
+import { useStore, DECK_COMPONENT_DEFAULTS } from '../store'
 import { getModel } from '../gemini'
 
 const AI_CHAT_SYSTEM = `You are a pricing catalog assistant for a contractor estimating tool called QUOTEX.
@@ -106,6 +106,140 @@ function CategoryManagerModal({ onClose }) {
               <Plus size={14} /> Add
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Deck Builder Pricing editor ─────────────────────────────────────────────
+// One tool-styled place to set the numbers the Deck Builder uses:
+//   • per-collection Decking $/LF AND Fascia $/LF (each collection its own two prices)
+//   • shared component rates that don't vary by collection
+function PriceCell({ value, placeholder, onCommit }) {
+  return (
+    <div className="relative">
+      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none">$</span>
+      <input
+        type="number" step="0.01" defaultValue={value ?? ''} placeholder={placeholder}
+        onBlur={e => onCommit(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter') e.target.blur() }}
+        className="w-[4.5rem] pl-4 pr-1.5 py-1 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--brand-200)]"
+      />
+    </div>
+  )
+}
+
+function DeckPricingModal({ onClose }) {
+  const catalog           = useStore(s => s.catalog)
+  const updateCatalogItem = useStore(s => s.updateCatalogItem)
+  const rates             = useStore(s => s.deckComponentRates) || DECK_COMPONENT_DEFAULTS
+  const setDeckRate       = useStore(s => s.setDeckComponentRate)
+
+  const collections = catalog
+    .filter(c => /porch\s*floor\s*upgrade/i.test(c.name || ''))
+    .map(c => ({
+      id: c.id,
+      name: (c.name || '').replace(/porch\s*floor\s*upgrade/i, '').trim() || c.name,
+      deckRate: Number(c.unitPrice) || 0,
+      deckCost: Number(c.costMaterials) || 0,
+      fasciaRate: c.fasciaRate,
+      fasciaCost: c.fasciaCost,
+    }))
+
+  const num = (v) => v === '' || v == null ? null : (parseFloat(v) || 0)
+  const fasciaDef = rates.fascia || DECK_COMPONENT_DEFAULTS.fascia
+  // Components table = shared rates; fascia is per-collection so it's shown only as the default fallback.
+  const compKeys = Object.keys(DECK_COMPONENT_DEFAULTS).filter(k => k !== 'fascia')
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[88vh]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+          <div>
+            <p className="font-semibold text-gray-900 text-sm flex items-center gap-1.5"><Calculator size={15} className="text-[var(--brand-600)]" /> Deck Builder Pricing</p>
+            <p className="text-xs text-gray-400 mt-0.5">Set the rates the Deck Builder uses — decking &amp; fascia per collection, plus shared components.</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={17} /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">
+          {/* Per-collection prices */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Decking collections · two prices each</p>
+            {collections.length === 0 ? (
+              <p className="text-sm text-gray-400 bg-gray-50 rounded-lg px-3 py-3">
+                No decking collections yet. Add catalog items named "<span className="font-medium">… Porch Floor Upgrade</span>" and they'll appear here with editable decking + fascia prices.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-[10px] uppercase tracking-wider text-gray-400">
+                      <th className="text-left font-semibold py-1">Collection</th>
+                      <th className="font-semibold py-1">Decking $/LF</th>
+                      <th className="font-semibold py-1">Decking cost</th>
+                      <th className="font-semibold py-1">Fascia $/LF</th>
+                      <th className="font-semibold py-1">Fascia cost</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {collections.map(c => (
+                      <tr key={c.id} className="border-t border-gray-100">
+                        <td className="py-1.5 pr-2 text-gray-700 font-medium">{c.name}</td>
+                        <td className="py-1.5 px-1 text-center"><PriceCell value={c.deckRate} onCommit={v => updateCatalogItem(c.id, { unitPrice: num(v) ?? 0 })} /></td>
+                        <td className="py-1.5 px-1 text-center"><PriceCell value={c.deckCost} onCommit={v => updateCatalogItem(c.id, { costMaterials: num(v) ?? 0 })} /></td>
+                        <td className="py-1.5 px-1 text-center"><PriceCell value={c.fasciaRate} placeholder={String(fasciaDef.rate)} onCommit={v => updateCatalogItem(c.id, { fasciaRate: num(v) })} /></td>
+                        <td className="py-1.5 px-1 text-center"><PriceCell value={c.fasciaCost} placeholder={String(fasciaDef.cost)} onCommit={v => updateCatalogItem(c.id, { fasciaCost: num(v) })} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="text-[11px] text-gray-400 mt-1.5">Leave fascia blank to use the default fascia rate below. Fascia covers both the rim wrap and step risers.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Shared components */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Shared components · same across collections</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-[10px] uppercase tracking-wider text-gray-400">
+                    <th className="text-left font-semibold py-1">Component</th>
+                    <th className="font-semibold py-1 w-16">Unit</th>
+                    <th className="font-semibold py-1">Rate</th>
+                    <th className="font-semibold py-1">Cost</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {compKeys.map(key => {
+                    const c = rates[key] || DECK_COMPONENT_DEFAULTS[key]
+                    return (
+                      <tr key={key} className="border-t border-gray-100">
+                        <td className="py-1.5 pr-2 text-gray-700">{c.label}</td>
+                        <td className="py-1.5 px-1 text-center text-gray-500">{c.unit}</td>
+                        <td className="py-1.5 px-1 text-center"><PriceCell value={c.rate} onCommit={v => setDeckRate(key, { rate: num(v) ?? 0 })} /></td>
+                        <td className="py-1.5 px-1 text-center"><PriceCell value={c.cost} onCommit={v => setDeckRate(key, { cost: num(v) ?? 0 })} /></td>
+                      </tr>
+                    )
+                  })}
+                  {/* Default fascia fallback */}
+                  <tr className="border-t border-gray-100">
+                    <td className="py-1.5 pr-2 text-gray-700">{fasciaDef.label}</td>
+                    <td className="py-1.5 px-1 text-center text-gray-500">{fasciaDef.unit}</td>
+                    <td className="py-1.5 px-1 text-center"><PriceCell value={fasciaDef.rate} onCommit={v => setDeckRate('fascia', { rate: num(v) ?? 0 })} /></td>
+                    <td className="py-1.5 px-1 text-center"><PriceCell value={fasciaDef.cost} onCommit={v => setDeckRate('fascia', { cost: num(v) ?? 0 })} /></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-5 py-3.5 border-t border-gray-100 shrink-0 flex justify-end">
+          <button onClick={onClose} className="px-4 py-2 bg-[var(--brand-600)] text-white rounded-xl text-sm font-medium hover:bg-[var(--brand-700)] transition-colors">Done</button>
         </div>
       </div>
     </div>
@@ -524,6 +658,7 @@ export default function ItemCatalog() {
   const [editId, setEditId]       = useState(null)
   const [addingNew, setAddingNew] = useState(false)
   const [managingCats, setManagingCats] = useState(false)
+  const [deckPricing, setDeckPricing] = useState(false)
   const [newForm, setNewForm] = useState({ name: '', description: '', category: CATEGORIES[0] || 'General', unit: 'EA', unitPrice: 0, minPrice: 0, maxPrice: 0, count: 1, confidence: 70 })
 
   // AI suggest state
@@ -635,6 +770,14 @@ export default function ItemCatalog() {
           </button>
 
           <button
+            onClick={() => setDeckPricing(true)}
+            className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 bg-white text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+            title="Edit the rates the Deck Builder uses"
+          >
+            <Calculator size={14} /> Deck Pricing
+          </button>
+
+          <button
             onClick={() => setAddingNew(true)}
             className="flex items-center gap-1.5 px-4 py-2 bg-[var(--brand-600)] text-white rounded-lg text-sm font-medium hover:bg-[var(--brand-700)]"
           >
@@ -644,6 +787,7 @@ export default function ItemCatalog() {
       </div>
 
       {managingCats && <CategoryManagerModal onClose={() => setManagingCats(false)} />}
+      {deckPricing && <DeckPricingModal onClose={() => setDeckPricing(false)} />}
 
       {/* AI suggestions banner */}
       {suggestError && (
