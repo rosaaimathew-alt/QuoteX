@@ -52,6 +52,7 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
   const [difficulty, setDifficulty] = useState('Standard')
   const [border, setBorder]     = useState('None')       // None / Single / Double picture frame
   const [fieldWastePct, setFieldWastePct] = useState(8)  // extra field-decking waste when bordered
+  const [fascia, setFascia]     = useState('None')       // None / Matching 1×12 fascia wrap
 
   const n = (v) => Number(v) || 0
   const W = n(width), D = n(depth), Hft = n(height), SW = n(stairWidth), LA = n(landings)
@@ -73,6 +74,17 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
   const splineDeckingLF = splines * fieldDepthFt                                  // single spline board runs the depth
   const splineJoistLF   = splines * 2 * D                                         // double sister joist per spline
 
+  // ── Matching 1×12 fascia (sold in 16' lengths only) ──
+  // Wraps the deck rim, AND every step riser is cut from the same fascia board,
+  // so risers are always counted when there are steps.
+  const fasciaOn    = fascia === 'Matching'
+  const riserNeedLF = stepCount * SW                                              // riser LF = steps × stair width
+  const rimNeedLF   = fasciaOn ? perimeter : 0                                    // deck-rim fascia LF
+  const riserBoards = riserNeedLF > 0 ? Math.ceil(riserNeedLF / 16) : 0           // 16' boards
+  const rimBoards   = rimNeedLF   > 0 ? Math.ceil(rimNeedLF   / 16) : 0
+  const riserBuyLF  = riserBoards * 16
+  const rimBuyLF    = rimBoards * 16
+
   const brandRate  = DECK_BRANDS[brand]?.[collection] ?? 5
   const collections = Object.keys(DECK_BRANDS[brand] || {})
 
@@ -92,6 +104,8 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
       case 'borderlabor':return unit === 'LF' ? borderLF : 1
       case 'spline':     return unit === 'LF' ? splineDeckingLF : unit === 'EA' ? splines : 1
       case 'splinejoist':return unit === 'LF' ? splineJoistLF : unit === 'EA' ? splines * 2 : 1
+      case 'risers':     return unit === 'LF' ? riserBuyLF : unit === 'EA' ? riserBoards : 1  // 1×12 fascia, 16' boards
+      case 'fascia':     return unit === 'LF' ? rimBuyLF : unit === 'EA' ? rimBoards : 1      // 1×12 fascia, 16' boards
       case 'difficulty': return 1
       default:           return 1
     }
@@ -103,6 +117,8 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
     { key: 'stairs',     label: 'Stairs',             unit: 'EA', rate: 145,  cost: 90,  qty: null },
     { key: 'railing',    label: 'Railing',            unit: 'LF', rate: 52,   cost: 30,  qty: null },
     { key: 'landing',    label: 'Landing',            unit: 'EA', rate: 1200, cost: 700, qty: null },
+    { key: 'risers',     label: 'Step risers (1×12 fascia)', unit: 'LF', rate: 9, cost: 5.5, qty: null, stepOnly: true },
+    { key: 'fascia',     label: 'Matching fascia (rim)',     unit: 'LF', rate: 9, cost: 5.5, qty: null, fasciaOnly: true },
     { key: 'border',     label: 'Border decking',         unit: 'LF', rate: brandRate, cost: +(brandRate * 0.62).toFixed(2), qty: null, fromBrand: true, borderOnly: true },
     { key: 'blocking',   label: 'Picture-frame blocking', unit: 'LF', rate: 3.5, cost: 2.2, qty: null, borderOnly: true },
     { key: 'borderlabor',label: 'Border labor / miters',  unit: 'LF', rate: 4,   cost: 2,   qty: null, borderOnly: true },
@@ -122,7 +138,7 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
     setComps(cs => cs.map(c => c.key === 'difficulty' ? { ...c, rate: DECK_DIFFICULTY_FLAT[difficulty] ?? 0 } : c))
   }, [difficulty])
 
-  const rows = comps.filter(c => (!c.borderOnly || borderCourses > 0) && (!c.splineOnly || splines > 0)).map(c => {
+  const rows = comps.filter(c => (!c.borderOnly || borderCourses > 0) && (!c.splineOnly || splines > 0) && (!c.stepOnly || stepCount > 0) && (!c.fasciaOnly || fasciaOn)).map(c => {
     const qty  = c.qty != null ? c.qty : autoQty(c.key, c.unit)
     return { ...c, qty, line: qty * c.rate, lineCost: qty * c.cost }
   })
@@ -136,8 +152,9 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
     let d = `Design and build a ${W} ft × ${D} ft (${area} sq ft) deck using ${brand} ${collection} decking.`
     if (deckingLF > 0) d += ` Decking: ${fieldRows} rows × ${sections} run${sections > 1 ? 's' : ''} of ${boardFt} ft (${deckingLF} LF).`
     if (splines > 0)   d += ` ${splines} spline${splines > 1 ? 's' : ''} with double sister joist${splines > 1 ? 's' : ''} — no butt joints.`
-    if (stepCount > 0) d += ` Stairs: ${stepCount} steps at ${SW} ft wide for ${Hft} ft of elevation.`
+    if (stepCount > 0) d += ` Stairs: ${stepCount} steps at ${SW} ft wide for ${Hft} ft of elevation, risers in matching 1×12 fascia.`
     if (railQty > 0)   d += ` ${Math.round(railQty)} LF of railing.`
+    if (fasciaOn)      d += ` Matching 1×12 fascia wrapping the deck rim (16 ft stock).`
     if (borderCourses > 0) d += ` ${border} mitered picture-frame border around all sides.`
     if (LA > 0)        d += ` ${LA} landing${LA > 1 ? 's' : ''}.`
     if (difficulty !== 'Standard') d += ` ${difficulty} framing conditions.`
@@ -207,6 +224,7 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
         {drop('Picture-frame border', border, e => setBorder(e.target.value), ['None', 'Single', 'Double'])}
+        {drop('Matching fascia (1×12)', fascia, e => setFascia(e.target.value), ['None', 'Matching'])}
         {borderCourses > 0 && dim('Field waste %', fieldWastePct, e => setFieldWastePct(e.target.value), { min: 0 })}
       </div>
 
@@ -217,6 +235,7 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
         <p>🪵 Decking: {fieldRows} rows × {sections} run{sections > 1 ? 's' : ''} of <strong>{boardFt} ft</strong> board = <strong>{deckingLF} LF</strong> {borderCourses > 0 ? `(+${fieldWastePct}% field waste)` : ''}</p>
         {splines > 0 && <p>🔩 Span needs <strong>{splines} spline{splines > 1 ? 's' : ''}</strong> ({sections} runs of {boardFt} ft, no butt joints) + double sister joist = {splineJoistLF} LF framing</p>}
         {borderCourses > 0 && <p>🖼️ Border: {border.toLowerCase()}, mitered, all sides = <strong>{borderLF} LF</strong></p>}
+        {(fasciaOn || stepCount > 0) && <p>🧱 Fascia 1×12 (16′ only): {fasciaOn ? `${perimeter} LF rim` : ''}{fasciaOn && stepCount > 0 ? ' + ' : ''}{stepCount > 0 ? `${stepCount}×${SW}′ = ${riserNeedLF} LF risers` : ''} → <strong>{rimBoards + riserBoards} boards</strong> ({rimBuyLF + riserBuyLF} LF)</p>}
       </div>
 
       {/* Component table — each variable + its metric is editable */}
