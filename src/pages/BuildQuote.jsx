@@ -22,8 +22,23 @@ const DECK_BRANDS = {
   'Trex':             { Transcend: 5.30, 'Enhance Naturals': 3.80, Select: 3.20 },
   'Pressure-Treated': { '5/4 Pine': 1.90, '2x6 Premium': 2.40 },
 }
-// Smallest stock board length that spans the run (butt-joint beyond 20').
-const deckBoardLength = (widthFt) => DECK_BOARD_LENGTHS.find(L => L >= widthFt) ?? Math.ceil(widthFt / 20) * 20
+// Board LF to buy PER ROW to span the width, using stock lengths with the least
+// waste. For widths ≤ 20' this is a single board rounded up (18' → 20'). For
+// wider spans it's the min-waste combination of stock boards, butt-jointed and
+// staggered on joists (e.g. 22' → 12'+12' = 24').
+const deckBoardLength = (widthFt) => {
+  const w = Math.ceil(Number(widthFt) || 0)
+  if (w <= 0) return 0
+  const dp = Array(w + 1).fill(Infinity)
+  dp[0] = 0
+  for (let i = 1; i <= w; i++) {
+    for (const L of DECK_BOARD_LENGTHS) {
+      const prev = Math.max(0, i - L)
+      if (dp[prev] !== Infinity) dp[i] = Math.min(dp[i], dp[prev] + L)
+    }
+  }
+  return dp[w]
+}
 
 function DeckAssemblyPanel({ onClose, onAdd }) {
   const [width, setWidth]       = useState(20)
@@ -34,6 +49,8 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
   const [brand, setBrand]       = useState('Trex')
   const [collection, setCollection] = useState('Transcend')
   const [difficulty, setDifficulty] = useState('Standard')
+  const [border, setBorder]     = useState('None')       // None / Single / Double picture frame
+  const [fieldWastePct, setFieldWastePct] = useState(8)  // extra field-decking waste when bordered
 
   const n = (v) => Number(v) || 0
   const W = n(width), D = n(depth), Hft = n(height), SW = n(stairWidth), LA = n(landings)
@@ -45,6 +62,7 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
   const boardLen  = deckBoardLength(W)
   const deckingLF = courses * boardLen
   const treadLF   = stepCount * SW
+  const borderCourses = border === 'Double' ? 2 : border === 'Single' ? 1 : 0  // runs all the way around
 
   const brandRate  = DECK_BRANDS[brand]?.[collection] ?? 5
   const collections = Object.keys(DECK_BRANDS[brand] || {})
@@ -53,10 +71,16 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
   const autoQty = (key, unit) => {
     switch (key) {
       case 'framing':    return unit === 'SF' ? area : unit === 'LF' ? perimeter : 1
-      case 'decking':    return unit === 'LF' ? deckingLF : unit === 'SF' ? area : unit === 'EA' ? courses : 1
+      case 'decking': {
+        const base = unit === 'LF' ? deckingLF : unit === 'SF' ? area : unit === 'EA' ? courses : 1
+        return borderCourses > 0 ? Math.ceil(base * (1 + fieldWastePct / 100)) : base  // border adds field cut-in waste
+      }
       case 'stairs':     return unit === 'EA' ? stepCount : unit === 'LF' ? treadLF : unit === 'SF' ? treadLF : 1
       case 'railing':    return unit === 'LF' ? perimeter : unit === 'EA' ? 4 : 1
       case 'landing':    return unit === 'EA' ? LA : unit === 'SF' ? LA * 16 : 1
+      case 'border':     return unit === 'LF' ? perimeter * borderCourses : unit === 'EA' ? borderCourses : 1
+      case 'blocking':   return unit === 'LF' ? perimeter : 1
+      case 'borderlabor':return unit === 'LF' ? perimeter * borderCourses : 1
       case 'difficulty': return 1
       default:           return 1
     }
@@ -68,13 +92,16 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
     { key: 'stairs',     label: 'Stairs',             unit: 'EA', rate: 145,  cost: 90,  qty: null },
     { key: 'railing',    label: 'Railing',            unit: 'LF', rate: 52,   cost: 30,  qty: null },
     { key: 'landing',    label: 'Landing',            unit: 'EA', rate: 1200, cost: 700, qty: null },
+    { key: 'border',     label: 'Border decking',         unit: 'LF', rate: brandRate, cost: +(brandRate * 0.62).toFixed(2), qty: null, fromBrand: true, borderOnly: true },
+    { key: 'blocking',   label: 'Picture-frame blocking', unit: 'LF', rate: 3.5, cost: 2.2, qty: null, borderOnly: true },
+    { key: 'borderlabor',label: 'Border labor / miters',  unit: 'LF', rate: 4,   cost: 2,   qty: null, borderOnly: true },
     { key: 'difficulty', label: 'Framing difficulty', unit: 'LS', rate: 0,    cost: 0,   qty: null, flat: true },
   ])
   const patch = (key, p) => setComps(cs => cs.map(c => c.key === key ? { ...c, ...p } : c))
 
   // Keep decking rate synced to the chosen brand/collection until the user overrides it.
   useEffect(() => {
-    setComps(cs => cs.map(c => c.key === 'decking' && c.fromBrand
+    setComps(cs => cs.map(c => c.fromBrand
       ? { ...c, rate: brandRate, cost: +(brandRate * 0.62).toFixed(2) } : c))
   }, [brandRate])
   // Flat difficulty adder driven by the dropdown.
@@ -82,7 +109,7 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
     setComps(cs => cs.map(c => c.key === 'difficulty' ? { ...c, rate: DECK_DIFFICULTY_FLAT[difficulty] ?? 0 } : c))
   }, [difficulty])
 
-  const rows = comps.map(c => {
+  const rows = comps.filter(c => !c.borderOnly || borderCourses > 0).map(c => {
     const qty  = c.qty != null ? c.qty : autoQty(c.key, c.unit)
     return { ...c, qty, line: qty * c.rate, lineCost: qty * c.cost }
   })
@@ -97,6 +124,7 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
     if (deckingLF > 0) d += ` Decking to purchase: ${deckingLF} LF (${courses} rows × ${boardLen} ft boards).`
     if (stepCount > 0) d += ` Stairs: ${stepCount} steps at ${SW} ft wide for ${Hft} ft of elevation.`
     if (railQty > 0)   d += ` ${Math.round(railQty)} LF of railing.`
+    if (borderCourses > 0) d += ` ${border} mitered picture-frame border around all sides.`
     if (LA > 0)        d += ` ${LA} landing${LA > 1 ? 's' : ''}.`
     if (difficulty !== 'Standard') d += ` ${difficulty} framing conditions.`
     return d
@@ -163,11 +191,17 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
         {drop('Framing difficulty (flat)', difficulty, e => setDifficulty(e.target.value), Object.keys(DECK_DIFFICULTY_FLAT))}
       </div>
 
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
+        {drop('Picture-frame border', border, e => setBorder(e.target.value), ['None', 'Single', 'Double'])}
+        {borderCourses > 0 && dim('Field waste %', fieldWastePct, e => setFieldWastePct(e.target.value), { min: 0 })}
+      </div>
+
       {/* Recommendations */}
       <div className="bg-[var(--brand-50)] border border-[var(--brand-100)] rounded-lg px-3 py-2 mb-4 text-xs text-gray-600 space-y-0.5">
         <p>📐 <strong>{area} SF</strong> deck · perimeter <strong>{perimeter} LF</strong></p>
         <p>🪜 Steps: ⌈{heightIn}" ÷ {DECK_RISER_MAX_IN}"⌉ = <strong>{stepCount} steps</strong> at {SW} ft wide</p>
-        <p>🪵 Decking: {courses} rows × {boardLen} ft boards (spans {W} ft width) = <strong>{deckingLF} LF</strong> to purchase</p>
+        <p>🪵 Decking: {courses} rows × {boardLen} ft/row{W > 20 ? ' (butt-jointed — over 20 ft)' : ''} to span {W} ft = <strong>{deckingLF} LF</strong></p>
+        {borderCourses > 0 && <p>🖼️ Border: {border.toLowerCase()}, mitered, all sides = {perimeter} LF × {borderCourses} = <strong>{perimeter * borderCourses} LF</strong> · +{fieldWastePct}% field waste</p>}
       </div>
 
       {/* Component table — each variable + its metric is editable */}
