@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Plus, Trash2, ChevronDown, ChevronUp, Eye, EyeOff, BookTemplate, X, Save, Copy, BookPlus, Check, Calculator } from 'lucide-react'
 import { useStore } from '../store'
-import { DEMO } from '../demo'
 
 const MARGIN_DEFAULT = 30
 
@@ -326,7 +325,13 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
 }
 
 export default function BuildQuote() {
-  const catalog = useStore(s => s.catalog)
+  const catalogRaw = useStore(s => s.catalog)
+  // Make the formula/assembly builder reachable from the catalog on every site
+  // (not just the demo) by injecting it into the picker when it isn't already there.
+  const catalog = useMemo(() => catalogRaw.some(c => c.assembly === 'deck')
+    ? catalogRaw
+    : [{ id: 'deck-builder', name: 'Deck — Build to Spec (formula)', category: 'Decks', assembly: 'deck', unit: 'EA', unitPrice: 0, description: 'Configure framing, decking, steps, landings, height and difficulty; price, cost and scope auto-calculate.' }, ...catalogRaw],
+    [catalogRaw])
   const templates = useStore(s => s.templates)
   const { saveTemplate, deleteTemplate, addCatalogItems } = useStore()
   const [savedToLog, setSavedToLog] = useState(new Set())
@@ -414,7 +419,7 @@ export default function BuildQuote() {
 
   const addItem = (item) => {
     // Formula/assembly items open their inline builder instead of adding a flat line.
-    if (DEMO && item.assembly === 'deck') { setActiveAssembly('deck'); return }
+    if (item.assembly === 'deck') { setActiveAssembly('deck'); return }
     setLines(prev => {
       const existing = prev.find(l => l.catalogId === item.id)
       if (existing) return prev.map(l => l.catalogId === item.id ? { ...l, qty: l.qty + 1 } : l)
@@ -648,7 +653,7 @@ export default function BuildQuote() {
         </div>
 
         {/* Inline formula-item builder (opened from the catalog) — sits in the scope area */}
-        {DEMO && activeAssembly === 'deck' && (
+        {activeAssembly === 'deck' && (
           <DeckAssemblyPanel
             onClose={() => setActiveAssembly(null)}
             onAdd={line => { addAssemblyLine(line); setActiveAssembly(null) }}
