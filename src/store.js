@@ -290,7 +290,7 @@ export const DECK_COMPONENT_DEFAULTS = {
   blocking:    { label: 'Picture-frame blocking', unit: 'LF', rate: 3.5,  cost: 2.2 },
   borderlabor: { label: 'Border labor / miters',  unit: 'LF', rate: 4,    cost: 2 },
   splinejoist: { label: 'Spline sister joist',    unit: 'LF', rate: 9,    cost: 6 },
-  fascia:      { label: 'Fascia 1×12 (default)',  unit: 'LF', rate: 9,    cost: 5.5 },
+  fascia:      { label: 'Fascia 1×12 board (16′, default)', unit: 'EA', rate: 55, cost: 34 },  // sold per 16' board
 }
 
 // One-time cleanup: an earlier build injected "Deck Components" catalog items

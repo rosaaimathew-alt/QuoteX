@@ -179,7 +179,7 @@ function DeckPricingModal({ onClose }) {
                       <th className="text-left font-semibold py-1">Collection</th>
                       <th className="font-semibold py-1">Decking $/LF</th>
                       <th className="font-semibold py-1">Decking cost</th>
-                      <th className="font-semibold py-1">Fascia $/LF</th>
+                      <th className="font-semibold py-1">Fascia $/board</th>
                       <th className="font-semibold py-1">Fascia cost</th>
                     </tr>
                   </thead>
@@ -195,7 +195,7 @@ function DeckPricingModal({ onClose }) {
                     ))}
                   </tbody>
                 </table>
-                <p className="text-[11px] text-gray-400 mt-1.5">Leave fascia blank to use the default fascia rate below. Fascia covers both the rim wrap and step risers.</p>
+                <p className="text-[11px] text-gray-400 mt-1.5">Fascia is priced per 16′ board (rim wrap + step risers are cut from whole boards). Leave blank to use the default board price below.</p>
               </div>
             )}
           </div>
