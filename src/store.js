@@ -297,6 +297,14 @@ const withDeckDefaults = (catalog) => {
   return missing.length ? [...list, ...missing] : list
 }
 
+// The deck-component items live in a "Deck Components" category. The Item Catalog
+// only renders categories present in `catalogCategories`, so make sure it's there.
+const DECK_CATEGORY = 'Deck Components'
+const withDeckCategory = (cats) => {
+  const list = Array.isArray(cats) ? cats : []
+  return list.includes(DECK_CATEGORY) ? list : [...list, DECK_CATEGORY]
+}
+
 export const PROPOSAL_STATUSES = ['Draft', 'Sent', 'Followed Up', 'Negotiating', 'Won', 'Lost', 'MIA', 'Archived']
 
 // 'Archived' = an earlier revision the customer didn't move forward with, but
@@ -403,7 +411,7 @@ export const useStore = create(
       catalogCategories: [
         'Fencing','Gates','Demo','Materials','Labor','Framing','Concrete','Electrical',
         'Plumbing','Roofing','Flooring','Drywall','Painting','HVAC','Windows','Doors',
-        'Tile','Insulation','Siding','General',
+        'Tile','Insulation','Siding','General','Deck Components',
       ],
 
       addCatalogCategory: (name) =>
@@ -1359,11 +1367,11 @@ export const useStore = create(
           scopeExamples:      persisted?.scopeExamples      || [],
           jobCosts:           persisted?.jobCosts           || {},
           standaloneChangeOrders: persisted?.standaloneChangeOrders || [],
-          catalogCategories:  persisted?.catalogCategories  || [
+          catalogCategories:  withDeckCategory(persisted?.catalogCategories  || [
             'Fencing','Gates','Demo','Materials','Labor','Framing','Concrete','Electrical',
             'Plumbing','Roofing','Flooring','Drywall','Painting','HVAC','Windows','Doors',
             'Tile','Insulation','Siding','General',
-          ],
+          ]),
           projectTypes: persisted?.projectTypes || [
             'Open Deck','Screen Porches','Eze-Breeze Porches','Open Porches',
             'Porch Conversions','Sunrooms','Hardscapes',
@@ -1381,6 +1389,7 @@ export const useStore = create(
             catalog: withDeckDefaults((persistedState?.catalog?.length > 0)
               ? persistedState.catalog
               : currentState.catalog),
+            catalogCategories: withDeckCategory(persistedState?.catalogCategories || currentState.catalogCategories),
           }
         }
         // Always ensure restored proposals are present — runs on every load
@@ -1456,6 +1465,7 @@ export const useStore = create(
           catalog: withDeckDefaults((persistedState?.catalog?.length > 0)
             ? persistedState.catalog
             : currentState.catalog),
+          catalogCategories: withDeckCategory(persistedState?.catalogCategories || currentState.catalogCategories),
         }
       },
       // Storage is async (KV). Mark hydration complete FIRST so writes are now
