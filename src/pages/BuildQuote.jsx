@@ -10,39 +10,94 @@ const MARGIN_DEFAULT = 30
 // Builds one deck line whose price + cost are calculated from components and
 // modifiers, and auto-writes the scope description. Produces a normal line, so
 // the quote total keeps auto-summing and nothing is entered by hand.
-const DECK_DIFFICULTY = { Standard: 1, Moderate: 1.15, Complex: 1.3 }
+const DECK_UNITS = ['SF', 'LF', 'EA', 'LS']
+const DECK_BOARD_LENGTHS = [12, 16, 20]           // composite boards are sold in these lengths
+const DECK_BOARD_FACE_IN = 5.5                    // 1"×5.5" profile face width
+const DECK_RISER_MAX_IN = 8.25                    // max riser height → step count
+const DECK_DIFFICULTY_FLAT = { Standard: 0, Moderate: 750, Complex: 1800 }  // flat $ adder
+// Decking brands → collections → sell $/LF (demo placeholder pricing).
+const DECK_BRANDS = {
+  'TimberTech AZEK':  { Vintage: 6.75, Harvest: 5.90, Landmark: 7.20 },
+  'TimberTech PRO':   { 'Terrain+': 4.90, Reserve: 5.40 },
+  'Trex':             { Transcend: 5.30, 'Enhance Naturals': 3.80, Select: 3.20 },
+  'Pressure-Treated': { '5/4 Pine': 1.90, '2x6 Premium': 2.40 },
+}
+// Smallest stock board length that spans the run (butt-joint beyond 20').
+const deckBoardLength = (widthFt) => DECK_BOARD_LENGTHS.find(L => L >= widthFt) ?? Math.ceil(widthFt / 20) * 20
 
 function DeckAssemblyPanel({ onClose, onAdd }) {
-  const [area, setArea]         = useState(384)
-  const [height, setHeight]     = useState(3)
-  const [steps, setSteps]       = useState(0)
+  const [width, setWidth]       = useState(20)
+  const [depth, setDepth]       = useState(16)
+  const [height, setHeight]     = useState(3)      // ft above grade
+  const [stairWidth, setStairWidth] = useState(4)  // ft, 1-ft increments
   const [landings, setLandings] = useState(0)
+  const [brand, setBrand]       = useState('Trex')
+  const [collection, setCollection] = useState('Transcend')
   const [difficulty, setDifficulty] = useState('Standard')
-  const [showRates, setShowRates]   = useState(false)
-  const [r, setR] = useState({ frame: 18, deck: 24, step: 120, landing: 1200, frameCost: 12, deckCost: 16, stepCost: 70, landingCost: 700 })
-  const rate = (k) => (e) => setR(s => ({ ...s, [k]: parseFloat(e.target.value) || 0 }))
 
   const n = (v) => Number(v) || 0
-  const A = n(area), H = n(height), ST = n(steps), LA = n(landings)
-  const heightMult = 1 + 0.05 * Math.max(0, H - 4)          // +5% framing per ft over 4 ft
-  const diffMult   = DECK_DIFFICULTY[difficulty] || 1
+  const W = n(width), D = n(depth), Hft = n(height), SW = n(stairWidth), LA = n(landings)
+  const area      = W * D
+  const perimeter = 2 * (W + D)
+  const heightIn  = Hft * 12
+  const stepCount = heightIn > 0 ? Math.ceil(heightIn / DECK_RISER_MAX_IN) : 0
+  const courses   = D > 0 ? Math.ceil((D * 12) / DECK_BOARD_FACE_IN) : 0
+  const boardLen  = deckBoardLength(W)
+  const deckingLF = courses * boardLen
+  const treadLF   = stepCount * SW
 
-  const comp = [
-    { label: `Framing — ${A} sq ft${H > 4 ? ` · elevated ${H}ft` : ''}${difficulty !== 'Standard' ? ` · ${difficulty}` : ''}`, price: A * r.frame * heightMult * diffMult, cost: A * r.frameCost * heightMult * diffMult },
-    { label: `Composite decking — ${A} sq ft`, price: A * r.deck, cost: A * r.deckCost },
-    ...(ST > 0 ? [{ label: `Steps — ${ST}`, price: ST * r.step, cost: ST * r.stepCost }] : []),
-    ...(LA > 0 ? [{ label: `Landings — ${LA}`, price: LA * r.landing, cost: LA * r.landingCost }] : []),
-  ]
-  const price = comp.reduce((s, c) => s + c.price, 0)
-  const cost  = comp.reduce((s, c) => s + c.cost, 0)
+  const brandRate  = DECK_BRANDS[brand]?.[collection] ?? 5
+  const collections = Object.keys(DECK_BRANDS[brand] || {})
+
+  // Auto quantity for each component given its unit — the "how a builder measures it" logic.
+  const autoQty = (key, unit) => {
+    switch (key) {
+      case 'framing':    return unit === 'SF' ? area : unit === 'LF' ? perimeter : 1
+      case 'decking':    return unit === 'LF' ? deckingLF : unit === 'SF' ? area : unit === 'EA' ? courses : 1
+      case 'stairs':     return unit === 'EA' ? stepCount : unit === 'LF' ? treadLF : unit === 'SF' ? treadLF : 1
+      case 'railing':    return unit === 'LF' ? perimeter : unit === 'EA' ? 4 : 1
+      case 'landing':    return unit === 'EA' ? LA : unit === 'SF' ? LA * 16 : 1
+      case 'difficulty': return 1
+      default:           return 1
+    }
+  }
+
+  const [comps, setComps] = useState([
+    { key: 'framing',    label: 'Framing',            unit: 'SF', rate: 14,   cost: 9,   qty: null },
+    { key: 'decking',    label: 'Decking boards',     unit: 'LF', rate: brandRate, cost: +(brandRate * 0.62).toFixed(2), qty: null, fromBrand: true },
+    { key: 'stairs',     label: 'Stairs',             unit: 'EA', rate: 145,  cost: 90,  qty: null },
+    { key: 'railing',    label: 'Railing',            unit: 'LF', rate: 52,   cost: 30,  qty: null },
+    { key: 'landing',    label: 'Landing',            unit: 'EA', rate: 1200, cost: 700, qty: null },
+    { key: 'difficulty', label: 'Framing difficulty', unit: 'LS', rate: 0,    cost: 0,   qty: null, flat: true },
+  ])
+  const patch = (key, p) => setComps(cs => cs.map(c => c.key === key ? { ...c, ...p } : c))
+
+  // Keep decking rate synced to the chosen brand/collection until the user overrides it.
+  useEffect(() => {
+    setComps(cs => cs.map(c => c.key === 'decking' && c.fromBrand
+      ? { ...c, rate: brandRate, cost: +(brandRate * 0.62).toFixed(2) } : c))
+  }, [brandRate])
+  // Flat difficulty adder driven by the dropdown.
+  useEffect(() => {
+    setComps(cs => cs.map(c => c.key === 'difficulty' ? { ...c, rate: DECK_DIFFICULTY_FLAT[difficulty] ?? 0 } : c))
+  }, [difficulty])
+
+  const rows = comps.map(c => {
+    const qty  = c.qty != null ? c.qty : autoQty(c.key, c.unit)
+    return { ...c, qty, line: qty * c.rate, lineCost: qty * c.cost }
+  })
+  const price = rows.reduce((s, r) => s + r.line, 0)
+  const cost  = rows.reduce((s, r) => s + r.lineCost, 0)
   const marginPct = price > 0 ? ((price - cost) / price) * 100 : 0
   const money = (v) => '$' + Math.round(v).toLocaleString('en-US')
 
+  const railQty = rows.find(r => r.key === 'railing')?.qty || 0
   const description = (() => {
-    let d = `Design and build a ${A} sq ft deck with pressure-treated framing and composite decking.`
-    if (H > 4) d += ` Elevated deck at ${H} ft.`
-    if (ST > 0) d += ` Includes ${ST} step${ST > 1 ? 's' : ''}.`
-    if (LA > 0) d += ` Includes ${LA} landing${LA > 1 ? 's' : ''}.`
+    let d = `Design and build a ${W} ft × ${D} ft (${area} sq ft) deck using ${brand} ${collection} decking.`
+    if (deckingLF > 0) d += ` Decking to purchase: ${deckingLF} LF (${courses} rows × ${boardLen} ft boards).`
+    if (stepCount > 0) d += ` Stairs: ${stepCount} steps at ${SW} ft wide for ${Hft} ft of elevation.`
+    if (railQty > 0)   d += ` ${Math.round(railQty)} LF of railing.`
+    if (LA > 0)        d += ` ${LA} landing${LA > 1 ? 's' : ''}.`
     if (difficulty !== 'Standard') d += ` ${difficulty} framing conditions.`
     return d
   })()
@@ -51,7 +106,7 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
     onAdd({
       id: Date.now() + Math.random(),
       catalogId: null,
-      name: `Composite Deck — ${A} sq ft`,
+      name: `Deck — ${W}×${D} (${area} SF)`,
       section: 'Deck',
       description,
       unit: 'EA',
@@ -64,95 +119,117 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
     onClose()
   }
 
-  const field = (label, value, onChange, props = {}) => (
+  const dim = (label, value, onChange, props = {}) => (
     <div>
       <label className="text-xs font-medium text-gray-500 block mb-1">{label}</label>
       <input type="number" value={value} onChange={onChange} {...props}
         className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)]" />
     </div>
   )
+  const drop = (label, value, onChange, options) => (
+    <div>
+      <label className="text-xs font-medium text-gray-500 block mb-1">{label}</label>
+      <select value={value} onChange={onChange}
+        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)]">
+        {options.map(o => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  )
+  const cell = "border border-gray-200 rounded px-2 py-1 text-sm w-full focus:outline-none focus:ring-1 focus:ring-[var(--brand-300)]"
 
   return (
     <div className="bg-white rounded-2xl border-2 border-[var(--brand-300)] shadow-sm p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <p className="text-xs font-medium text-[var(--brand-600)] uppercase tracking-wide">Formula item · prototype</p>
-            <h2 className="text-lg font-bold text-gray-900">Deck Builder</h2>
-          </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100" title="Close builder"><X size={18} /></button>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="text-xs font-medium text-[var(--brand-600)] uppercase tracking-wide">Formula item · prototype</p>
+          <h2 className="text-lg font-bold text-gray-900">Deck Builder</h2>
         </div>
+        <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100" title="Close builder"><X size={18} /></button>
+      </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Inputs */}
-          <div className="space-y-3">
-            {field('Deck area (sq ft)', area, e => setArea(e.target.value), { min: 0 })}
-            {field('Height above grade (ft)', height, e => setHeight(e.target.value), { min: 0 })}
-            <div className="grid grid-cols-2 gap-3">
-              {field('# Steps', steps, e => setSteps(e.target.value), { min: 0 })}
-              {field('# Landings', landings, e => setLandings(e.target.value), { min: 0 })}
-            </div>
-            <div>
-              <label className="text-xs font-medium text-gray-500 block mb-1">Framing difficulty</label>
-              <select value={difficulty} onChange={e => setDifficulty(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)]">
-                {Object.keys(DECK_DIFFICULTY).map(d => <option key={d} value={d}>{d} (×{DECK_DIFFICULTY[d]})</option>)}
-              </select>
-            </div>
+      {/* Dimensions */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-3">
+        {dim('Width (ft)', width, e => setWidth(e.target.value), { min: 0 })}
+        {dim('Depth (ft)', depth, e => setDepth(e.target.value), { min: 0 })}
+        {dim('Height (ft)', height, e => setHeight(e.target.value), { min: 0 })}
+        {dim('Stair width (ft)', stairWidth, e => setStairWidth(e.target.value), { min: 3, step: 1 })}
+        {dim('# Landings', landings, e => setLandings(e.target.value), { min: 0 })}
+      </div>
 
-            <button onClick={() => setShowRates(o => !o)} className="text-xs text-[var(--brand-700)] hover:underline flex items-center gap-1">
-              {showRates ? <ChevronUp size={12} /> : <ChevronDown size={12} />} Component rates
-            </button>
-            {showRates && (
-              <div className="grid grid-cols-2 gap-2 bg-gray-50 rounded-lg p-3">
-                {field('Framing $/sqft', r.frame, rate('frame'))}
-                {field('Framing cost/sqft', r.frameCost, rate('frameCost'))}
-                {field('Decking $/sqft', r.deck, rate('deck'))}
-                {field('Decking cost/sqft', r.deckCost, rate('deckCost'))}
-                {field('Step $/ea', r.step, rate('step'))}
-                {field('Step cost/ea', r.stepCost, rate('stepCost'))}
-                {field('Landing $/ea', r.landing, rate('landing'))}
-                {field('Landing cost/ea', r.landingCost, rate('landingCost'))}
-              </div>
-            )}
-          </div>
+      {/* Materials / difficulty */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+        {drop('Decking brand', brand, e => { const b = e.target.value; setBrand(b); setCollection(Object.keys(DECK_BRANDS[b])[0]); patch('decking', { fromBrand: true }) }, Object.keys(DECK_BRANDS))}
+        {drop('Collection', collection, e => { setCollection(e.target.value); patch('decking', { fromBrand: true }) }, collections)}
+        {drop('Framing difficulty (flat)', difficulty, e => setDifficulty(e.target.value), Object.keys(DECK_DIFFICULTY_FLAT))}
+      </div>
 
-          {/* Live breakdown */}
-          <div className="bg-gray-50 rounded-xl p-4 flex flex-col">
-            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Breakdown</p>
-            <div className="space-y-1.5 flex-1">
-              {comp.map((c, i) => (
-                <div key={i} className="flex items-start justify-between gap-3 text-sm">
-                  <span className="text-gray-600">{c.label}</span>
-                  <span className="font-medium text-gray-900 whitespace-nowrap">{money(c.price)}</span>
-                </div>
-              ))}
-              {(heightMult > 1 || diffMult > 1) && (
-                <p className="text-[11px] text-gray-400 pt-1">
-                  Framing modifiers: {heightMult > 1 && `height ×${heightMult.toFixed(2)}`}{heightMult > 1 && diffMult > 1 && ' · '}{diffMult > 1 && `${difficulty} ×${diffMult}`}
-                </p>
-              )}
-            </div>
-            <div className="border-t border-gray-200 mt-3 pt-3 space-y-1">
-              <div className="flex justify-between text-sm"><span className="text-gray-500">Price</span><span className="font-bold text-gray-900">{money(price)}</span></div>
-              <div className="flex justify-between text-xs"><span className="text-gray-400">Est. cost</span><span className="text-gray-500">{money(cost)}</span></div>
-              <div className="flex justify-between text-xs"><span className="text-gray-400">Margin</span><span className={marginPct >= 30 ? 'text-green-600' : 'text-amber-600'}>{marginPct.toFixed(0)}%</span></div>
-            </div>
-          </div>
-        </div>
+      {/* Recommendations */}
+      <div className="bg-[var(--brand-50)] border border-[var(--brand-100)] rounded-lg px-3 py-2 mb-4 text-xs text-gray-600 space-y-0.5">
+        <p>📐 <strong>{area} SF</strong> deck · perimeter <strong>{perimeter} LF</strong></p>
+        <p>🪜 Steps: ⌈{heightIn}" ÷ {DECK_RISER_MAX_IN}"⌉ = <strong>{stepCount} steps</strong> at {SW} ft wide</p>
+        <p>🪵 Decking: {courses} rows × {boardLen} ft boards (spans {W} ft width) = <strong>{deckingLF} LF</strong> to purchase</p>
+      </div>
 
-        {/* Description preview */}
-        <div className="mt-4">
-          <p className="text-xs font-medium text-gray-500 mb-1">Scope description (auto-written)</p>
-          <p className="text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-2">{description}</p>
-        </div>
+      {/* Component table — each variable + its metric is editable */}
+      <div className="overflow-x-auto -mx-1 px-1">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-[10px] uppercase tracking-wider text-gray-400">
+              <th className="text-left font-semibold py-1">Component</th>
+              <th className="font-semibold py-1 w-20">Unit</th>
+              <th className="font-semibold py-1 w-24">Qty</th>
+              <th className="font-semibold py-1 w-24">Rate $</th>
+              <th className="font-semibold py-1 w-24">Cost $</th>
+              <th className="text-right font-semibold py-1 w-24">Line</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(r => (
+              <tr key={r.key} className="border-t border-gray-100">
+                <td className="py-1.5 pr-2 text-gray-700">{r.label}</td>
+                <td className="py-1.5 px-1">
+                  <select value={r.unit} disabled={r.flat} onChange={e => patch(r.key, { unit: e.target.value, qty: null })} className={cell}>
+                    {DECK_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </td>
+                <td className="py-1.5 px-1">
+                  <input type="number" value={Number(r.qty.toFixed(1))} disabled={r.flat}
+                    onChange={e => patch(r.key, { qty: parseFloat(e.target.value) || 0 })} className={cell} />
+                </td>
+                <td className="py-1.5 px-1">
+                  <input type="number" value={r.rate}
+                    onChange={e => patch(r.key, { rate: parseFloat(e.target.value) || 0, ...(r.key === 'decking' ? { fromBrand: false } : {}) })} className={cell} />
+                </td>
+                <td className="py-1.5 px-1">
+                  <input type="number" value={r.cost} onChange={e => patch(r.key, { cost: parseFloat(e.target.value) || 0 })} className={cell} />
+                </td>
+                <td className="py-1.5 pl-2 text-right font-medium text-gray-900 whitespace-nowrap">{money(r.line)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-        <div className="flex gap-2 mt-5">
-          <button onClick={add} disabled={price <= 0}
-            className="flex-1 py-2.5 bg-[var(--brand-600)] text-white text-sm font-medium rounded-lg hover:bg-[var(--brand-700)] disabled:opacity-40 transition-colors">
-            Add deck to quote — {money(price)}
-          </button>
-          <button onClick={onClose} className="flex-1 py-2.5 border border-gray-200 text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
-        </div>
+      {/* Totals */}
+      <div className="flex flex-wrap items-center justify-end gap-x-6 gap-y-1 mt-3 border-t border-gray-200 pt-3">
+        <span className="text-xs text-gray-400">Est. cost <span className="text-gray-600 font-medium">{money(cost)}</span></span>
+        <span className="text-xs text-gray-400">Margin <span className={marginPct >= 30 ? 'text-green-600 font-medium' : 'text-amber-600 font-medium'}>{marginPct.toFixed(0)}%</span></span>
+        <span className="text-sm text-gray-500">Price <span className="text-lg font-bold text-gray-900">{money(price)}</span></span>
+      </div>
+
+      {/* Description preview */}
+      <div className="mt-4">
+        <p className="text-xs font-medium text-gray-500 mb-1">Scope description (auto-written)</p>
+        <p className="text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-2">{description}</p>
+      </div>
+
+      <div className="flex gap-2 mt-5">
+        <button onClick={add} disabled={price <= 0}
+          className="flex-1 py-2.5 bg-[var(--brand-600)] text-white text-sm font-medium rounded-lg hover:bg-[var(--brand-700)] disabled:opacity-40 transition-colors">
+          Add deck to quote — {money(price)}
+        </button>
+        <button onClick={onClose} className="flex-1 py-2.5 border border-gray-200 text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
+      </div>
     </div>
   )
 }
