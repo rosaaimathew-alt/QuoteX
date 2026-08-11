@@ -18,14 +18,15 @@ MODE "tool" — a SINGLE parametric item: an open deck, OR an Eze-Breeze porch C
 MODE "catalog" — a NEW BUILD assembled from multiple catalog pieces:
 { "mode":"catalog", "width":ft, "depth":ft, "roofType":"gable"|"cathedral"|"shed"|null,
   "newBuild":true, "wallHeight":inches_or_null, "doors":n_or_null,
-  "items":[ { "kind":"structure"|"lvp"|"cable_rail"|"eze_breeze_windows"|"electrical_package"|"other",
+  "items":[ { "kind":"structure"|"lvp"|"floor"|"cable_rail"|"eze_breeze_windows"|"electrical_package"|"other",
               "text":"the phrase the contractor used",
               "match":"the EXACT name from CATALOG ITEMS that best fits, copied verbatim, or null" } ] }
 
 Rules:
 - "16 by 16", "16x16" → width 16, depth 16. First number = width.
 - A "gable/cathedral/shed roof Eze-Breeze porch" is a NEW BUILD → mode "catalog"; include BOTH a "structure" item AND an "eze_breeze_windows" item.
-- kind "lvp" ONLY when the floor is literally LVP / luxury vinyl plank. ANY other flooring (TimberTech, composite, wood, tile, etc.) → kind "other" and match it to its catalog item.
+- kind "lvp" ONLY when the floor is literally LVP / luxury vinyl plank.
+- kind "floor" for a composite/wood decking porch floor (TimberTech, Trex, PT wood, etc.) — match it to the porch-floor collection catalog item (often named "… Porch Floor Upgrade").
 - kind "cable_rail" only for cable railing. kind "electrical_package" for a standard electrical/lighting package. kind "eze_breeze_windows" for the Eze-Breeze window units. kind "structure" for the roofed porch shell.
 - EVERYTHING the contractor names must appear as an item. For anything not a known kind, use kind "other" and set "match" to the closest CATALOG ITEM name (or null if truly none fits).
 - Always set "match" to an exact catalog name when a reasonable one exists — this is how items get pulled. Omit fields not stated. Never invent prices or dimensions.`

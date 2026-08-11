@@ -42,6 +42,15 @@ function deckLayout(Wft, frameCourses) {
   return { frameCourses, fieldRun, splines, sections, sectionRun, boardFt }
 }
 
+// Linear feet of decking board to floor a W×D area — the SAME takeoff the deck
+// tool uses (rows across the depth × runs of stock length), flooring only. Porch
+// floors from a composite/wood collection are priced at that collection's $/LF.
+function floorDeckingLF(Wft, Dft) {
+  const { sections, boardFt } = deckLayout(Wft, 0)
+  const fieldRows = Math.ceil((Math.max(0, Dft) * 12) / DECK_BOARD_FACE_IN)
+  return fieldRows * sections * boardFt
+}
+
 function DeckAssemblyPanel({ onClose, onAdd, initial }) {
   const catalog = useStore(s => s.catalog)
   const rates   = useStore(s => s.deckComponentRates) || DECK_COMPONENT_DEFAULTS
@@ -886,6 +895,14 @@ export default function BuildQuote() {
         case 'lvp': {
           const item = matched || byName('lvp') || { name: 'LVP Floor as Porch Floor', unit: 'SF', category: 'General', description: 'Provide and install 3/4" plywood subfloor and underlayment, then install LVP flooring as porch floor.' }
           made.push(mkLine(item, { unit: 'SF', qty: area, unitPrice: PLAY_LVP_SF_RATE }))
+          break
+        }
+        case 'floor': {
+          // Composite/wood porch floor: same board takeoff as the deck, priced at
+          // the collection's own $/LF from its catalog item.
+          const item = matched || byName('porch floor')
+          if (item && Number(item.unitPrice) > 0) made.push(mkLine(item, { unit: 'LF', qty: floorDeckingLF(W, D), unitPrice: item.unitPrice }))
+          else missing.push('porch floor collection (no per-LF catalog item matched)')
           break
         }
         case 'cable_rail': {
