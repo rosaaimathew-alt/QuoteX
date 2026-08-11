@@ -921,6 +921,14 @@ export default function Analytics() {
   const proposals    = useStore(s => s.proposals)
   const PROJECT_TYPES = useStore(s => s.projectTypes)
   const [rangeMonths, setRangeMonths]   = useState(12)
+  const CURRENT_YEAR = new Date().getFullYear()
+  const [statsYear, setStatsYear]       = useState(CURRENT_YEAR)  // stat cards default to this year
+  const statsYears = useMemo(() => {
+    const ys = new Set([CURRENT_YEAR])
+    proposals.forEach(p => { const y = new Date(p.closedAt || p.createdAt || p.sentAt).getFullYear(); if (!Number.isNaN(y)) ys.add(y) })
+    return [...ys].sort((a, b) => b - a)
+  }, [proposals])
+  const periodLabel = statsYear === 'all' ? 'all time' : statsYear === CURRENT_YEAR ? `${statsYear} YTD` : String(statsYear)
   const [activeTypes, setActiveTypes]   = useState(new Set(['Total', 'Appointments']))
   const [managingTypes, setManagingTypes] = useState(false)
   const [remapping, setRemapping] = useState(false)
@@ -930,12 +938,18 @@ export default function Analytics() {
   const [showReasons, setShowReasons] = useState(false)
 
   const { stats, trendMonths, allTypes } = useMemo(() => {
-    const won  = proposals.filter(p => p.status === 'Won')
-    const lost = proposals.filter(p => p.status !== 'Won')
+    // Period scope: revenue counts the year a deal WON (closedAt); win-rate &
+    // appointments count the year the estimate was DONE (createdAt). 'all' = all time.
+    const yWon  = (p) => new Date(p.closedAt || p.createdAt || p.sentAt || Date.now()).getFullYear()
+    const yRoot = (p) => new Date(p.createdAt || p.sentAt || p.closedAt || Date.now()).getFullYear()
+    const inYear = (y) => statsYear === 'all' || y === statsYear
 
-    // Client-group win rate — same formula as Dashboard and ProposalTracker
+    const won  = proposals.filter(p => p.status === 'Won' && inYear(yWon(p)))
+    const lost = proposals.filter(p => p.status !== 'Won' && inYear(yRoot(p)))
+
+    // Client-group win rate — root estimates (appointments) done in the period
     const ids    = new Set(proposals.map(p => p.id))
-    const roots  = proposals.filter(p => !p.parentId || !ids.has(p.parentId))
+    const roots  = proposals.filter(p => (!p.parentId || !ids.has(p.parentId)) && inYear(yRoot(p)))
     const groups = roots.map(root => {
       const all = [root, ...proposals.filter(p => p.parentId === root.id)]
       return all.some(p => p.status === 'Won')
@@ -979,7 +993,7 @@ export default function Analytics() {
       trendMonths: [],
       allTypes,
     }
-  }, [proposals])
+  }, [proposals, statsYear])
 
   // Build trend months separately (depends on rangeMonths)
   const trendData = useMemo(() => {
@@ -1037,12 +1051,27 @@ export default function Analytics() {
         <p className="text-sm text-gray-400 mt-0.5">Business performance &amp; seasonality across all proposals</p>
       </div>
 
-      {/* Summary cards */}
+      {/* Summary cards — scoped to the selected period (defaults to this year) */}
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Performance · {periodLabel}</p>
+        <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5 flex-wrap">
+          {statsYears.map(y => (
+            <button key={y} onClick={() => setStatsYear(y)}
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${statsYear === y ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+              {y}{y === CURRENT_YEAR ? ' (YTD)' : ''}
+            </button>
+          ))}
+          <button onClick={() => setStatsYear('all')}
+            className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${statsYear === 'all' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+            All time
+          </button>
+        </div>
+      </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <StatCard icon={DollarSign} label="Total Revenue"  value={`$${fmt(stats.totalRevenue)}`} sub={`${stats.won.length} jobs won`} color="green" />
-        <StatCard icon={Target}     label="Win Rate"       value={`${stats.winRate.toFixed(0)}%`} sub={`${stats.won.length}W · ${stats.lost.length} not won · ${stats.totalClients} clients · all time`} color="blue" />
-        <StatCard icon={Award}      label="Avg Deal Size"  value={`$${fmt(stats.avgDeal)}`}       sub="per won job" color="amber" />
-        <StatCard icon={TrendingUp} label="Pipeline"       value={`$${fmt(stats.pipelineValue)}`} sub="active proposals" color="blue" />
+        <StatCard icon={DollarSign} label="Total Revenue"  value={`$${fmt(stats.totalRevenue)}`} sub={`${stats.won.length} jobs won · ${periodLabel}`} color="green" />
+        <StatCard icon={Target}     label="Win Rate"       value={`${stats.winRate.toFixed(0)}%`} sub={`${stats.won.length}W · ${stats.lost.length} not won · ${stats.totalClients} clients · ${periodLabel}`} color="blue" />
+        <StatCard icon={Award}      label="Avg Deal Size"  value={`$${fmt(stats.avgDeal)}`}       sub={`per won job · ${periodLabel}`} color="amber" />
+        <StatCard icon={TrendingUp} label="Pipeline"       value={`$${fmt(stats.pipelineValue)}`} sub="active proposals (now)" color="blue" />
       </div>
 
       {/* Revenue Trend */}
