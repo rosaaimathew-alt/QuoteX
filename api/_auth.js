@@ -4,7 +4,12 @@ import { createHmac, timingSafeEqual } from 'crypto'
 // Token format: base64(payloadJson) + '.' + hmacSha256(secret, payloadJson)
 export function verifyToken(token) {
   if (!token || typeof token !== 'string') return null
-  const secret = process.env.SESSION_SECRET || 'dev-secret-change-me'
+  // In production a real SESSION_SECRET is mandatory. If it is missing we must
+  // NEVER fall back to a known/default secret — that would let anyone forge
+  // tokens. Treat the missing-secret case as unauthorized instead.
+  const isProd = process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production'
+  const secret = process.env.SESSION_SECRET || (isProd ? null : 'dev-secret-change-me')
+  if (!secret) return null
   const dot = token.lastIndexOf('.')
   if (dot < 1) return null
   const b64 = token.slice(0, dot)

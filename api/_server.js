@@ -38,7 +38,11 @@ app.post('/api/auth/login', (req, res) => {
   const { email, password } = req.body || {}
   const adminEmail    = process.env.ADMIN_EMAIL
   const adminPassword = process.env.ADMIN_PASSWORD
-  const secret        = process.env.SESSION_SECRET || 'dev-secret-change-me'
+  // This is the LOCAL dev server, so a dev fallback is acceptable — but still
+  // prefer a real SESSION_SECRET, and never allow the known default in prod.
+  const isProd = process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production'
+  const secret = process.env.SESSION_SECRET || (isProd ? null : 'dev-secret-change-me')
+  if (!secret) return res.status(500).json({ error: 'Auth not configured' })
   if (!adminEmail || !adminPassword) return res.status(500).json({ error: 'Auth not configured' })
   if (email?.toLowerCase() === adminEmail.toLowerCase() && password === adminPassword) {
     const payload = JSON.stringify({ email, exp: Date.now() + 30 * 24 * 60 * 60 * 1000 })

@@ -41,9 +41,11 @@ export default function ProposalView() {
           phone: parsed.phone,
           address: parsed.address,
           expiration: parsed.expiration,
-          total: parsed.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0),
+          total: parsed.lines.reduce((s, l) => s + (Number(l.qty) || 0) * (Number(l.unitPrice) || 0), 0),
           lines: parsed.lines,
           isAlaCarte: parsed.isAlaCarte || false,
+          showBreakdown: parsed.showBreakdown,
+          margin: parsed.margin,
           projectTypes: parsed.projectTypes || [],
           projectSummary: parsed.projectSummary || '',
           status: 'Draft',
@@ -68,7 +70,7 @@ export default function ProposalView() {
   }
 
   const { client, email, phone, address, expiration, lines, isAlaCarte, showBreakdown = true } = data
-  const subtotal = lines.reduce((s, l) => s + l.qty * l.unitPrice, 0)
+  const subtotal = lines.reduce((s, l) => s + (Number(l.qty) || 0) * (Number(l.unitPrice) || 0), 0)
   const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
   const expirationFormatted = expiration
     ? new Date(expiration + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -341,7 +343,7 @@ export default function ProposalView() {
               <div key={line.id} className="border-l-2 border-gray-100 pl-3">
                 <p className="text-sm font-semibold text-gray-800">{line.name}</p>
                 {line.description && (
-                  <p className="text-sm text-gray-500 leading-relaxed mt-0.5">{line.description}</p>
+                  <p className="text-sm text-gray-500 leading-relaxed mt-0.5 whitespace-pre-wrap">{line.description}</p>
                 )}
               </div>
             ))}
@@ -368,10 +370,10 @@ export default function ProposalView() {
               </tr>
             </thead>
             <tbody>
-              {showBreakdown ? lines.map((line, i) => (
+              {(showBreakdown || isAlaCarte) ? lines.map((line, i) => (
                 <tr key={line.id} className={`border-b border-gray-50 ${i % 2 === 0 ? '' : 'bg-gray-50'}`}>
                   <td className="py-2.5 text-gray-800 font-medium">{line.name || '—'}</td>
-                  <td className="py-2.5 text-right font-semibold text-gray-900">${fmt(line.qty * line.unitPrice)}</td>
+                  <td className="py-2.5 text-right font-semibold text-gray-900">${fmt((Number(line.qty) || 0) * (Number(line.unitPrice) || 0))}</td>
                   {isAlaCarte && (
                     <td className="py-2.5 text-right">
                       <span className="inline-block w-4 h-4 border border-gray-400 rounded-sm" />

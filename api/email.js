@@ -31,8 +31,8 @@ function buildProposalHtml({ client, email, address, expiration, lines, companyN
     ? new Date(expiration + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     : null
   const subtotal = (lines || []).reduce((s, l) => s + (l.qty || 1) * (l.unitPrice || 0), 0)
-  const company  = companyName || 'Ebony Outdoor Living'
-  const sender   = fromName   || company
+  const company  = esc(companyName || 'Ebony Outdoor Living')
+  const sender   = esc(fromName) || company
   const lineRows = (lines || []).map((l, i) => `
     <tr style="background:${i % 2 === 0 ? '#ffffff' : '#f8fafc'};">
       <td style="padding:10px 16px;font-size:13px;color:#1e293b;font-weight:500;border-bottom:1px solid #f1f5f9;">${esc(l.name) || '—'}</td>
@@ -48,7 +48,7 @@ function buildProposalHtml({ client, email, address, expiration, lines, companyN
         <p style="margin:6px 0 0;font-size:13px;color:#94a3b8;">Proposal · ${today}</p>
       </td></tr>
       <tr><td style="padding:32px 40px 24px;">
-        <p style="margin:0 0 12px;font-size:15px;color:#1e293b;">Hi ${client || 'there'},</p>
+        <p style="margin:0 0 12px;font-size:15px;color:#1e293b;">Hi ${esc(client) || 'there'},</p>
         <p style="margin:0;font-size:14px;color:#475569;line-height:1.7;">
           Thank you for the opportunity to work with you. Please find your project proposal below.
           ${expirationFormatted ? `This proposal is valid until <strong>${expirationFormatted}</strong>.` : ''}
@@ -58,7 +58,7 @@ function buildProposalHtml({ client, email, address, expiration, lines, companyN
       ${address ? `<tr><td style="padding:0 40px 20px;">
         <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:8px;padding:16px;">
           <tr><td style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;padding-bottom:8px;">Project Address</td></tr>
-          <tr><td style="font-size:14px;color:#1e293b;">${address}</td></tr>
+          <tr><td style="font-size:14px;color:#1e293b;">${esc(address)}</td></tr>
         </table>
       </td></tr>` : ''}
       <tr><td style="padding:0 40px;"><hr style="border:none;border-top:1px solid #e2e8f0;margin:0;"></td></tr>
@@ -87,7 +87,7 @@ function buildProposalHtml({ client, email, address, expiration, lines, companyN
       <tr><td style="background:#f8fafc;padding:20px 40px;border-top:1px solid #e2e8f0;">
         <p style="margin:0;font-size:12px;color:#94a3b8;">
           Sent by <strong style="color:#475569;">${sender}</strong> via ${company}
-          ${email ? ` · <a href="mailto:${email}" style="color:#3b82f6;text-decoration:none;">${email}</a>` : ''}
+          ${email ? ` · <a href="mailto:${email}" style="color:#3b82f6;text-decoration:none;">${esc(email)}</a>` : ''}
         </p>
       </td></tr>
     </table>
@@ -111,15 +111,15 @@ function buildReminderHtml({ client, amount, milestone, dueDate, contractNum, ad
         <p style="margin:6px 0 0;font-size:13px;color:#94a3b8;">Payment Reminder</p>
       </td></tr>
       <tr><td style="padding:32px 40px 24px;">
-        <p style="margin:0 0 16px;font-size:15px;color:#1e293b;">Hi ${client || 'there'},</p>
+        <p style="margin:0 0 16px;font-size:15px;color:#1e293b;">Hi ${esc(client) || 'there'},</p>
         <p style="margin:0 0 16px;font-size:14px;color:#475569;line-height:1.7;">
           This is a friendly reminder that a payment is due for your ongoing project with ${company}.
         </p>
         <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:10px;padding:20px 24px;margin-bottom:20px;">
-          ${contractNum ? `<tr><td style="padding:4px 0;font-size:12px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Contract</td><td style="padding:4px 0;font-size:13px;color:#1e293b;font-weight:600;text-align:right;">${contractNum}</td></tr>` : ''}
-          ${address ? `<tr><td style="padding:4px 0;font-size:12px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Project Address</td><td style="padding:4px 0;font-size:13px;color:#1e293b;text-align:right;">${address}</td></tr>` : ''}
-          ${projectType ? `<tr><td style="padding:4px 0;font-size:12px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Project Type</td><td style="padding:4px 0;font-size:13px;color:#1e293b;text-align:right;">${projectType}</td></tr>` : ''}
-          ${milestone ? `<tr><td style="padding:4px 0;font-size:12px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Payment Milestone</td><td style="padding:4px 0;font-size:13px;color:#1e293b;text-align:right;">${milestone}</td></tr>` : ''}
+          ${contractNum ? `<tr><td style="padding:4px 0;font-size:12px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Contract</td><td style="padding:4px 0;font-size:13px;color:#1e293b;font-weight:600;text-align:right;">${esc(contractNum)}</td></tr>` : ''}
+          ${address ? `<tr><td style="padding:4px 0;font-size:12px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Project Address</td><td style="padding:4px 0;font-size:13px;color:#1e293b;text-align:right;">${esc(address)}</td></tr>` : ''}
+          ${projectType ? `<tr><td style="padding:4px 0;font-size:12px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Project Type</td><td style="padding:4px 0;font-size:13px;color:#1e293b;text-align:right;">${esc(projectType)}</td></tr>` : ''}
+          ${milestone ? `<tr><td style="padding:4px 0;font-size:12px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Payment Milestone</td><td style="padding:4px 0;font-size:13px;color:#1e293b;text-align:right;">${esc(milestone)}</td></tr>` : ''}
           ${dueLine ? `<tr><td style="padding:4px 0;font-size:12px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Due Date</td><td style="padding:4px 0;font-size:13px;color:#dc2626;font-weight:700;text-align:right;">${dueLine}</td></tr>` : ''}
           ${amount ? `<tr><td style="padding:12px 0 0;border-top:1px solid #e2e8f0;" colspan="2">
             <span style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;font-weight:700;">Amount Due</span>
@@ -158,12 +158,12 @@ function buildFollowupHtml({ client, total, address, projectType, sentDaysAgo, e
         <p style="margin:6px 0 0;font-size:13px;color:#94a3b8;">Proposal Follow-Up</p>
       </td></tr>
       <tr><td style="padding:32px 40px 24px;">
-        <p style="margin:0 0 16px;font-size:15px;color:#1e293b;">Hi ${client || 'there'},</p>
+        <p style="margin:0 0 16px;font-size:15px;color:#1e293b;">Hi ${esc(client) || 'there'},</p>
         <p style="margin:0 0 16px;font-size:14px;color:#475569;line-height:1.7;">${ctaText}</p>
         <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:10px;padding:20px 24px;margin-bottom:20px;">
-          ${contractNum ? `<tr><td style="padding:4px 0;font-size:12px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Quote #</td><td style="padding:4px 0;font-size:13px;color:#1e293b;font-weight:600;text-align:right;">${contractNum}</td></tr>` : ''}
-          ${address ? `<tr><td style="padding:4px 0;font-size:12px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Project Address</td><td style="padding:4px 0;font-size:13px;color:#1e293b;text-align:right;">${address}</td></tr>` : ''}
-          ${projectType ? `<tr><td style="padding:4px 0;font-size:12px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Project</td><td style="padding:4px 0;font-size:13px;color:#1e293b;text-align:right;">${projectType}</td></tr>` : ''}
+          ${contractNum ? `<tr><td style="padding:4px 0;font-size:12px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Quote #</td><td style="padding:4px 0;font-size:13px;color:#1e293b;font-weight:600;text-align:right;">${esc(contractNum)}</td></tr>` : ''}
+          ${address ? `<tr><td style="padding:4px 0;font-size:12px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Project Address</td><td style="padding:4px 0;font-size:13px;color:#1e293b;text-align:right;">${esc(address)}</td></tr>` : ''}
+          ${projectType ? `<tr><td style="padding:4px 0;font-size:12px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Project</td><td style="padding:4px 0;font-size:13px;color:#1e293b;text-align:right;">${esc(projectType)}</td></tr>` : ''}
           ${expiryLine ? `<tr><td style="padding:4px 0;font-size:12px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Proposal Valid Until</td><td style="padding:4px 0;font-size:13px;color:#dc2626;font-weight:700;text-align:right;">${expiryLine}</td></tr>` : ''}
           ${total ? `<tr><td style="padding:12px 0 0;border-top:1px solid #e2e8f0;" colspan="2">
             <span style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;font-weight:700;">Proposal Total</span>
@@ -201,13 +201,13 @@ function buildCloseoutHtml({ client, contractNum, address, projectType, completi
         <p style="margin:6px 0 0;font-size:13px;color:#6ee7b7;">Project Complete ✓</p>
       </td></tr>
       <tr><td style="padding:32px 40px 24px;">
-        <p style="margin:0 0 16px;font-size:15px;color:#1e293b;">Hi ${client || 'there'},</p>
+        <p style="margin:0 0 16px;font-size:15px;color:#1e293b;">Hi ${esc(client) || 'there'},</p>
         <p style="margin:0 0 16px;font-size:14px;color:#475569;line-height:1.7;">
           We're thrilled to let you know that your project has been completed on <strong>${completionFormatted}</strong>.
           It was a genuine pleasure working with you, and we hope you love the final result!
         </p>
-        ${address ? `<p style="margin:0 0 16px;font-size:13px;color:#64748b;">Project address: <strong>${address}</strong></p>` : ''}
-        ${projectType ? `<p style="margin:0 0 16px;font-size:13px;color:#64748b;">Project type: <strong>${projectType}</strong></p>` : ''}
+        ${address ? `<p style="margin:0 0 16px;font-size:13px;color:#64748b;">Project address: <strong>${esc(address)}</strong></p>` : ''}
+        ${projectType ? `<p style="margin:0 0 16px;font-size:13px;color:#64748b;">Project type: <strong>${esc(projectType)}</strong></p>` : ''}
         <p style="margin:0;font-size:14px;color:#475569;line-height:1.7;">
           If you have any warranty concerns down the road, don't hesitate to reach out — we stand behind our work.
           And if you know anyone looking for outdoor living improvements, a referral is the greatest compliment we can receive!
@@ -266,10 +266,10 @@ export default async function handler(req, res) {
     <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;">
       <tr><td style="background:#0f172a;padding:32px 40px;">
         <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;">Ebony Outdoor Living</p>
-        <p style="margin:6px 0 0;font-size:13px;color:#94a3b8;">Change Order · ${coNumber}</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#94a3b8;">Change Order · ${esc(coNumber)}</p>
       </td></tr>
       <tr><td style="padding:32px 40px;">
-        <p style="margin:0 0 12px;font-size:15px;color:#1e293b;">Hi ${client || 'there'},</p>
+        <p style="margin:0 0 12px;font-size:15px;color:#1e293b;">Hi ${esc(client) || 'there'},</p>
         <p style="margin:0 0 20px;font-size:14px;color:#475569;line-height:1.7;">
           We have a change order for your project that requires your signature. Please review the details below and sign at your earliest convenience.
         </p>
@@ -316,15 +316,15 @@ export default async function handler(req, res) {
   if (!recipientEmail) return res.status(400).json({ error: 'Recipient email is required.' })
 
   const isReply = !!replyText
-  const company = proposal?.companyName || 'Ebony Outdoor Living'
-  const sender  = fromName || company
+  const company = esc(proposal?.companyName || 'Ebony Outdoor Living')
+  const sender  = esc(fromName) || company
 
   let html, subject
   if (isReply) {
     html    = `<div style="font-family:-apple-system,sans-serif;font-size:14px;line-height:1.6;color:#1e293b;max-width:600px;margin:0 auto;padding:24px;">${replyText.replace(/\n/g, '<br>')}</div>`
     subject = customSubject || `Re: Your Proposal`
   } else if (pdfBase64) {
-    const client  = proposal?.client || 'there'
+    const client  = esc(proposal?.client) || 'there'
     const expLine = proposal?.expiration
       ? `This proposal is valid until <strong>${new Date(proposal.expiration + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</strong>.`
       : ''
@@ -348,7 +348,7 @@ export default async function handler(req, res) {
   <tr><td style="background:#f8fafc;padding:20px 40px;border-top:1px solid #e2e8f0;">
     <p style="margin:0;font-size:12px;color:#94a3b8;">
       Sent by <strong style="color:#475569;">${sender}</strong>
-      ${fromEmail ? ` · <a href="mailto:${fromEmail}" style="color:#3b82f6;text-decoration:none;">${fromEmail}</a>` : ''}
+      ${fromEmail ? ` · <a href="mailto:${fromEmail}" style="color:#3b82f6;text-decoration:none;">${esc(fromEmail)}</a>` : ''}
     </p>
   </td></tr>
 </table></td></tr></table></body></html>`

@@ -118,6 +118,20 @@ function _mergeProposals(server = [], local = []) {
   return [...map.values()]
 }
 
+// Pick the customized side of a singleton slice (a rate map, a lock flag, a scope
+// string). Prefer the local value when it exists and differs from the factory
+// default; otherwise take the server value if it's been customized; otherwise fall
+// back to whichever value is present (default last). Keeps a second device's
+// untouched defaults from overwriting rates a manager actually set.
+function _preferCustomized(local, server, def) {
+  const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b)
+  if (local !== undefined && !eq(local, def)) return local
+  if (server !== undefined && !eq(server, def)) return server
+  if (local !== undefined) return local
+  if (server !== undefined) return server
+  return def
+}
+
 // Merge two persisted store strings ({state, version}) into one. Union of all
 // record lists (proposals newest-wins), max of id counters. Never loses data.
 export function mergeStoreStrings(serverStr, localStr) {
@@ -139,6 +153,19 @@ export function mergeStoreStrings(serverStr, localStr) {
   merged.financeCards     = _unionById(s.financeCards, l.financeCards)
   merged.expenses         = _unionById(s.expenses, l.expenses, true)
   merged.jobCosts         = { ...(s.jobCosts || {}), ...(l.jobCosts || {}) }
+  // Manager-set deck/porch pricing. Without these explicit merges the wholesale
+  // {...s, ...l} above lets a second device's untouched defaults win, silently
+  // resetting customized rates on cross-device sync. Union the custom-component
+  // lists by id (keep both devices' lines); for the rate maps, lock flags and
+  // scope strings prefer the customized (non-default) side.
+  merged.deckCustomComponents  = _unionById(s.deckCustomComponents,  l.deckCustomComponents)
+  merged.porchCustomComponents = _unionById(s.porchCustomComponents, l.porchCustomComponents)
+  merged.deckComponentRates  = _preferCustomized(l.deckComponentRates,  s.deckComponentRates,  DECK_COMPONENT_DEFAULTS)
+  merged.porchComponentRates = _preferCustomized(l.porchComponentRates, s.porchComponentRates, PORCH_COMPONENT_DEFAULTS)
+  merged.deckFormulaLocked   = _preferCustomized(l.deckFormulaLocked,   s.deckFormulaLocked,   false)
+  merged.porchFormulaLocked  = _preferCustomized(l.porchFormulaLocked,  s.porchFormulaLocked,  false)
+  merged.deckScopeTemplate   = _preferCustomized(l.deckScopeTemplate,   s.deckScopeTemplate,   DECK_SCOPE_DEFAULT)
+  merged.porchScopeTemplate  = _preferCustomized(l.porchScopeTemplate,  s.porchScopeTemplate,  PORCH_SCOPE_DEFAULT)
   for (const k of ['nextCatalogId', 'nextProposalId', 'nextTemplateId', 'nextScopeTemplateId', 'nextPaymentScheduleId', 'nextSubId']) {
     const v = Math.max(Number(s[k]) || 0, Number(l[k]) || 0)
     if (v) merged[k] = v
@@ -303,6 +330,21 @@ export const PORCH_COMPONENT_DEFAULTS = {
   finishing: { label: 'Paint, seal & refinish',     unit: 'LS', rate: 1500, cost: 800 },  // flat per porch
 }
 
+// Standard open-deck scope of work (materials & methods) — one bullet per line.
+// The builder prepends the deck size and appends option lines (decking brand,
+// railing, stairs, fascia, border…) so the customer sees the build, not our math.
+export const DECK_SCOPE_DEFAULT = [
+  'Set concrete block footers and install 6×6 support posts and beams, sized as required.',
+  'Frame with 2×10 pressure-treated floor joists at 12" on center.',
+  'Purchase and apply FastenMaster framing coating tape to all joists and beams.',
+].join('\n')
+
+export const PORCH_SCOPE_DEFAULT = [
+  'Install 6×6 pressure-treated support columns with top and bottom plates between each opening.',
+  'Install Eze-Breeze 4-track vinyl window units.',
+  'Paint, seal, and refinish the enclosed porch.',
+].join('\n')
+
 // One-time cleanup: an earlier build injected "Deck Components" catalog items
 // (tagged `deckComp`). That approach was dropped in favor of the Deck Pricing
 // editor, so strip those orphaned rows from any catalog on load.
@@ -460,11 +502,7 @@ export const useStore = create(
       // Standard open-deck scope of work (materials & methods) — one bullet per line.
       // The builder prepends the deck size and appends option lines (decking brand,
       // railing, stairs, fascia, border…) so the customer sees the build, not our math.
-      deckScopeTemplate: [
-        'Set concrete block footers and install 6×6 support posts and beams, sized as required.',
-        'Frame with 2×10 pressure-treated floor joists at 12" on center.',
-        'Purchase and apply FastenMaster framing coating tape to all joists and beams.',
-      ].join('\n'),
+      deckScopeTemplate: DECK_SCOPE_DEFAULT,
       setDeckScopeTemplate: (t) => set({ deckScopeTemplate: t }),
 
       // ── Porch Conversion (Eze-Breeze) formula — mirrors the deck slices ──────
@@ -499,11 +537,7 @@ export const useStore = create(
       porchFormulaLocked: false,
       setPorchFormulaLocked: (locked) => set({ porchFormulaLocked: !!locked }),
 
-      porchScopeTemplate: [
-        'Install 6×6 pressure-treated support columns with top and bottom plates between each opening.',
-        'Install Eze-Breeze 4-track vinyl window units.',
-        'Paint, seal, and refinish the enclosed porch.',
-      ].join('\n'),
+      porchScopeTemplate: PORCH_SCOPE_DEFAULT,
       setPorchScopeTemplate: (t) => set({ porchScopeTemplate: t }),
 
       // ── Catalog categories (user-editable) ───────────────────────────────
@@ -1466,6 +1500,16 @@ export const useStore = create(
           scopeExamples:      persisted?.scopeExamples      || [],
           jobCosts:           persisted?.jobCosts           || {},
           standaloneChangeOrders: persisted?.standaloneChangeOrders || [],
+          // Manager-set deck/porch pricing — carry through so a version bump
+          // never resets customized rates, custom lines, locks, or scope text.
+          deckComponentRates:  persisted?.deckComponentRates  ?? JSON.parse(JSON.stringify(DECK_COMPONENT_DEFAULTS)),
+          porchComponentRates: persisted?.porchComponentRates ?? JSON.parse(JSON.stringify(PORCH_COMPONENT_DEFAULTS)),
+          deckCustomComponents:  persisted?.deckCustomComponents  ?? [],
+          porchCustomComponents: persisted?.porchCustomComponents ?? [],
+          deckFormulaLocked:  persisted?.deckFormulaLocked  ?? false,
+          porchFormulaLocked: persisted?.porchFormulaLocked ?? false,
+          deckScopeTemplate:  persisted?.deckScopeTemplate  ?? DECK_SCOPE_DEFAULT,
+          porchScopeTemplate: persisted?.porchScopeTemplate ?? PORCH_SCOPE_DEFAULT,
           catalogCategories:  persisted?.catalogCategories  || [
             'Fencing','Gates','Demo','Materials','Labor','Framing','Concrete','Electrical',
             'Plumbing','Roofing','Flooring','Drywall','Painting','HVAC','Windows','Doors',

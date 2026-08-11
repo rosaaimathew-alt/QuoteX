@@ -26,7 +26,22 @@ export default async function handler(req, res) {
     if (!code) return res.status(400).send('Missing code')
     try {
       const redirectUrl = await handleCallback(code, state)
-      return res.redirect(`${redirectUrl}?google=connected`)
+      const reqHost = req.headers['x-forwarded-host'] || req.headers.host
+      let safe = false
+      if (typeof redirectUrl === 'string' && redirectUrl) {
+        if (redirectUrl.startsWith('/') && !redirectUrl.startsWith('//')) {
+          safe = true
+        } else {
+          try {
+            const parsed = new URL(redirectUrl)
+            if (parsed.host === reqHost) safe = true
+          } catch {
+            safe = false
+          }
+        }
+      }
+      if (safe) return res.redirect(`${redirectUrl}?google=connected`)
+      return res.redirect('/settings?google=connected')
     } catch (err) {
       return res.redirect(`/settings?google=error&msg=${encodeURIComponent(err.message)}`)
     }

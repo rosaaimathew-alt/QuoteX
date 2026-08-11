@@ -23,9 +23,17 @@ export default async function handler(req, res) {
 
   if (req.method === 'POST') {
     try {
-      const { value } = req.body
+      const { value } = req.body || {}
+      if (typeof value !== 'string') return res.status(400).json({ error: 'Invalid payload' })
+      let parsed
+      try {
+        parsed = JSON.parse(value)
+      } catch {
+        return res.status(400).json({ error: 'Invalid payload' })
+      }
+      if (typeof parsed !== 'object' || parsed === null) return res.status(400).json({ error: 'Invalid payload' })
       const kv = await getKV()
-      await kv.set(KV_KEY, JSON.parse(value))
+      await kv.set(KV_KEY, parsed)
       return res.status(200).json({ ok: true })
     } catch (err) {
       return res.status(500).json({ error: err.message })

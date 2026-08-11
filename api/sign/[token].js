@@ -13,7 +13,7 @@ export default async function handler(req, res) {
 
   // Admin actions (create links / recover links / look up by contract number)
   // require a signed-in operator. Client signing via role tokens stays public.
-  const isAdminAction = token === 'create' || token.startsWith('recover-') || token.startsWith('lookup-')
+  const isAdminAction = token === 'create' || token.startsWith('recover-') || token.startsWith('lookup-') || token.startsWith('record-')
   if (isAdminAction) {
     const header = req.headers.authorization || ''
     const bearer = header.startsWith('Bearer ') ? header.slice(7) : (req.headers['x-qx-token'] || null)
@@ -26,8 +26,6 @@ export default async function handler(req, res) {
       ok: true,
       ts: new Date().toISOString(),
       version: 'recovery-v1',
-      hasKvUrl: !!(process.env.KV_URL || process.env.KV_REST_API_URL),
-      env: process.env.VERCEL_ENV || 'local',
     })
   }
 

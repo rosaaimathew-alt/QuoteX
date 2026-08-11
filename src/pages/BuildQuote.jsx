@@ -165,7 +165,7 @@ function DeckAssemblyPanel({ onClose, onAdd, initial }) {
         const base = unit === 'LF' ? deckingLF : unit === 'SF' ? area : unit === 'EA' ? fieldRows : 1
         return borderCourses > 0 ? Math.ceil(base * (1 + fieldWastePct / 100)) : base  // border adds field cut-in waste
       }
-      case 'stairs':     return unit === 'EA' ? stepCount : unit === 'LF' ? treadLF : unit === 'SF' ? treadLF : 1
+      case 'stairs':     return unit === 'EA' ? stepCount : unit === 'LF' ? treadLF : unit === 'SF' ? 1 : 1
       case 'treads':     return unit === 'LF' ? treadDeckingLF : unit === 'EA' ? stepCount * DECK_TREAD_BOARDS : 1  // decking on stair treads
       case 'railing':    return unit === 'LF' ? perimeter : unit === 'EA' ? 4 : 1
       case 'landing':    return unit === 'EA' ? LA : unit === 'SF' ? LA * 16 : 1
@@ -233,7 +233,7 @@ function DeckAssemblyPanel({ onClose, onAdd, initial }) {
   useEffect(() => {
     setComps(cs => cs.map(c => c.fromBrand
       ? { ...c, rate: brandRate, cost: brandCost } : c))
-  }, [brandRate])
+  }, [brandRate, brandCost])
   // Fascia (rim + risers) follows the selected collection's own fascia price.
   useEffect(() => {
     setComps(cs => cs.map(c => c.fromFascia
@@ -742,16 +742,18 @@ export default function BuildQuote() {
     const raw = sessionStorage.getItem('revise-proposal')
     if (raw) {
       sessionStorage.removeItem('revise-proposal')
-      const d = JSON.parse(raw)
-      setClient(d.client || '')
-      setEmail(d.email || '')
-      setPhone(d.phone || '')
-      setAddress(d.address || '')
-      setExpiration(d.expiration || '')
-      setLines((d.lines || []).map(l => ({ ...l, id: Date.now() + Math.random() })))
-      if (d.showBreakdown !== undefined) setShowBreakdown(d.showBreakdown)
-      setRevisingParentId(d.parentId || null)
-      return
+      try {
+        const d = JSON.parse(raw)
+        setClient(d.client || '')
+        setEmail(d.email || '')
+        setPhone(d.phone || '')
+        setAddress(d.address || '')
+        setExpiration(d.expiration || '')
+        setLines((d.lines || []).map(l => ({ ...l, id: Date.now() + Math.random() })))
+        if (d.showBreakdown !== undefined) setShowBreakdown(d.showBreakdown)
+        setRevisingParentId(d.parentId || null)
+        return
+      } catch {}
     }
     const draft = localStorage.getItem(DRAFT_KEY)
     if (!draft) return
@@ -854,6 +856,7 @@ export default function BuildQuote() {
     const wantsDeck = /on\s+(?:a\s+|the\s+|top\s+of\s+a?\s*)?(?:pt[-\s]?wood\s+)?deck|elevated|raised\s+porch|on\s+stilts/i.test(rawText)
 
     const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+    const escapeRegExp = (s) => String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const byExact = (name) => { const n = norm(name); return n ? catalogRaw.find(c => norm(c.name) === n) : null }
     const byName = (frag) => { const f = norm(frag); return f ? catalogRaw.find(c => norm(c.name).includes(f)) : null }
     const made = []
@@ -877,7 +880,7 @@ export default function BuildQuote() {
       const matched = it.match ? (byExact(it.match) || byName(it.match)) : null
       switch (it.kind) {
         case 'structure': {
-          const cands = catalogRaw.filter(c => /porch/i.test(c.name || '') && (!roof || new RegExp(roof, 'i').test(c.name || '')))
+          const cands = catalogRaw.filter(c => /porch/i.test(c.name || '') && (!roof || new RegExp(escapeRegExp(roof), 'i').test(c.name || '')))
           const sized = cands.filter(c => { const raw = norm(c.name); return raw.includes(norm(`${W}x${D}`)) || raw.includes(norm(`${D}x${W}`)) })
           const pool = sized.length ? sized : cands
           const isDeck = (c) => /deck/i.test(c.name || '')
@@ -919,7 +922,7 @@ export default function BuildQuote() {
         }
         case 'electrical_package': {
           // Span rule wins: >20' → the larger package, else the standard one.
-          const cands = catalogRaw.filter(c => /electric/i.test(c.name || ''))
+          const cands = catalogRaw.filter(c => { const nm = c.name || ''; return /electric/i.test(nm) && !/compliance|heater|6\s*\/\s*12/i.test(nm) })
           if (cands.length) {
             const target = span > PLAY_ELEC_SPAN_FT ? 3810 : 2900
             const pick = cands.reduce((b, c) => Math.abs((c.unitPrice || 0) - target) < Math.abs((b.unitPrice || 0) - target) ? c : b, cands[0])
@@ -977,7 +980,7 @@ export default function BuildQuote() {
   }
 
   const addBlankLine = () => setLines(prev => [...prev, {
-    id: Date.now(),
+    id: Date.now() + Math.random(),
     catalogId: null,
     name: '',
     section: '',
