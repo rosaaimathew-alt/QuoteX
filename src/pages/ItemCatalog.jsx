@@ -4,7 +4,7 @@ import {
   ChevronDown, ChevronRight, LayoutList, Rows3,
   Sparkles, Loader, MoveRight, Settings2, Pencil, Lock, Unlock,
 } from 'lucide-react'
-import { useStore, DECK_COMPONENT_DEFAULTS } from '../store'
+import { useStore, DECK_COMPONENT_DEFAULTS, PORCH_COMPONENT_DEFAULTS } from '../store'
 import { getModel } from '../gemini'
 
 const AI_CHAT_SYSTEM = `You are a pricing catalog assistant for a contractor estimating tool called QUOTEX.
@@ -508,25 +508,51 @@ function AiSuggestBanner({ suggestions, catalog, onApply, onDismiss }) {
   )
 }
 
-// ── Formulas view — manager sets & locks the pricing the Deck Builder consumes ─
+// ── Formulas view — manager sets & locks the pricing the builders consume ─────
 function FormulasView() {
-  const rates            = useStore(s => s.deckComponentRates)
-  const setRate          = useStore(s => s.setDeckComponentRate)
-  const customComponents = useStore(s => s.deckCustomComponents)
-  const addCustom        = useStore(s => s.addDeckCustomComponent)
-  const updateCustom     = useStore(s => s.updateDeckCustomComponent)
-  const removeCustom     = useStore(s => s.removeDeckCustomComponent)
-  const locked           = useStore(s => s.deckFormulaLocked)
-  const setLocked        = useStore(s => s.setDeckFormulaLocked)
-  const scopeTemplate    = useStore(s => s.deckScopeTemplate)
-  const setScopeTemplate = useStore(s => s.setDeckScopeTemplate)
-  const isManager        = useStore(s => (s.role || 'manager') === 'manager')
+  const isManager = useStore(s => (s.role || 'manager') === 'manager')
+  // Deck slices
+  const deck = {
+    title: 'Deck Builder', defaults: DECK_COMPONENT_DEFAULTS, isManager,
+    rates: useStore(s => s.deckComponentRates), setRate: useStore(s => s.setDeckComponentRate),
+    customComponents: useStore(s => s.deckCustomComponents), addCustom: useStore(s => s.addDeckCustomComponent),
+    updateCustom: useStore(s => s.updateDeckCustomComponent), removeCustom: useStore(s => s.removeDeckCustomComponent),
+    locked: useStore(s => s.deckFormulaLocked), setLocked: useStore(s => s.setDeckFormulaLocked),
+    scopeTemplate: useStore(s => s.deckScopeTemplate), setScopeTemplate: useStore(s => s.setDeckScopeTemplate),
+    footerNote: 'These rates feed the Deck Builder — decking & fascia are still priced per collection on their catalog items.',
+    scopeTitle: 'Open Deck — standard scope of work',
+    scopeSubtitle: 'Materials & methods on every open-deck quote. One bullet per line — the builder adds size, decking, railing, stairs & fascia automatically.',
+    scopeHint: 'Put your always-included framing here (footers, posts & beams, joist size & spacing, framing tape). Per-quote selections are appended automatically.',
+  }
+  // Porch slices
+  const porch = {
+    title: 'Porch Conversion — Eze-Breeze', defaults: PORCH_COMPONENT_DEFAULTS, isManager,
+    rates: useStore(s => s.porchComponentRates), setRate: useStore(s => s.setPorchComponentRate),
+    customComponents: useStore(s => s.porchCustomComponents), addCustom: useStore(s => s.addPorchCustomComponent),
+    updateCustom: useStore(s => s.updatePorchCustomComponent), removeCustom: useStore(s => s.removePorchCustomComponent),
+    locked: useStore(s => s.porchFormulaLocked), setLocked: useStore(s => s.setPorchFormulaLocked),
+    scopeTemplate: useStore(s => s.porchScopeTemplate), setScopeTemplate: useStore(s => s.setPorchScopeTemplate),
+    footerNote: 'These rates feed the Porch Conversion builder — it counts windows, columns, transoms & doors from the width, depth & wall height you enter.',
+    scopeTitle: 'Porch Conversion — standard scope of work',
+    scopeSubtitle: 'Materials & methods on every Eze-Breeze porch quote. One bullet per line — the builder adds the window/column counts, transoms & doors automatically.',
+    scopeHint: 'Put your always-included work here (columns & plates, window install, paint/seal/refinish). The window, transom and door counts are appended automatically.',
+  }
+  return (
+    <div className="space-y-6">
+      <FormulaCard {...deck} />
+      <FormulaCard {...porch} />
+    </div>
+  )
+}
 
+function FormulaCard({ title, defaults, rates, setRate, customComponents, addCustom, updateCustom, removeCustom,
+                      locked, setLocked, scopeTemplate, setScopeTemplate, isManager,
+                      footerNote, scopeTitle, scopeSubtitle, scopeHint }) {
   const canEdit = isManager || !locked   // sales can only touch pricing while it's unlocked
   const [open, setOpen] = useState(true)
   const [newComp, setNewComp] = useState({ label: '', unit: 'EA', rate: '', cost: '' })
 
-  const keys = Object.keys(DECK_COMPONENT_DEFAULTS)
+  const keys = Object.keys(defaults)
   const numCell = (dis) => `w-20 text-sm border rounded px-2 py-1 focus:outline-none ${dis ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed' : 'border-gray-300 focus:ring-2 focus:ring-[var(--brand-200)]'}`
   const marginOf = (c) => c.rate > 0 ? Math.round((c.rate - (c.cost || 0)) / c.rate * 100) : 0
 
@@ -543,7 +569,7 @@ function FormulasView() {
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
           <button className="flex items-center gap-3" onClick={() => setOpen(o => !o)}>
             {open ? <ChevronDown size={15} className="text-gray-400" /> : <ChevronRight size={15} className="text-gray-400" />}
-            <span className="font-semibold text-gray-800">Deck Builder</span>
+            <span className="font-semibold text-gray-800">{title}</span>
             <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">{keys.length + customComponents.length} components</span>
           </button>
           {isManager ? (
@@ -561,7 +587,7 @@ function FormulasView() {
           <div className="p-4">
             {!isManager && locked && (
               <div className="mb-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                Pricing is locked by your manager. You can build deck quotes with these rates, but you can't change them.
+                Pricing is locked by your manager. You can build quotes with these rates, but you can't change them.
               </div>
             )}
             <div className="overflow-x-auto">
@@ -578,7 +604,7 @@ function FormulasView() {
                 </thead>
                 <tbody>
                   {keys.map(k => {
-                    const c = rates?.[k] || DECK_COMPONENT_DEFAULTS[k]
+                    const c = rates?.[k] || defaults[k]
                     return (
                       <tr key={k} className="border-b border-gray-50">
                         <td className="py-1.5 pr-2 text-gray-700">{c.label}</td>
@@ -651,28 +677,25 @@ function FormulasView() {
       </div>
 
       <p className="text-xs text-gray-400 px-1 leading-relaxed">
-        These rates feed the Deck Builder — decking &amp; fascia are still priced per collection on their catalog items.
-        Lock the formula so salespeople quote with your pricing and can't change it.
+        {footerNote} Lock the formula so salespeople quote with your pricing and can't change it.
       </p>
 
       {/* Standard scope of work — the customer-facing build description */}
       <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-100">
-          <p className="font-semibold text-gray-800">Open Deck — standard scope of work</p>
-          <p className="text-xs text-gray-400 mt-0.5">Materials &amp; methods included on every open-deck quote. One bullet per line — the builder adds the size, decking, railing, stairs &amp; fascia lines automatically.</p>
+          <p className="font-semibold text-gray-800">{scopeTitle}</p>
+          <p className="text-xs text-gray-400 mt-0.5">{scopeSubtitle}</p>
         </div>
         <div className="p-4">
           <textarea
             value={scopeTemplate}
             disabled={!canEdit}
             onChange={e => setScopeTemplate(e.target.value)}
-            rows={6}
+            rows={5}
             placeholder="One scope bullet per line…"
             className={`w-full text-sm rounded-lg px-3 py-2 leading-relaxed focus:outline-none resize-y ${canEdit ? 'border border-gray-300 focus:ring-2 focus:ring-[var(--brand-200)]' : 'border border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed'}`}
           />
-          <p className="text-xs text-gray-400 mt-2">
-            Tip: put your always-included framing here (footers, posts &amp; beams, joist size &amp; spacing, framing tape). Anything selected per quote — decking brand, railing, stairs, border — is appended automatically, so leave those out.
-          </p>
+          <p className="text-xs text-gray-400 mt-2">Tip: {scopeHint}</p>
         </div>
       </div>
     </div>

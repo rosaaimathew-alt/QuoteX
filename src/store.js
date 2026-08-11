@@ -293,6 +293,16 @@ export const DECK_COMPONENT_DEFAULTS = {
   fascia:      { label: 'Fascia 1×12 board (16′, default)', unit: 'EA', rate: 55, cost: 34 },  // sold per 16' board
 }
 
+// Porch Conversion (Eze-Breeze) formula. Placeholder rates — the manager sets the
+// real numbers in Item Catalog → Formulas. Layout math lives in the builder.
+export const PORCH_COMPONENT_DEFAULTS = {
+  column:    { label: 'Plates & 6×6 columns',       unit: 'EA', rate: 250,  cost: 150 },  // per column (plates rolled in)
+  window:    { label: 'Eze-Breeze window unit',     unit: 'EA', rate: 650,  cost: 420 },  // per window
+  transom:   { label: 'Transom unit (wall > 105″)', unit: 'EA', rate: 300,  cost: 190 },  // per transom
+  door:      { label: 'Exit / storm door (36″)',    unit: 'EA', rate: 900,  cost: 560 },  // per door
+  finishing: { label: 'Paint, seal & refinish',     unit: 'LS', rate: 1500, cost: 800 },  // flat per porch
+}
+
 // One-time cleanup: an earlier build injected "Deck Components" catalog items
 // (tagged `deckComp`). That approach was dropped in favor of the Deck Pricing
 // editor, so strip those orphaned rows from any catalog on load.
@@ -456,6 +466,45 @@ export const useStore = create(
         'Purchase and apply FastenMaster framing coating tape to all joists and beams.',
       ].join('\n'),
       setDeckScopeTemplate: (t) => set({ deckScopeTemplate: t }),
+
+      // ── Porch Conversion (Eze-Breeze) formula — mirrors the deck slices ──────
+      porchComponentRates: JSON.parse(JSON.stringify(PORCH_COMPONENT_DEFAULTS)),
+      setPorchComponentRate: (key, changes) =>
+        set((s) => ({
+          porchComponentRates: {
+            ...s.porchComponentRates,
+            [key]: { ...(s.porchComponentRates?.[key] || PORCH_COMPONENT_DEFAULTS[key]), ...changes },
+          },
+        })),
+
+      porchCustomComponents: [],
+      addPorchCustomComponent: (comp) =>
+        set((s) => ({
+          porchCustomComponents: [
+            ...s.porchCustomComponents,
+            {
+              id: `pcc-${Math.random().toString(36).slice(2, 9)}`,
+              label: (comp?.label || '').trim() || 'Custom component',
+              unit: comp?.unit || 'EA',
+              rate: Number(comp?.rate) || 0,
+              cost: Number(comp?.cost) || 0,
+            },
+          ],
+        })),
+      updatePorchCustomComponent: (id, changes) =>
+        set((s) => ({ porchCustomComponents: s.porchCustomComponents.map(c => c.id === id ? { ...c, ...changes } : c) })),
+      removePorchCustomComponent: (id) =>
+        set((s) => ({ porchCustomComponents: s.porchCustomComponents.filter(c => c.id !== id) })),
+
+      porchFormulaLocked: false,
+      setPorchFormulaLocked: (locked) => set({ porchFormulaLocked: !!locked }),
+
+      porchScopeTemplate: [
+        'Install 6×6 pressure-treated support columns with top and bottom plates between each opening.',
+        'Install Eze-Breeze 4-track vinyl window units.',
+        'Paint, seal, and refinish the enclosed porch.',
+      ].join('\n'),
+      setPorchScopeTemplate: (t) => set({ porchScopeTemplate: t }),
 
       // ── Catalog categories (user-editable) ───────────────────────────────
       catalogCategories: [

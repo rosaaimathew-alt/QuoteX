@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Plus, Trash2, ChevronDown, ChevronUp, Eye, EyeOff, BookTemplate, X, Save, Copy, BookPlus, Check, Calculator, Lock } from 'lucide-react'
-import { useStore, DECK_COMPONENT_DEFAULTS } from '../store'
+import { useStore, DECK_COMPONENT_DEFAULTS, PORCH_COMPONENT_DEFAULTS } from '../store'
 
 const MARGIN_DEFAULT = 30
 
@@ -407,14 +407,257 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
   )
 }
 
+// ── Porch Conversion (Eze-Breeze) assembly ──────────────────────────────────
+const PORCH_WINDOW_MAX_W = 54    // Eze-Breeze unit max width (in)
+const PORCH_WINDOW_GRAB   = 2.5  // frame overlap onto each column (in)
+const PORCH_COL_W         = 5.5  // 6×6 column width (in)
+const PORCH_WINDOW_MAX_H  = 105  // Eze-Breeze max height (in); over → transom
+const PORCH_DOOR_W        = 36   // exit-door opening (in)
+const PORCH_CLEAR_SPAN    = PORCH_WINDOW_MAX_W - 2 * PORCH_WINDOW_GRAB   // 49" of wall each window fills
+const PORCH_MODULE        = PORCH_CLEAR_SPAN + PORCH_COL_W               // 54.5" per window+column
+
+// Windows + columns on a wall of length L (inches). A column bounds every opening
+// (window OR door) on both ends, so N openings need N+1 columns. We use the FEWEST
+// windows that fit (each ≤ 49"), which makes each unit as large as possible, then
+// size them all equally — remaining span ÷ window count — so no wall mixes sizes.
+function porchWall(Lin, doorCount = 0) {
+  const L = Math.max(0, Lin)
+  const avail = L - PORCH_DOOR_W * doorCount - PORCH_COL_W * (doorCount + 1)
+  const windows = avail > 0 ? Math.ceil(avail / PORCH_MODULE) : 0
+  const columns = windows + doorCount + 1
+  const winSpan = L - PORCH_DOOR_W * doorCount - PORCH_COL_W * columns  // total glass span
+  const winWidth = windows > 0 ? winSpan / windows : 0                  // equal per window
+  return { windows, columns, winWidth }
+}
+
+function PorchAssemblyPanel({ onClose, onAdd }) {
+  const rates            = useStore(s => s.porchComponentRates) || PORCH_COMPONENT_DEFAULTS
+  const customComponents = useStore(s => s.porchCustomComponents) || []
+  const formulaLocked    = useStore(s => s.porchFormulaLocked)
+  const scopeTemplate    = useStore(s => s.porchScopeTemplate)
+  const isManager        = useStore(s => (s.role || 'manager') === 'manager')
+  const priceLocked      = formulaLocked && !isManager
+  const r = (key) => rates?.[key] || PORCH_COMPONENT_DEFAULTS[key]
+  const toCustomComp = (c) => ({ key: `c:${c.id}`, customId: c.id, label: c.label, unit: c.unit, rate: c.rate, cost: c.cost, qty: 0, custom: true })
+
+  const [width, setWidth] = useState(16)   // ft — front wall
+  const [depth, setDepth] = useState(12)   // ft — side walls
+  const [wallH, setWallH] = useState(96)   // in — wall height
+  const [doors, setDoors] = useState(1)    // 36" exit doors (on the front wall)
+  const [sides, setSides] = useState('Front + 2 sides')
+
+  const W  = Math.max(0, parseFloat(width) || 0)
+  const D  = Math.max(0, parseFloat(depth) || 0)
+  const Hin = Math.max(0, parseFloat(wallH) || 0)
+  const Dr = Math.max(0, parseInt(doors) || 0)
+
+  // Enclosed walls (ft). Door(s) ride on the front wall (index 0).
+  const wallSet = sides === 'All 4 walls' ? [W, D, W, D] : sides === 'Front only' ? [W] : [W, D, D]
+  const layout = wallSet.map((ln, i) => porchWall(ln * 12, i === 0 ? Dr : 0))
+  const totalWindows = layout.reduce((s, w) => s + w.windows, 0)
+  const rawColumns   = layout.reduce((s, w) => s + w.columns, 0)
+  // Corner columns are shared between adjacent walls: a closed 4-wall loop shares all
+  // 4 corners; an open chain (front + sides) shares (walls − 1); front-only shares 0.
+  const sharedCorners = sides === 'All 4 walls' ? 4 : Math.max(0, wallSet.length - 1)
+  const totalColumns  = Math.max(0, rawColumns - sharedCorners)
+  const overHeight    = Hin > PORCH_WINDOW_MAX_H
+  const totalTransoms = overHeight ? totalWindows : 0
+
+  const autoQty = (key) => {
+    switch (key) {
+      case 'column':    return totalColumns
+      case 'window':    return totalWindows
+      case 'transom':   return totalTransoms
+      case 'door':      return Dr
+      case 'finishing': return 1
+      default:          return 0
+    }
+  }
+
+  const [comps, setComps] = useState([
+    { key: 'column',    label: r('column').label,    unit: r('column').unit,    rate: r('column').rate,    cost: r('column').cost,    qty: null, fromRates: true },
+    { key: 'window',    label: r('window').label,    unit: r('window').unit,    rate: r('window').rate,    cost: r('window').cost,    qty: null, fromRates: true },
+    { key: 'transom',   label: r('transom').label,   unit: r('transom').unit,   rate: r('transom').rate,   cost: r('transom').cost,   qty: null, fromRates: true, transomOnly: true },
+    { key: 'door',      label: r('door').label,      unit: r('door').unit,      rate: r('door').rate,      cost: r('door').cost,      qty: null, fromRates: true, doorOnly: true },
+    { key: 'finishing', label: r('finishing').label, unit: r('finishing').unit, rate: r('finishing').rate, cost: r('finishing').cost, qty: null, fromRates: true },
+    ...customComponents.map(toCustomComp),
+  ])
+  const patch = (key, p) => setComps(cs => cs.map(c => c.key === key ? { ...c, ...p } : c))
+
+  // Keep custom-component lines synced to the saved list (add/remove/refresh), keeping qty.
+  useEffect(() => {
+    setComps(cs => {
+      const ids = new Set(customComponents.map(c => c.id))
+      let next = cs.filter(c => !c.custom || ids.has(c.customId)).map(c => {
+        if (!c.custom) return c
+        const src = customComponents.find(x => x.id === c.customId)
+        return src ? { ...c, label: src.label, unit: src.unit, rate: src.rate, cost: src.cost } : c
+      })
+      const have = new Set(next.filter(c => c.custom).map(c => c.customId))
+      customComponents.forEach(c => { if (!have.has(c.id)) next = [...next, toCustomComp(c)] })
+      return next
+    })
+  }, [customComponents])
+
+  const rows = comps
+    .filter(c => (!c.transomOnly || totalTransoms > 0) && (!c.doorOnly || Dr > 0))
+    .map(c => {
+      const qty = c.qty != null ? c.qty : autoQty(c.key)
+      return { ...c, qty, line: qty * c.rate, lineCost: qty * c.cost }
+    })
+  const price = rows.reduce((s, x) => s + x.line, 0)
+  const cost  = rows.reduce((s, x) => s + x.lineCost, 0)
+  const marginPct = price > 0 ? ((price - cost) / price) * 100 : 0
+  const money = (v) => '$' + Math.round(v).toLocaleString('en-US')
+
+  const description = (() => {
+    const base = (scopeTemplate || '').split('\n').map(s => s.trim()).filter(Boolean)
+    const lines = [...base]
+    lines.push(`Enclose the porch with ${totalWindows} Eze-Breeze window${totalWindows !== 1 ? 's' : ''} set between ${totalColumns} 6×6 column${totalColumns !== 1 ? 's' : ''}.`)
+    if (totalTransoms > 0) lines.push(`Install ${totalTransoms} transom unit${totalTransoms !== 1 ? 's' : ''} above the windows to fill the wall height over 105″.`)
+    if (Dr > 0)            lines.push(`Install ${Dr} 36″ exit door${Dr !== 1 ? 's' : ''}.`)
+    return lines.join('\n')
+  })()
+
+  const add = () => {
+    onAdd({
+      id: Date.now() + Math.random(),
+      catalogId: null,
+      name: `Eze-Breeze Porch Conversion — ${W}′×${D}′`,
+      section: 'Porch',
+      description,
+      unit: 'EA',
+      qty: 1,
+      unitPrice: Math.round(price),
+      category: 'Screen Porches',
+      costMaterials: Math.round(cost),
+      costSub: 0,
+    })
+    onClose()
+  }
+
+  const dim = (label, value, onChange, props = {}) => (
+    <div>
+      <label className="text-xs font-medium text-gray-500 block mb-1">{label}</label>
+      <input type="number" value={value} onChange={onChange} {...props}
+        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)]" />
+    </div>
+  )
+  const drop = (label, value, onChange, options) => (
+    <div>
+      <label className="text-xs font-medium text-gray-500 block mb-1">{label}</label>
+      <select value={value} onChange={onChange}
+        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)]">
+        {options.map(o => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  )
+  const cell = "border border-gray-200 rounded px-2 py-1 text-sm w-full focus:outline-none focus:ring-1 focus:ring-[var(--brand-300)]"
+  const cellLocked = "border border-gray-200 rounded px-2 py-1 text-sm w-full bg-gray-100 text-gray-400 cursor-not-allowed focus:outline-none"
+
+  return (
+    <div className="bg-white rounded-2xl border-2 border-[var(--brand-300)] shadow-sm p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="text-xs font-medium text-[var(--brand-600)] uppercase tracking-wide">Formula item</p>
+          <h2 className="text-lg font-bold text-gray-900">Porch Conversion — Eze-Breeze</h2>
+        </div>
+        <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100" title="Close builder"><X size={18} /></button>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-3">
+        {dim('Width (ft)', width, e => setWidth(e.target.value), { min: 0 })}
+        {dim('Depth (ft)', depth, e => setDepth(e.target.value), { min: 0 })}
+        {dim('Wall height (in)', wallH, e => setWallH(e.target.value), { min: 0 })}
+        {dim('# Doors (36″)', doors, e => setDoors(e.target.value), { min: 0, step: 1 })}
+        {drop('Enclosed walls', sides, e => setSides(e.target.value), ['Front + 2 sides', 'All 4 walls', 'Front only'])}
+      </div>
+
+      {/* Layout recommendation */}
+      <div className="bg-[var(--brand-50)] border border-[var(--brand-100)] rounded-lg px-3 py-2 mb-4 text-xs text-gray-600 space-y-0.5">
+        <p>Each window fills <strong>{PORCH_CLEAR_SPAN}″</strong> (54″ unit − 2.5″ each side) between <strong>5.5″</strong> columns.</p>
+        {wallSet.map((ln, i) => (
+          <p key={i}>{i === 0 ? 'Front' : `Side ${i}`} wall {ln}′ ({Math.round(ln * 12)}″){i === 0 && Dr > 0 ? `, ${Dr} door${Dr !== 1 ? 's' : ''}` : ''} → <strong>{layout[i].windows} window{layout[i].windows !== 1 ? 's' : ''}</strong>{layout[i].windows > 0 ? ` @ ${Math.round(layout[i].winWidth)}″ each` : ''}</p>
+        ))}
+        <p className="pt-0.5 border-t border-[var(--brand-100)]">Total: <strong>{totalWindows} windows</strong> · <strong>{totalColumns} columns</strong>{Dr > 0 ? <> · <strong>{Dr} door{Dr !== 1 ? 's' : ''}</strong></> : ''}{overHeight ? <> · wall {Hin}″ &gt; 105″ → <strong>{totalTransoms} transoms</strong></> : ''}</p>
+      </div>
+
+      {/* Component table */}
+      <div className="overflow-x-auto -mx-1 px-1">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-[10px] uppercase tracking-wider text-gray-400">
+              <th className="text-left font-semibold py-1">Component</th>
+              <th className="font-semibold py-1 w-20">Unit</th>
+              <th className="font-semibold py-1 w-24">Qty</th>
+              <th className="font-semibold py-1 w-24">Rate $</th>
+              <th className="font-semibold py-1 w-24">Cost $</th>
+              <th className="text-right font-semibold py-1 w-24">Line</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(row => (
+              <tr key={row.key} className="border-t border-gray-100">
+                <td className="py-1.5 pr-2 text-gray-700">{row.label}</td>
+                <td className="py-1.5 px-1 text-center text-gray-400 text-xs">{row.unit}</td>
+                <td className="py-1.5 px-1">
+                  <input type="number" value={Number(row.qty.toFixed(1))}
+                    onChange={e => patch(row.key, { qty: parseFloat(e.target.value) || 0 })} className={cell} />
+                </td>
+                <td className="py-1.5 px-1">
+                  <input type="number" value={row.rate} disabled={priceLocked}
+                    onChange={e => patch(row.key, { rate: parseFloat(e.target.value) || 0 })} className={priceLocked ? cellLocked : cell} />
+                </td>
+                <td className="py-1.5 px-1">
+                  <input type="number" value={row.cost} disabled={priceLocked}
+                    onChange={e => patch(row.key, { cost: parseFloat(e.target.value) || 0 })} className={priceLocked ? cellLocked : cell} />
+                </td>
+                <td className="py-1.5 pl-2 text-right font-medium text-gray-900 whitespace-nowrap">{money(row.line)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {priceLocked && (
+          <p className="flex items-center gap-1.5 text-xs text-amber-600 mt-2">
+            <Lock size={12} /> Pricing locked by your manager — set in Item Catalog → Formulas.
+          </p>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-end gap-x-6 gap-y-1 mt-3 border-t border-gray-200 pt-3">
+        <span className="text-xs text-gray-400">Est. cost <span className="text-gray-600 font-medium">{money(cost)}</span></span>
+        <span className="text-xs text-gray-400">Margin <span className={marginPct >= 30 ? 'text-green-600 font-medium' : 'text-amber-600 font-medium'}>{marginPct.toFixed(0)}%</span></span>
+        <span className="text-sm text-gray-500">Price <span className="text-lg font-bold text-gray-900">{money(price)}</span></span>
+      </div>
+
+      <div className="mt-4">
+        <p className="text-xs font-medium text-gray-500 mb-1">Scope description (auto-written)</p>
+        <p className="text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-2 whitespace-pre-line">{description}</p>
+      </div>
+
+      <div className="flex gap-2 mt-5">
+        <button onClick={add} disabled={price <= 0}
+          className="flex-1 py-2.5 bg-[var(--brand-600)] text-white text-sm font-medium rounded-lg hover:bg-[var(--brand-700)] disabled:opacity-40 transition-colors">
+          Add porch to quote — {money(price)}
+        </button>
+        <button onClick={onClose} className="flex-1 py-2.5 border border-gray-200 text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
+      </div>
+    </div>
+  )
+}
+
 export default function BuildQuote() {
   const catalogRaw = useStore(s => s.catalog)
   // Make the formula/assembly builder reachable from the catalog on every site
   // (not just the demo) by injecting it into the picker when it isn't already there.
-  const catalog = useMemo(() => catalogRaw.some(c => c.assembly === 'deck')
-    ? catalogRaw
-    : [{ id: 'deck-builder', name: 'Deck — Build to Spec (formula)', category: 'Decks', assembly: 'deck', unit: 'EA', unitPrice: 0, description: 'Configure framing, decking, steps, landings, height and difficulty; price, cost and scope auto-calculate.' }, ...catalogRaw],
-    [catalogRaw])
+  const catalog = useMemo(() => {
+    const extra = []
+    if (!catalogRaw.some(c => c.assembly === 'deck'))
+      extra.push({ id: 'deck-builder', name: 'Deck — Build to Spec (formula)', category: 'Decks', assembly: 'deck', unit: 'EA', unitPrice: 0, description: 'Configure framing, decking, steps, landings, height and difficulty; price, cost and scope auto-calculate.' })
+    if (!catalogRaw.some(c => c.assembly === 'porch'))
+      extra.push({ id: 'porch-builder', name: 'Porch Conversion — Build to Spec (formula)', category: 'Screen Porches', assembly: 'porch', unit: 'EA', unitPrice: 0, description: 'Eze-Breeze porch conversion: enter width, depth, wall height and doors — windows, columns, transoms, price, cost and scope auto-calculate.' })
+    return extra.length ? [...extra, ...catalogRaw] : catalogRaw
+  }, [catalogRaw])
   const templates = useStore(s => s.templates)
   const { saveTemplate, deleteTemplate, addCatalogItems } = useStore()
   const [savedToLog, setSavedToLog] = useState(new Set())
@@ -503,6 +746,7 @@ export default function BuildQuote() {
   const addItem = (item) => {
     // Formula/assembly items open their inline builder instead of adding a flat line.
     if (item.assembly === 'deck') { setActiveAssembly('deck'); return }
+    if (item.assembly === 'porch') { setActiveAssembly('porch'); return }
     setLines(prev => {
       const existing = prev.find(l => l.catalogId === item.id)
       if (existing) return prev.map(l => l.catalogId === item.id ? { ...l, qty: l.qty + 1 } : l)
@@ -738,6 +982,12 @@ export default function BuildQuote() {
         {/* Inline formula-item builder (opened from the catalog) — sits in the scope area */}
         {activeAssembly === 'deck' && (
           <DeckAssemblyPanel
+            onClose={() => setActiveAssembly(null)}
+            onAdd={line => { addAssemblyLine(line); setActiveAssembly(null) }}
+          />
+        )}
+        {activeAssembly === 'porch' && (
+          <PorchAssemblyPanel
             onClose={() => setActiveAssembly(null)}
             onAdd={line => { addAssemblyLine(line); setActiveAssembly(null) }}
           />
