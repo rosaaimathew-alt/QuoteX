@@ -1163,6 +1163,13 @@ export default function ProposalTracker() {
           if (periodFilter === 'this-month')  return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
           if (periodFilter === 'last-month') { const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1); return d.getMonth() === lm.getMonth() && d.getFullYear() === lm.getFullYear() }
           if (periodFilter === 'this-quarter') { const q = Math.floor(now.getMonth() / 3); return Math.floor(d.getMonth() / 3) === q && d.getFullYear() === now.getFullYear() }
+          if (periodFilter === 'last-quarter') {
+            // The quarter before the current one, rolling back a year from Q1.
+            const cq = Math.floor(now.getMonth() / 3)
+            let lqYear = now.getFullYear(), lq = cq - 1
+            if (lq < 0) { lq = 3; lqYear -= 1 }
+            return Math.floor(d.getMonth() / 3) === lq && d.getFullYear() === lqYear
+          }
           if (periodFilter === 'this-year')   return d.getFullYear() === now.getFullYear()
           return true
         }
@@ -1170,10 +1177,13 @@ export default function ProposalTracker() {
           { id: 'this-month',   label: 'This Month' },
           { id: 'last-month',   label: 'Last Month' },
           { id: 'this-quarter', label: 'This Quarter' },
+          { id: 'last-quarter', label: 'Last Quarter' },
           { id: 'this-year',    label: 'This Year' },
           { id: 'all-time',     label: 'All Time' },
         ]
-        const clientCount = buildGroups(proposals).length
+        const periodLabel   = PERIODS.find(x => x.id === periodFilter)?.label || 'All Time'
+        const inPeriodAll   = proposals.filter(inPeriod)               // every proposal in the period
+        const rootsInPeriod = inPeriodAll.filter(p => !p.parentId)     // unique estimates (no revisions)
         const wonInPeriod = proposals.filter(p => p.status === 'Won' && inPeriod(p))
         // Same won-revenue basis as everywhere else: sold contract value (à la
         // carte = items chosen) plus signed change orders — not the full menu.
@@ -1193,8 +1203,8 @@ export default function ProposalTracker() {
                 <FileText size={14} className="text-[var(--brand-500)]" />
                 <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">Total Proposals</span>
               </div>
-              <p className="text-xl font-bold text-gray-900">{clientCount}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{proposals.length} total incl. revisions</p>
+              <p className="text-xl font-bold text-gray-900">{rootsInPeriod.length}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{inPeriodAll.length} incl. revisions · {periodLabel}</p>
             </div>
             {stats.map(({ label, value, icon: Icon, color }) => (
               <div key={label} className="bg-white rounded-xl border border-gray-200 p-4">
