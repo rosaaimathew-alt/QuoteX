@@ -230,6 +230,8 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
   const money = (v) => '$' + Math.round(v).toLocaleString('en-US')
 
   const railQty = rows.find(r => r.key === 'railing')?.qty || 0
+  // "From your catalog" is an internal grouping label — never show it to customers.
+  const deckingLabel = (brand === 'From your catalog' ? collection : `${brand} ${collection}`).trim()
   // Customer-facing scope of work: materials & methods, not our takeoff math.
   // Starts from the manager's standard open-deck template, then appends the lines
   // that describe this deck's specific selections.
@@ -237,7 +239,7 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
     const base = (scopeTemplate || '').split('\n').map(s => s.trim()).filter(Boolean)
     const lines = [...base]
     if (splines > 0)       lines.push('Run full-length deck boards with double sister joists at all seams — no butt joints.')
-    lines.push(`Purchase and install ${brand} ${collection} decking with Cortex hidden fasteners and color-matched plugs.`)
+    lines.push(`Purchase and install ${deckingLabel} decking with Cortex hidden fasteners and color-matched plugs.`)
     if (borderCourses > 0) lines.push(`Install a ${border.toLowerCase()} mitered picture-frame border on all sides.`)
     if (fasciaOn)          lines.push('Wrap the deck rim and step risers in matching 1×12 fascia.')
     if (stepCount > 0)     lines.push(`Build a ${stepCount}-step staircase, ${SW}′ wide, with matching fascia risers and skirt boards.`)
@@ -251,7 +253,7 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
     onAdd({
       id: Date.now() + Math.random(),
       catalogId: null,
-      name: `${brand} ${collection} Open Deck — ${W}′×${D}′ (${area} SF)`,
+      name: `${deckingLabel} Open Deck — ${W}′×${D}′ (${area} SF)`,
       section: 'Deck',
       description,
       unit: 'EA',

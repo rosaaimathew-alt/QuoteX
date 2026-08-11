@@ -452,7 +452,7 @@ export const useStore = create(
       // railing, stairs, fascia, border…) so the customer sees the build, not our math.
       deckScopeTemplate: [
         'Set concrete block footers and install 6×6 support posts and beams, sized as required.',
-        'Frame with 2×10 pressure-treated floor joists at 12" on center; drop beams and seams as needed.',
+        'Frame with 2×10 pressure-treated floor joists at 12" on center.',
         'Purchase and apply FastenMaster framing coating tape to all joists and beams.',
       ].join('\n'),
       setDeckScopeTemplate: (t) => set({ deckScopeTemplate: t }),
