@@ -833,7 +833,7 @@ export default function BuildQuote() {
   const [quickNote, setQuickNote] = useState('')
 
   // Assemble a whole proposal from the catalog with EXACT, dimension-driven sizing.
-  const assembleFromCatalog = (plan) => {
+  const assembleFromCatalog = (plan, rawText = '') => {
     const W = Number(plan.width) || 0, D = Number(plan.depth) || 0
     const area = W * D
     const railLF = PLAY_RAIL_ALL_SIDES ? 2 * (W + D) : (W + 2 * D)   // 3 open sides by default
@@ -841,6 +841,8 @@ export default function BuildQuote() {
     const doors = plan.doors != null ? Number(plan.doors) : 1
     const { totalWindows } = porchLayout(W, D, { doors, sides: 'Front + 2 sides' })
     const roof = (plan.roofType || '').toLowerCase()
+    // Substrate: is the porch built ON a deck (elevated) vs at grade?
+    const wantsDeck = /on\s+(?:a\s+|the\s+|top\s+of\s+a?\s*)?(?:pt[-\s]?wood\s+)?deck|elevated|raised\s+porch|on\s+stilts/i.test(rawText)
 
     const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '')
     const byExact = (name) => { const n = norm(name); return n ? catalogRaw.find(c => norm(c.name) === n) : null }
@@ -866,14 +868,19 @@ export default function BuildQuote() {
       const matched = it.match ? (byExact(it.match) || byName(it.match)) : null
       switch (it.kind) {
         case 'structure': {
-          let item = matched
-          if (!item) {
-            const cands = catalogRaw.filter(c => /porch/i.test(c.name || '') && (!roof || new RegExp(roof, 'i').test(c.name || '')))
-            item = cands.find(c => { const raw = norm(c.name); return raw.includes(norm(`${W}x${D}`)) || raw.includes(norm(`${D}x${W}`)) }) || cands[0]
-            if (item) missing.push(`exact ${W}×${D} ${roof} structure (used "${item.name}" — verify size/price)`)
-          }
-          if (item) made.push(mkLine(item))
-          else missing.push(`${roof || ''} porch structure ${W}×${D}`.trim())
+          const cands = catalogRaw.filter(c => /porch/i.test(c.name || '') && (!roof || new RegExp(roof, 'i').test(c.name || '')))
+          const sized = cands.filter(c => { const raw = norm(c.name); return raw.includes(norm(`${W}x${D}`)) || raw.includes(norm(`${D}x${W}`)) })
+          const pool = sized.length ? sized : cands
+          const isDeck = (c) => /deck/i.test(c.name || '')
+          // Substrate is decisive: on a deck → require a deck variant; else prefer at-grade.
+          let item
+          if (wantsDeck) item = (matched && isDeck(matched) ? matched : null) || pool.find(isDeck) || matched || pool[0]
+          else           item = matched || pool.find(c => !isDeck(c)) || pool[0]
+          if (item) {
+            if (wantsDeck && !isDeck(item)) missing.push(`deck-mounted ${roof} ${W}×${D} structure (used "${item.name}" — no on-deck variant found, verify)`)
+            else if (!sized.length) missing.push(`exact ${W}×${D} ${roof} structure (used "${item.name}" — verify size/price)`)
+            made.push(mkLine(item))
+          } else missing.push(`${roof || ''} porch structure ${W}×${D}`.trim())
           break
         }
         case 'lvp': {
@@ -936,7 +943,7 @@ export default function BuildQuote() {
     try {
       const spec = await parseBuildSpec(quickText, { collections: collectionNames, catalog: catalogRaw.map(c => c.name) })
       if (spec.mode === 'catalog') {
-        const { count, missing } = assembleFromCatalog(spec)
+        const { count, missing } = assembleFromCatalog(spec, quickText)
         setQuickText('')
         if (!count && !missing.length) setQuickErr('Nothing matched — try naming the items, e.g. "16x16 gable Eze-Breeze porch with LVP and cable rails".')
         else setQuickNote(`Added ${count} item${count !== 1 ? 's' : ''} to the scope.${missing.length ? ` Couldn’t match: ${missing.join('; ')}.` : ''}`)
