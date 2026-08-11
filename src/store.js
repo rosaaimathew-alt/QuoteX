@@ -447,6 +447,16 @@ export const useStore = create(
       deckFormulaLocked: false,
       setDeckFormulaLocked: (locked) => set({ deckFormulaLocked: !!locked }),
 
+      // Standard open-deck scope of work (materials & methods) — one bullet per line.
+      // The builder prepends the deck size and appends option lines (decking brand,
+      // railing, stairs, fascia, border…) so the customer sees the build, not our math.
+      deckScopeTemplate: [
+        'Set concrete block footers and install 6×6 support posts and beams, sized as required.',
+        'Frame with 2×10 pressure-treated floor joists at 12" on center; drop beams and seams as needed.',
+        'Purchase and apply FastenMaster framing coating tape to all joists and beams.',
+      ].join('\n'),
+      setDeckScopeTemplate: (t) => set({ deckScopeTemplate: t }),
+
       // ── Catalog categories (user-editable) ───────────────────────────────
       catalogCategories: [
         'Fencing','Gates','Demo','Materials','Labor','Framing','Concrete','Electrical',

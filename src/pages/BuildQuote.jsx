@@ -46,6 +46,7 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
   const rates   = useStore(s => s.deckComponentRates) || DECK_COMPONENT_DEFAULTS
   const customComponents = useStore(s => s.deckCustomComponents) || []
   const formulaLocked    = useStore(s => s.deckFormulaLocked)
+  const scopeTemplate    = useStore(s => s.deckScopeTemplate)
   const isManager        = useStore(s => (s.role || 'manager') === 'manager')
   // Decking options come straight from the catalog's "… Porch Floor Upgrade" items
   // (priced per LF, full price + cost) so the tool uses your real numbers with no
@@ -229,24 +230,28 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
   const money = (v) => '$' + Math.round(v).toLocaleString('en-US')
 
   const railQty = rows.find(r => r.key === 'railing')?.qty || 0
+  // Customer-facing scope of work: materials & methods, not our takeoff math.
+  // Starts from the manager's standard open-deck template, then appends the lines
+  // that describe this deck's specific selections.
   const description = (() => {
-    let d = `Design and build a ${W} ft × ${D} ft (${area} sq ft) deck using ${brand} ${collection} decking.`
-    if (deckingLF > 0) d += ` Decking: ${fieldRows} rows × ${sections} run${sections > 1 ? 's' : ''} of ${boardFt} ft (${deckingLF} LF).`
-    if (splines > 0)   d += ` ${splines} spline${splines > 1 ? 's' : ''} with double sister joist${splines > 1 ? 's' : ''} — no butt joints.`
-    if (stepCount > 0) d += ` Stairs: ${stepCount} steps at ${SW} ft wide for ${Hft} ft of elevation, risers in matching 1×12 fascia.`
-    if (railQty > 0)   d += ` ${Math.round(railQty)} LF of railing.`
-    if (fasciaOn)      d += ` Matching 1×12 fascia wrapping the deck rim (16 ft stock).`
-    if (borderCourses > 0) d += ` ${border} mitered picture-frame border around all sides.`
-    if (LA > 0)        d += ` ${LA} landing${LA > 1 ? 's' : ''}.`
-    if (difficulty !== 'Standard') d += ` ${difficulty} framing conditions.`
-    return d
+    const base = (scopeTemplate || '').split('\n').map(s => s.trim()).filter(Boolean)
+    const lines = [...base]
+    if (splines > 0)       lines.push('Run full-length deck boards with double sister joists at all seams — no butt joints.')
+    lines.push(`Purchase and install ${brand} ${collection} decking with Cortex hidden fasteners and color-matched plugs.`)
+    if (borderCourses > 0) lines.push(`Install a ${border.toLowerCase()} mitered picture-frame border on all sides.`)
+    if (fasciaOn)          lines.push('Wrap the deck rim and step risers in matching 1×12 fascia.')
+    if (stepCount > 0)     lines.push(`Build a ${stepCount}-step staircase, ${SW}′ wide, with matching fascia risers and skirt boards.`)
+    if (railQty > 0)       lines.push('Install hybrid composite railing system.')
+    if (LA > 0)            lines.push(`Build ${LA} landing${LA > 1 ? 's' : ''}.`)
+    if (difficulty !== 'Standard') lines.push(`Work includes ${difficulty.toLowerCase()} framing conditions.`)
+    return lines.join('\n')
   })()
 
   const add = () => {
     onAdd({
       id: Date.now() + Math.random(),
       catalogId: null,
-      name: `Deck — ${W}×${D} (${area} SF)`,
+      name: `${brand} ${collection} Open Deck — ${W}′×${D}′ (${area} SF)`,
       section: 'Deck',
       description,
       unit: 'EA',
@@ -768,8 +773,8 @@ export default function BuildQuote() {
                         placeholder="Item name"
                       />
                       <textarea
-                        rows={2}
-                        className="w-full border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none text-xs text-gray-400 italic mt-0.5 resize-none"
+                        rows={Math.min(8, Math.max(2, (line.description || '').split('\n').length))}
+                        className="w-full border border-transparent rounded px-1 py-0.5 hover:border-gray-200 focus:border-blue-300 focus:outline-none text-xs text-gray-400 italic mt-0.5 resize-y"
                         value={line.description || ''}
                         onChange={e => updateLine(line.id, 'description', e.target.value)}
                         placeholder="Scope detail (prints on proposal)..."

@@ -518,6 +518,8 @@ function FormulasView() {
   const removeCustom     = useStore(s => s.removeDeckCustomComponent)
   const locked           = useStore(s => s.deckFormulaLocked)
   const setLocked        = useStore(s => s.setDeckFormulaLocked)
+  const scopeTemplate    = useStore(s => s.deckScopeTemplate)
+  const setScopeTemplate = useStore(s => s.setDeckScopeTemplate)
   const isManager        = useStore(s => (s.role || 'manager') === 'manager')
 
   const canEdit = isManager || !locked   // sales can only touch pricing while it's unlocked
@@ -652,6 +654,27 @@ function FormulasView() {
         These rates feed the Deck Builder — decking &amp; fascia are still priced per collection on their catalog items.
         Lock the formula so salespeople quote with your pricing and can't change it.
       </p>
+
+      {/* Standard scope of work — the customer-facing build description */}
+      <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-100">
+          <p className="font-semibold text-gray-800">Open Deck — standard scope of work</p>
+          <p className="text-xs text-gray-400 mt-0.5">Materials &amp; methods included on every open-deck quote. One bullet per line — the builder adds the size, decking, railing, stairs &amp; fascia lines automatically.</p>
+        </div>
+        <div className="p-4">
+          <textarea
+            value={scopeTemplate}
+            disabled={!canEdit}
+            onChange={e => setScopeTemplate(e.target.value)}
+            rows={6}
+            placeholder="One scope bullet per line…"
+            className={`w-full text-sm rounded-lg px-3 py-2 leading-relaxed focus:outline-none resize-y ${canEdit ? 'border border-gray-300 focus:ring-2 focus:ring-[var(--brand-200)]' : 'border border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed'}`}
+          />
+          <p className="text-xs text-gray-400 mt-2">
+            Tip: put your always-included framing here (footers, posts &amp; beams, joist size &amp; spacing, framing tape). Anything selected per quote — decking brand, railing, stairs, border — is appended automatically, so leave those out.
+          </p>
+        </div>
+      </div>
     </div>
   )
 }
