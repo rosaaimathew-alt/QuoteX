@@ -676,28 +676,32 @@ function FormulaCard({ title, defaults, rates, setRate, customComponents, addCus
         )}
       </div>
 
-      <p className="text-xs text-gray-400 px-1 leading-relaxed">
-        {footerNote} Lock the formula so salespeople quote with your pricing and can't change it.
-      </p>
+      {open && (
+        <>
+          <p className="text-xs text-gray-400 px-1 leading-relaxed">
+            {footerNote} Lock the formula so salespeople quote with your pricing and can't change it.
+          </p>
 
-      {/* Standard scope of work — the customer-facing build description */}
-      <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-100">
-          <p className="font-semibold text-gray-800">{scopeTitle}</p>
-          <p className="text-xs text-gray-400 mt-0.5">{scopeSubtitle}</p>
-        </div>
-        <div className="p-4">
-          <textarea
-            value={scopeTemplate}
-            disabled={!canEdit}
-            onChange={e => setScopeTemplate(e.target.value)}
-            rows={5}
-            placeholder="One scope bullet per line…"
-            className={`w-full text-sm rounded-lg px-3 py-2 leading-relaxed focus:outline-none resize-y ${canEdit ? 'border border-gray-300 focus:ring-2 focus:ring-[var(--brand-200)]' : 'border border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed'}`}
-          />
-          <p className="text-xs text-gray-400 mt-2">Tip: {scopeHint}</p>
-        </div>
-      </div>
+          {/* Standard scope of work — the customer-facing build description */}
+          <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-100">
+              <p className="font-semibold text-gray-800">{scopeTitle}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{scopeSubtitle}</p>
+            </div>
+            <div className="p-4">
+              <textarea
+                value={scopeTemplate}
+                disabled={!canEdit}
+                onChange={e => setScopeTemplate(e.target.value)}
+                rows={5}
+                placeholder="One scope bullet per line…"
+                className={`w-full text-sm rounded-lg px-3 py-2 leading-relaxed focus:outline-none resize-y ${canEdit ? 'border border-gray-300 focus:ring-2 focus:ring-[var(--brand-200)]' : 'border border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed'}`}
+              />
+              <p className="text-xs text-gray-400 mt-2">Tip: {scopeHint}</p>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }
