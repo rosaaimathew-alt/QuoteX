@@ -1001,7 +1001,7 @@ export default function ProposalTracker() {
 
   const [tab, setTab] = useState('list')
   const [filterStatus, setFilterStatus] = useState('All')
-  const [periodFilter, setPeriodFilter] = useState('all-time')
+  const [periodFilter, setPeriodFilter] = useState('this-year')
   const [statsHidden, setStatsHidden] = useState(() => {
     // Collapsed by default — only expanded if the user explicitly chose to show it.
     try { return localStorage.getItem('qx_tracker_stats_hidden') !== '0' } catch { return true }
