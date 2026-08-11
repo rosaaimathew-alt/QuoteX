@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Plus, Trash2, ChevronDown, ChevronUp, Eye, EyeOff, BookTemplate, X, Save, Copy, BookPlus, Check, Calculator, Lock } from 'lucide-react'
+import { Search, Plus, Trash2, ChevronDown, ChevronUp, Eye, EyeOff, BookTemplate, X, Save, Copy, BookPlus, Check, Calculator, Lock, Sparkles, Loader } from 'lucide-react'
 import { useStore, DECK_COMPONENT_DEFAULTS, PORCH_COMPONENT_DEFAULTS } from '../store'
+import { parseBuildSpec } from '../buildParse'
 
 const MARGIN_DEFAULT = 30
 
@@ -41,7 +42,7 @@ function deckLayout(Wft, frameCourses) {
   return { frameCourses, fieldRun, splines, sections, sectionRun, boardFt }
 }
 
-function DeckAssemblyPanel({ onClose, onAdd }) {
+function DeckAssemblyPanel({ onClose, onAdd, initial }) {
   const catalog = useStore(s => s.catalog)
   const rates   = useStore(s => s.deckComponentRates) || DECK_COMPONENT_DEFAULTS
   const customComponents = useStore(s => s.deckCustomComponents) || []
@@ -76,18 +77,32 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
     return out
   }, [catalog])
   const brandNames = Object.keys(brands)
+  // Match a spoken collection name ("timber tech prime plus") to a real catalog
+  // collection so the Quick Build box can prefill the right decking.
+  const matchCollection = (name) => {
+    if (!name) return null
+    const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, '')  // ignore spaces/case/punctuation
+    const n0 = norm(name)
+    if (!n0) return null
+    for (const b of brandNames) for (const coll of Object.keys(brands[b] || {})) {
+      const c = norm(coll)
+      if (c === n0 || c.includes(n0) || n0.includes(c)) return { brand: b, collection: coll }
+    }
+    return null
+  }
+  const seeded = matchCollection(initial?.collection)
 
-  const [width, setWidth]       = useState(20)
-  const [depth, setDepth]       = useState(16)
-  const [height, setHeight]     = useState(3)      // ft above grade
+  const [width, setWidth]       = useState(initial?.width ?? 20)
+  const [depth, setDepth]       = useState(initial?.depth ?? 16)
+  const [height, setHeight]     = useState(initial?.height ?? 3)      // ft above grade
   const [stairWidth, setStairWidth] = useState(4)  // ft, 1-ft increments
   const [landings, setLandings] = useState(0)
-  const [brand, setBrand]       = useState(brandNames[0])
-  const [collection, setCollection] = useState(() => Object.keys(brands[brandNames[0]] || {})[0])
+  const [brand, setBrand]       = useState(seeded?.brand || brandNames[0])
+  const [collection, setCollection] = useState(seeded?.collection || Object.keys(brands[seeded?.brand || brandNames[0]] || {})[0])
   const [difficulty, setDifficulty] = useState('Standard')
-  const [border, setBorder]     = useState('None')       // None / Single / Double picture frame
+  const [border, setBorder]     = useState(initial?.border ?? 'None')       // None / Single / Double picture frame
   const [fieldWastePct, setFieldWastePct] = useState(8)  // extra field-decking waste when bordered
-  const [fascia, setFascia]     = useState('None')       // None / Matching 1×12 fascia wrap
+  const [fascia, setFascia]     = useState(initial?.fascia ? 'Matching' : 'None')  // None / Matching 1×12 fascia wrap
 
   const n = (v) => Number(v) || 0
   const W = n(width), D = n(depth), Hft = n(height), SW = n(stairWidth), LA = n(landings)
@@ -430,7 +445,7 @@ function porchWall(Lin, doorCount = 0) {
   return { windows, columns, winWidth }
 }
 
-function PorchAssemblyPanel({ onClose, onAdd }) {
+function PorchAssemblyPanel({ onClose, onAdd, initial }) {
   const rates            = useStore(s => s.porchComponentRates) || PORCH_COMPONENT_DEFAULTS
   const customComponents = useStore(s => s.porchCustomComponents) || []
   const formulaLocked    = useStore(s => s.porchFormulaLocked)
@@ -440,10 +455,10 @@ function PorchAssemblyPanel({ onClose, onAdd }) {
   const r = (key) => rates?.[key] || PORCH_COMPONENT_DEFAULTS[key]
   const toCustomComp = (c) => ({ key: `c:${c.id}`, customId: c.id, label: c.label, unit: c.unit, rate: c.rate, cost: c.cost, qty: 0, custom: true })
 
-  const [width, setWidth] = useState(16)   // ft — front wall
-  const [depth, setDepth] = useState(12)   // ft — side walls
-  const [wallH, setWallH] = useState(96)   // in — wall height
-  const [doors, setDoors] = useState(1)    // 36" exit doors (on the front wall)
+  const [width, setWidth] = useState(initial?.width ?? 16)   // ft — front wall
+  const [depth, setDepth] = useState(initial?.depth ?? 12)   // ft — side walls
+  const [wallH, setWallH] = useState(initial?.wallHeight ?? 96)   // in — wall height
+  const [doors, setDoors] = useState(initial?.doors ?? 1)    // 36" exit doors (on the front wall)
   const [sides, setSides] = useState('Front + 2 sides')
 
   const W  = Math.max(0, parseFloat(width) || 0)
@@ -776,7 +791,40 @@ export default function BuildQuote() {
   const removeLine = (id) => setLines(prev => prev.filter(l => l.id !== id))
 
   const [activeAssembly, setActiveAssembly] = useState(null)
+  const [assemblyInitial, setAssemblyInitial] = useState(null)
   const addAssemblyLine = (line) => setLines(prev => [...prev, line])
+
+  // ── Quick Build — type or dictate a job; AI fills the matching tool ──────────
+  const collectionNames = useMemo(() => {
+    const names = new Set()
+    for (const c of catalogRaw) {
+      if (/porch\s*floor\s*upgrade/i.test(c.name || '')) {
+        const coll = (c.name || '').replace(/porch\s*floor\s*upgrade/i, '').trim()
+        if (coll) names.add(coll)
+      }
+    }
+    for (const cols of Object.values(DECK_BRANDS)) for (const cn of Object.keys(cols)) names.add(cn)
+    return [...names]
+  }, [catalogRaw])
+
+  const [quickText, setQuickText] = useState('')
+  const [quickBusy, setQuickBusy] = useState(false)
+  const [quickErr, setQuickErr]   = useState('')
+  const runQuickBuild = async () => {
+    if (!quickText.trim() || quickBusy) return
+    setQuickBusy(true); setQuickErr('')
+    try {
+      const spec = await parseBuildSpec(quickText, { collections: collectionNames })
+      const tool = spec.tool === 'porch' ? 'porch' : 'deck'
+      setAssemblyInitial(spec)
+      setActiveAssembly(tool)
+      setQuickText('')
+    } catch (e) {
+      setQuickErr(e.message || 'Could not read that.')
+    } finally {
+      setQuickBusy(false)
+    }
+  }
 
   const addBlankLine = () => setLines(prev => [...prev, {
     id: Date.now(),
@@ -979,17 +1027,45 @@ export default function BuildQuote() {
           </div>
         </div>
 
+        {/* Quick Build — type or dictate (Wispr Flow) a job; AI fills the matching tool */}
+        {!activeAssembly && (
+          <div className="bg-[var(--brand-50)] border-2 border-[var(--brand-200)] rounded-2xl p-4 mb-1">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles size={15} className="text-[var(--brand-600)]" />
+              <p className="text-sm font-semibold text-gray-800">Quick Build</p>
+              <span className="text-xs text-gray-400">— say or type a job and the tool fills itself</span>
+            </div>
+            <div className="flex gap-2">
+              <input
+                value={quickText}
+                onChange={e => { setQuickText(e.target.value); if (quickErr) setQuickErr('') }}
+                onKeyDown={e => { if (e.key === 'Enter') runQuickBuild() }}
+                placeholder='e.g. “16 by 16 TimberTech Prime Plus open deck with railing and stairs”'
+                className="flex-1 border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)] bg-white"
+              />
+              <button onClick={runQuickBuild} disabled={quickBusy || !quickText.trim()}
+                className="flex items-center gap-1.5 px-4 py-2.5 bg-[var(--brand-600)] text-white text-sm font-semibold rounded-lg hover:bg-[var(--brand-700)] disabled:opacity-40 transition-colors whitespace-nowrap">
+                {quickBusy ? <Loader size={15} className="animate-spin" /> : <Sparkles size={15} />}
+                {quickBusy ? 'Reading…' : 'Build'}
+              </button>
+            </div>
+            {quickErr && <p className="text-xs text-red-500 mt-2">{quickErr}</p>}
+          </div>
+        )}
+
         {/* Inline formula-item builder (opened from the catalog) — sits in the scope area */}
         {activeAssembly === 'deck' && (
           <DeckAssemblyPanel
-            onClose={() => setActiveAssembly(null)}
-            onAdd={line => { addAssemblyLine(line); setActiveAssembly(null) }}
+            initial={assemblyInitial}
+            onClose={() => { setActiveAssembly(null); setAssemblyInitial(null) }}
+            onAdd={line => { addAssemblyLine(line); setActiveAssembly(null); setAssemblyInitial(null) }}
           />
         )}
         {activeAssembly === 'porch' && (
           <PorchAssemblyPanel
-            onClose={() => setActiveAssembly(null)}
-            onAdd={line => { addAssemblyLine(line); setActiveAssembly(null) }}
+            initial={assemblyInitial}
+            onClose={() => { setActiveAssembly(null); setAssemblyInitial(null) }}
+            onAdd={line => { addAssemblyLine(line); setActiveAssembly(null); setAssemblyInitial(null) }}
           />
         )}
 
