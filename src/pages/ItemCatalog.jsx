@@ -4,7 +4,7 @@ import {
   ChevronDown, ChevronRight, LayoutList, Rows3,
   Sparkles, Loader, MoveRight, Settings2, Pencil, Lock, Unlock,
 } from 'lucide-react'
-import { useStore } from '../store'
+import { useStore, DECK_COMPONENT_DEFAULTS } from '../store'
 import { getModel } from '../gemini'
 
 const AI_CHAT_SYSTEM = `You are a pricing catalog assistant for a contractor estimating tool called QUOTEX.
@@ -508,6 +508,154 @@ function AiSuggestBanner({ suggestions, catalog, onApply, onDismiss }) {
   )
 }
 
+// ── Formulas view — manager sets & locks the pricing the Deck Builder consumes ─
+function FormulasView() {
+  const rates            = useStore(s => s.deckComponentRates)
+  const setRate          = useStore(s => s.setDeckComponentRate)
+  const customComponents = useStore(s => s.deckCustomComponents)
+  const addCustom        = useStore(s => s.addDeckCustomComponent)
+  const updateCustom     = useStore(s => s.updateDeckCustomComponent)
+  const removeCustom     = useStore(s => s.removeDeckCustomComponent)
+  const locked           = useStore(s => s.deckFormulaLocked)
+  const setLocked        = useStore(s => s.setDeckFormulaLocked)
+  const isManager        = useStore(s => (s.role || 'manager') === 'manager')
+
+  const canEdit = isManager || !locked   // sales can only touch pricing while it's unlocked
+  const [open, setOpen] = useState(true)
+  const [newComp, setNewComp] = useState({ label: '', unit: 'EA', rate: '', cost: '' })
+
+  const keys = Object.keys(DECK_COMPONENT_DEFAULTS)
+  const numCell = (dis) => `w-20 text-sm border rounded px-2 py-1 focus:outline-none ${dis ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed' : 'border-gray-300 focus:ring-2 focus:ring-[var(--brand-200)]'}`
+  const marginOf = (c) => c.rate > 0 ? Math.round((c.rate - (c.cost || 0)) / c.rate * 100) : 0
+
+  const addNew = () => {
+    if (!newComp.label.trim()) return
+    addCustom(newComp)
+    setNewComp({ label: '', unit: 'EA', rate: '', cost: '' })
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden">
+        {/* Formula header + lock control */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+          <button className="flex items-center gap-3" onClick={() => setOpen(o => !o)}>
+            {open ? <ChevronDown size={15} className="text-gray-400" /> : <ChevronRight size={15} className="text-gray-400" />}
+            <span className="font-semibold text-gray-800">Deck Builder</span>
+            <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">{keys.length + customComponents.length} components</span>
+          </button>
+          {isManager ? (
+            <button onClick={() => setLocked(!locked)}
+              title={locked ? 'Unlock so sales can adjust pricing' : 'Lock pricing so sales must use these rates'}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${locked ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+              {locked ? <Lock size={13} /> : <Unlock size={13} />} {locked ? 'Locked for sales' : 'Unlocked'}
+            </button>
+          ) : locked ? (
+            <span className="flex items-center gap-1.5 text-xs text-amber-600 font-medium"><Lock size={12} /> Locked by manager</span>
+          ) : null}
+        </div>
+
+        {open && (
+          <div className="p-4">
+            {!isManager && locked && (
+              <div className="mb-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                Pricing is locked by your manager. You can build deck quotes with these rates, but you can't change them.
+              </div>
+            )}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-[10px] uppercase tracking-wider text-gray-400 border-b border-gray-100">
+                    <th className="text-left font-semibold py-1.5">Component</th>
+                    <th className="font-semibold py-1.5 w-14">Unit</th>
+                    <th className="font-semibold py-1.5 w-24">Price $</th>
+                    <th className="font-semibold py-1.5 w-24">Cost $</th>
+                    <th className="text-right font-semibold py-1.5 w-16">Margin</th>
+                    <th className="w-8"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {keys.map(k => {
+                    const c = rates?.[k] || DECK_COMPONENT_DEFAULTS[k]
+                    return (
+                      <tr key={k} className="border-b border-gray-50">
+                        <td className="py-1.5 pr-2 text-gray-700">{c.label}</td>
+                        <td className="py-1.5 px-1 text-center text-gray-400 text-xs">{c.unit}</td>
+                        <td className="py-1.5 px-1">
+                          <input type="number" min="0" disabled={!canEdit} value={c.rate}
+                            onChange={e => setRate(k, { rate: parseFloat(e.target.value) || 0 })} className={numCell(!canEdit)} />
+                        </td>
+                        <td className="py-1.5 px-1">
+                          <input type="number" min="0" disabled={!canEdit} value={c.cost}
+                            onChange={e => setRate(k, { cost: parseFloat(e.target.value) || 0 })} className={numCell(!canEdit)} />
+                        </td>
+                        <td className="py-1.5 pl-2 text-right text-gray-500">{marginOf(c)}%</td>
+                        <td></td>
+                      </tr>
+                    )
+                  })}
+                  {customComponents.map(c => (
+                    <tr key={c.id} className="border-b border-gray-50 bg-[var(--brand-50)]/50">
+                      <td className="py-1.5 pr-2">
+                        <input disabled={!canEdit} value={c.label} onChange={e => updateCustom(c.id, { label: e.target.value })}
+                          className="w-full min-w-[8rem] bg-transparent border-b border-transparent hover:border-gray-200 focus:border-[var(--brand-300)] focus:outline-none text-gray-700 disabled:text-gray-500 disabled:hover:border-transparent" />
+                      </td>
+                      <td className="py-1.5 px-1">
+                        <select disabled={!canEdit} value={c.unit} onChange={e => updateCustom(c.id, { unit: e.target.value })}
+                          className="text-xs border border-gray-200 rounded px-1 py-1 focus:outline-none disabled:bg-gray-100 disabled:text-gray-400">
+                          {UNITS.map(u => <option key={u}>{u}</option>)}
+                        </select>
+                      </td>
+                      <td className="py-1.5 px-1">
+                        <input type="number" min="0" disabled={!canEdit} value={c.rate}
+                          onChange={e => updateCustom(c.id, { rate: parseFloat(e.target.value) || 0 })} className={numCell(!canEdit)} />
+                      </td>
+                      <td className="py-1.5 px-1">
+                        <input type="number" min="0" disabled={!canEdit} value={c.cost}
+                          onChange={e => updateCustom(c.id, { cost: parseFloat(e.target.value) || 0 })} className={numCell(!canEdit)} />
+                      </td>
+                      <td className="py-1.5 pl-2 text-right text-gray-500">{marginOf(c)}%</td>
+                      <td className="py-1.5 text-right">
+                        {canEdit && <button onClick={() => removeCustom(c.id)} title="Remove component" className="text-gray-300 hover:text-red-500"><Trash2 size={13} /></button>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Add a shared component — appears on every deck quote */}
+            {canEdit && (
+              <div className="flex items-center gap-1.5 flex-wrap mt-3 pt-3 border-t border-gray-100">
+                <input value={newComp.label} onChange={e => setNewComp(n => ({ ...n, label: e.target.value }))}
+                  placeholder="Add component (e.g. Height premium)"
+                  className="flex-1 min-w-[10rem] text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--brand-200)]" />
+                <select value={newComp.unit} onChange={e => setNewComp(n => ({ ...n, unit: e.target.value }))}
+                  className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none">
+                  {UNITS.map(u => <option key={u}>{u}</option>)}
+                </select>
+                <input type="number" value={newComp.rate} onChange={e => setNewComp(n => ({ ...n, rate: e.target.value }))}
+                  placeholder="Price $" className="w-24 text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--brand-200)]" />
+                <input type="number" value={newComp.cost} onChange={e => setNewComp(n => ({ ...n, cost: e.target.value }))}
+                  placeholder="Cost $" className="w-24 text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--brand-200)]" />
+                <button onClick={addNew} disabled={!newComp.label.trim()}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-[var(--brand-600)] text-white text-sm font-medium rounded-lg hover:bg-[var(--brand-700)] disabled:opacity-40 transition-colors">
+                  <Plus size={14} /> Add
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <p className="text-xs text-gray-400 px-1 leading-relaxed">
+        These rates feed the Deck Builder — decking &amp; fascia are still priced per collection on their catalog items.
+        Lock the formula so salespeople quote with your pricing and can't change it.
+      </p>
+    </div>
+  )
+}
+
 // ── Main ───────────────────────────────────────────────────────────────────
 export default function ItemCatalog() {
   const catalog             = useStore(s => s.catalog)
@@ -516,6 +664,7 @@ export default function ItemCatalog() {
   const deleteCatalogItem   = useStore(s => s.deleteCatalogItem)
   const addCatalogItems     = useStore(s => s.addCatalogItems)
 
+  const [mode, setMode]           = useState('catalog') // 'catalog' | 'formulas'
   const [view, setView]           = useState('table')   // 'table' | 'sections'
   const [search, setSearch]       = useState('')
   const [catFilter, setCatFilter] = useState('All')
@@ -593,6 +742,28 @@ export default function ItemCatalog() {
 
   return (
     <div className="p-6">
+      {/* Top-level sections */}
+      <div className="flex bg-gray-100 rounded-lg p-1 mb-4 w-fit">
+        <button onClick={() => setMode('catalog')}
+          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${mode === 'catalog' ? 'bg-white text-[var(--brand-700)] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+          <LayoutList size={14} /> Items
+        </button>
+        <button onClick={() => setMode('formulas')}
+          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${mode === 'formulas' ? 'bg-white text-[var(--brand-700)] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+          <Settings2 size={14} /> Formulas
+        </button>
+      </div>
+
+      {mode === 'formulas' ? (
+        <>
+          <div className="mb-4">
+            <h2 className="text-2xl font-bold text-gray-900 mb-0.5">Formulas</h2>
+            <p className="text-sm text-gray-500">Manager-set pricing the builders use — set the rates, then lock them so sales must follow.</p>
+          </div>
+          <FormulasView />
+        </>
+      ) : (
+      <>
       {/* Header */}
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div>
@@ -723,6 +894,8 @@ export default function ItemCatalog() {
           onDelete={deleteCatalogItem}
           onSave={handleSave}
         />
+      )}
+      </>
       )}
     </div>
   )

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Plus, Trash2, ChevronDown, ChevronUp, Eye, EyeOff, BookTemplate, X, Save, Copy, BookPlus, Check, Calculator } from 'lucide-react'
+import { Search, Plus, Trash2, ChevronDown, ChevronUp, Eye, EyeOff, BookTemplate, X, Save, Copy, BookPlus, Check, Calculator, Lock } from 'lucide-react'
 import { useStore, DECK_COMPONENT_DEFAULTS } from '../store'
 
 const MARGIN_DEFAULT = 30
@@ -44,12 +44,9 @@ function deckLayout(Wft, frameCourses) {
 function DeckAssemblyPanel({ onClose, onAdd }) {
   const catalog = useStore(s => s.catalog)
   const rates   = useStore(s => s.deckComponentRates) || DECK_COMPONENT_DEFAULTS
-  const customComponents        = useStore(s => s.deckCustomComponents) || []
-  const setDeckComponentRate    = useStore(s => s.setDeckComponentRate)
-  const addDeckCustomComponent  = useStore(s => s.addDeckCustomComponent)
-  const updateDeckCustomComponent = useStore(s => s.updateDeckCustomComponent)
-  const removeDeckCustomComponent = useStore(s => s.removeDeckCustomComponent)
-  const updateCatalogItem       = useStore(s => s.updateCatalogItem)
+  const customComponents = useStore(s => s.deckCustomComponents) || []
+  const formulaLocked    = useStore(s => s.deckFormulaLocked)
+  const isManager        = useStore(s => (s.role || 'manager') === 'manager')
   // Decking options come straight from the catalog's "… Porch Floor Upgrade" items
   // (priced per LF, full price + cost) so the tool uses your real numbers with no
   // re-entry. DECK_BRANDS are placeholder fallbacks only when the catalog has none.
@@ -202,17 +199,10 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
     })
   }, [customComponents])
 
-  // Edits made in the tool persist as the default: shared rates → deckComponentRates,
-  // per-collection fascia → the collection's catalog item, custom → the saved component.
-  const persistRateCost = (c) => {
-    if (c.custom)          updateDeckCustomComponent(c.customId, { rate: c.rate, cost: c.cost })
-    else if (c.fromRates)  setDeckComponentRate(c.key, { rate: c.rate, cost: c.cost })
-    else if (c.fromFascia) {
-      if (sel?.id) updateCatalogItem(sel.id, { fasciaRate: c.rate, fasciaCost: c.cost })
-      else         setDeckComponentRate('fascia', { rate: c.rate, cost: c.cost })
-    }
-  }
-  const [newComp, setNewComp] = useState({ label: '', unit: 'EA', rate: '', cost: '' })
+  // Manager control: pricing is set & locked in the Item Catalog → Formulas tab.
+  // When locked (and the current user isn't a manager), rates are read-only here —
+  // sales enters dimensions/quantities and the numbers come from the locked formula.
+  const priceLocked = formulaLocked && !isManager
 
   // Keep decking rate synced to the chosen brand/collection until the user overrides it.
   useEffect(() => {
@@ -286,6 +276,7 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
     </div>
   )
   const cell = "border border-gray-200 rounded px-2 py-1 text-sm w-full focus:outline-none focus:ring-1 focus:ring-[var(--brand-300)]"
+  const cellLocked = "border border-gray-200 rounded px-2 py-1 text-sm w-full bg-gray-100 text-gray-400 cursor-not-allowed focus:outline-none"
 
   return (
     <div className="bg-white rounded-2xl border-2 border-[var(--brand-300)] shadow-sm p-5">
@@ -353,20 +344,9 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
           <tbody>
             {rows.map(r => (
               <tr key={r.key} className="border-t border-gray-100">
-                <td className="py-1.5 pr-2 text-gray-700">
-                  {r.custom ? (
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => removeDeckCustomComponent(r.customId)} title="Remove component"
-                        className="text-gray-300 hover:text-red-500 shrink-0"><Trash2 size={13} /></button>
-                      <input value={r.label} onChange={e => patch(r.key, { label: e.target.value })}
-                        onBlur={() => updateDeckCustomComponent(r.customId, { label: r.label })}
-                        className="w-full min-w-0 bg-transparent border-b border-transparent hover:border-gray-200 focus:border-[var(--brand-300)] focus:outline-none text-gray-700" />
-                    </div>
-                  ) : r.label}
-                </td>
+                <td className="py-1.5 pr-2 text-gray-700">{r.label}</td>
                 <td className="py-1.5 px-1">
-                  <select value={r.unit} disabled={r.flat} onChange={e => patch(r.key, { unit: e.target.value, ...(r.custom ? {} : { qty: null }) })}
-                    onBlur={() => r.custom && updateDeckCustomComponent(r.customId, { unit: r.unit })} className={cell}>
+                  <select value={r.unit} disabled={r.flat || priceLocked} onChange={e => patch(r.key, { unit: e.target.value, ...(r.custom ? {} : { qty: null }) })} className={cell}>
                     {DECK_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                   </select>
                 </td>
@@ -375,39 +355,25 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
                     onChange={e => patch(r.key, { qty: parseFloat(e.target.value) || 0 })} className={cell} />
                 </td>
                 <td className="py-1.5 px-1">
-                  <input type="number" value={r.rate}
+                  <input type="number" value={r.rate} disabled={priceLocked}
                     onChange={e => patch(r.key, { rate: parseFloat(e.target.value) || 0, ...(r.key === 'decking' ? { fromBrand: false } : {}) })}
-                    onBlur={() => persistRateCost(r)} className={cell} />
+                    className={priceLocked ? cellLocked : cell} />
                 </td>
                 <td className="py-1.5 px-1">
-                  <input type="number" value={r.cost} onChange={e => patch(r.key, { cost: parseFloat(e.target.value) || 0 })}
-                    onBlur={() => persistRateCost(r)} className={cell} />
+                  <input type="number" value={r.cost} disabled={priceLocked}
+                    onChange={e => patch(r.key, { cost: parseFloat(e.target.value) || 0 })}
+                    className={priceLocked ? cellLocked : cell} />
                 </td>
                 <td className="py-1.5 pl-2 text-right font-medium text-gray-900 whitespace-nowrap">{money(r.line)}</td>
               </tr>
             ))}
           </tbody>
         </table>
-
-        {/* Add a shared component — appears on every deck quote, quantity filled in per quote */}
-        <div className="flex items-center gap-1.5 flex-wrap mt-2 pt-2 border-t border-gray-100">
-          <input value={newComp.label} onChange={e => setNewComp(n => ({ ...n, label: e.target.value }))}
-            placeholder="Add component (e.g. Height premium)"
-            className="flex-1 min-w-[10rem] text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--brand-200)]" />
-          <select value={newComp.unit} onChange={e => setNewComp(n => ({ ...n, unit: e.target.value }))}
-            className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none">
-            {DECK_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-          </select>
-          <input type="number" value={newComp.rate} onChange={e => setNewComp(n => ({ ...n, rate: e.target.value }))}
-            placeholder="Rate $" className="w-24 text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--brand-200)]" />
-          <input type="number" value={newComp.cost} onChange={e => setNewComp(n => ({ ...n, cost: e.target.value }))}
-            placeholder="Cost $" className="w-24 text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--brand-200)]" />
-          <button onClick={() => { if (!newComp.label.trim()) return; addDeckCustomComponent(newComp); setNewComp({ label: '', unit: 'EA', rate: '', cost: '' }) }}
-            disabled={!newComp.label.trim()}
-            className="flex items-center gap-1 px-3 py-1.5 bg-[var(--brand-600)] text-white text-sm font-medium rounded-lg hover:bg-[var(--brand-700)] disabled:opacity-40 transition-colors">
-            <Plus size={14} /> Add
-          </button>
-        </div>
+        {priceLocked && (
+          <p className="flex items-center gap-1.5 text-xs text-amber-600 mt-2">
+            <Lock size={12} /> Pricing locked by your manager — set in Item Catalog → Formulas.
+          </p>
+        )}
       </div>
 
       {/* Totals */}

@@ -442,6 +442,11 @@ export const useStore = create(
       removeDeckCustomComponent: (id) =>
         set((s) => ({ deckCustomComponents: s.deckCustomComponents.filter(c => c.id !== id) })),
 
+      // Manager control: when true, sales can't change any deck-formula pricing in
+      // the builder — they enter dimensions/quantities and the rates come from here.
+      deckFormulaLocked: false,
+      setDeckFormulaLocked: (locked) => set({ deckFormulaLocked: !!locked }),
+
       // ── Catalog categories (user-editable) ───────────────────────────────
       catalogCategories: [
         'Fencing','Gates','Demo','Materials','Labor','Framing','Concrete','Electrical',
