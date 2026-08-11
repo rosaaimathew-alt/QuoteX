@@ -32,6 +32,20 @@ function toGeminiContents(messages) {
   })
 }
 
+// Flatten our Anthropic-style messages into OpenAI chat format (text only).
+function toOpenAIMessages(system, messages) {
+  const out = []
+  if (system) out.push({ role: 'system', content: system })
+  for (const m of messages) {
+    const role = m.role === 'assistant' ? 'assistant' : 'user'
+    const content = typeof m.content === 'string'
+      ? m.content
+      : (m.content || []).map(p => (p?.type === 'text' ? p.text : typeof p === 'string' ? p : '')).join('\n')
+    out.push({ role, content })
+  }
+  return out
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   if (!requireAuth(req, res)) return
@@ -41,10 +55,25 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'messages required' })
   }
 
+  // Groq / any OpenAI-compatible free provider takes priority when configured.
+  const groqKey = process.env.GROQ_API_KEY
   const geminiKey = process.env.GEMINI_API_KEY
   const anthropicKey = process.env.ANTHROPIC_API_KEY
 
   try {
+    if (groqKey) {
+      const base = process.env.OPENAI_BASE_URL || 'https://api.groq.com/openai/v1'
+      const modelName = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'
+      const r = await fetch(`${base}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${groqKey}` },
+        body: JSON.stringify({ model: modelName, max_tokens: maxTokens || 4096, messages: toOpenAIMessages(system, messages) }),
+      })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) return res.status(500).json({ error: j.error?.message || `AI request failed (${r.status})` })
+      return res.status(200).json({ text: j.choices?.[0]?.message?.content || '' })
+    }
+
     if (geminiKey) {
       const genAI = new GoogleGenerativeAI(geminiKey)
       const model = genAI.getGenerativeModel({
