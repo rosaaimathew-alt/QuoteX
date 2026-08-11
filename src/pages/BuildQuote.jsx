@@ -445,6 +445,26 @@ function porchWall(Lin, doorCount = 0) {
   return { windows, columns, winWidth }
 }
 
+// Total Eze-Breeze window & column count for a whole porch (shared by the porch
+// tool and the proposal playground so both count units identically).
+function porchLayout(Wft, Dft, { doors = 0, sides = 'Front + 2 sides' } = {}) {
+  const wallSet = sides === 'All 4 walls' ? [Wft, Dft, Wft, Dft] : sides === 'Front only' ? [Wft] : [Wft, Dft, Dft]
+  const layout = wallSet.map((ln, i) => porchWall(ln * 12, i === 0 ? doors : 0))
+  const totalWindows = layout.reduce((s, w) => s + w.windows, 0)
+  const rawColumns   = layout.reduce((s, w) => s + w.columns, 0)
+  const sharedCorners = sides === 'All 4 walls' ? 4 : Math.max(0, wallSet.length - 1)
+  return { totalWindows, totalColumns: Math.max(0, rawColumns - sharedCorners) }
+}
+
+// Proposal-playground sizing rates the contractor confirmed. (Post-demo these
+// should move into the Tools tab so a manager can edit them.)
+const PLAY_LVP_SF_RATE    = 13    // LVP porch floor, $/SF
+const PLAY_EZE_UNIT_RATE  = 850   // Eze-Breeze window, $/unit (count from geometry)
+const PLAY_RAIL_ALL_SIDES = false // cable rail on 3 open sides (W+2D), not all 4
+const PLAY_ELEC_SPAN_FT   = 20    // porches over this span get the larger electrical pkg
+const PLAY_OUTLET_RATE       = 220  // 6/12 compliance outlet, $/outlet
+const PLAY_OUTLET_SPACING_FT = 9    // one outlet per 9 ft of FULL (4-side) perimeter
+
 function PorchAssemblyPanel({ onClose, onAdd, initial }) {
   const rates            = useStore(s => s.porchComponentRates) || PORCH_COMPONENT_DEFAULTS
   const customComponents = useStore(s => s.porchCustomComponents) || []
@@ -810,15 +830,115 @@ export default function BuildQuote() {
   const [quickText, setQuickText] = useState('')
   const [quickBusy, setQuickBusy] = useState(false)
   const [quickErr, setQuickErr]   = useState('')
+  const [quickNote, setQuickNote] = useState('')
+
+  // Assemble a whole proposal from the catalog with EXACT, dimension-driven sizing.
+  const assembleFromCatalog = (plan) => {
+    const W = Number(plan.width) || 0, D = Number(plan.depth) || 0
+    const area = W * D
+    const railLF = PLAY_RAIL_ALL_SIDES ? 2 * (W + D) : (W + 2 * D)   // 3 open sides by default
+    const span = Math.max(W, D)
+    const doors = plan.doors != null ? Number(plan.doors) : 1
+    const { totalWindows } = porchLayout(W, D, { doors, sides: 'Front + 2 sides' })
+    const roof = (plan.roofType || '').toLowerCase()
+
+    const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+    const byName = (frag) => { const f = norm(frag); return catalogRaw.find(c => norm(c.name).includes(f)) }
+    const made = []
+    const missing = []
+    const mkLine = (item, over = {}) => ({
+      id: Date.now() + Math.random(),
+      catalogId: typeof item.id === 'number' ? item.id : null,
+      name: item.name,
+      section: item.category || 'General',
+      description: item.description || '',
+      unit: over.unit ?? item.unit ?? 'EA',
+      qty: over.qty ?? 1,
+      unitPrice: over.unitPrice ?? item.unitPrice ?? 0,
+      category: item.category || 'General',
+      costMaterials: item.costMaterials || 0, costSub: item.costSub || 0,
+    })
+
+    for (const it of (plan.items || [])) {
+      switch (it.kind) {
+        case 'structure': {
+          // Match the pre-priced catalog item for this roof + size.
+          const cands = catalogRaw.filter(c => /porch/i.test(c.name || '') && (!roof || new RegExp(roof, 'i').test(c.name || '')))
+          const sizeHit = cands.find(c => {
+            const raw = norm(c.name)
+            return raw.includes(norm(`${W}x${D}`)) || raw.includes(norm(`${D}x${W}`))
+          })
+          if (sizeHit) made.push(mkLine(sizeHit))
+          else if (cands.length) { made.push(mkLine(cands[0])); missing.push(`exact ${W}×${D} ${roof} structure (used "${cands[0].name}" — verify size/price)`) }
+          else missing.push(`${roof || ''} porch structure ${W}×${D}`.trim())
+          break
+        }
+        case 'lvp': {
+          const item = byName('lvp') || { name: 'LVP Floor as Porch Floor', unit: 'SF', category: 'General', description: 'Provide and install 3/4" plywood subfloor and underlayment, then install LVP flooring as porch floor.' }
+          made.push(mkLine(item, { unit: 'SF', qty: area, unitPrice: PLAY_LVP_SF_RATE }))
+          break
+        }
+        case 'cable_rail': {
+          const item = byName('cable rail') || byName('cable railing')
+          if (item) made.push(mkLine(item, { unit: 'LF', qty: railLF, unitPrice: item.unitPrice || 75 }))
+          else missing.push('cable railing')
+          break
+        }
+        case 'eze_breeze_windows': {
+          const item = byName('eze breeze window') || byName('ezebreezewindow') || byName('eze breeze')
+          if (item) made.push(mkLine(item, { unit: 'EA', qty: totalWindows, unitPrice: PLAY_EZE_UNIT_RATE }))
+          else missing.push('Eze-Breeze windows')
+          break
+        }
+        case 'electrical_package': {
+          const cands = catalogRaw.filter(c => /electric/i.test(c.name || ''))
+          if (cands.length) {
+            const target = span > PLAY_ELEC_SPAN_FT ? 3810 : 2900
+            const pick = cands.reduce((b, c) => Math.abs((c.unitPrice || 0) - target) < Math.abs((b.unitPrice || 0) - target) ? c : b, cands[0])
+            made.push(mkLine(pick, { qty: 1 }))
+          } else missing.push('electrical package')
+          break
+        }
+        default: {
+          const item = byName(it.text || '')
+          if (item) {
+            const u = (item.unit || 'EA').toUpperCase()
+            made.push(mkLine(item, { qty: u === 'SF' ? area : u === 'LF' ? railLF : 1 }))
+          } else missing.push(it.text || 'item')
+        }
+      }
+    }
+
+    // Rule: new porch build + Eze-Breeze → auto-add 6/12 electrical compliance.
+    // Outlets are code-spaced: ⌈perimeter ÷ 9′⌉ outlets, each at PLAY_OUTLET_RATE.
+    const hasEze = (plan.items || []).some(i => i.kind === 'eze_breeze_windows')
+    if (plan.newBuild && hasEze) {
+      const comp = catalogRaw.find(c => /compliance/i.test(c.name || '') || /6\s*\/\s*12/.test(c.name || ''))
+      if (comp && !made.some(l => l.catalogId === comp.id)) {
+        const outlets = Math.max(1, Math.ceil((2 * (W + D)) / PLAY_OUTLET_SPACING_FT))
+        made.push(mkLine(comp, { unit: 'EA', qty: outlets, unitPrice: PLAY_OUTLET_RATE }))
+      }
+    }
+
+    setLines(prev => [...prev, ...made])
+    return { count: made.length, missing }
+  }
+
   const runQuickBuild = async () => {
     if (!quickText.trim() || quickBusy) return
-    setQuickBusy(true); setQuickErr('')
+    setQuickBusy(true); setQuickErr(''); setQuickNote('')
     try {
       const spec = await parseBuildSpec(quickText, { collections: collectionNames })
-      const tool = spec.tool === 'porch' ? 'porch' : 'deck'
-      setAssemblyInitial(spec)
-      setActiveAssembly(tool)
-      setQuickText('')
+      if (spec.mode === 'catalog') {
+        const { count, missing } = assembleFromCatalog(spec)
+        setQuickText('')
+        if (!count && !missing.length) setQuickErr('Nothing matched — try naming the items, e.g. "16x16 gable Eze-Breeze porch with LVP and cable rails".')
+        else setQuickNote(`Added ${count} item${count !== 1 ? 's' : ''} to the scope.${missing.length ? ` Couldn’t match: ${missing.join('; ')}.` : ''}`)
+      } else {
+        setAssemblyInitial(spec)
+        setActiveAssembly(spec.tool === 'porch' ? 'porch' : 'deck')
+        setQuickText('')
+      }
     } catch (e) {
       setQuickErr(e.message || 'Could not read that.')
     } finally {
@@ -1050,6 +1170,7 @@ export default function BuildQuote() {
               </button>
             </div>
             {quickErr && <p className="text-xs text-red-500 mt-2">{quickErr}</p>}
+            {quickNote && <p className="text-xs text-green-700 mt-2">{quickNote}</p>}
           </div>
         )}
 
