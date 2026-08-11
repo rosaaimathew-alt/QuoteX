@@ -48,7 +48,8 @@ export default async function handler(req, res) {
     if (geminiKey) {
       const genAI = new GoogleGenerativeAI(geminiKey)
       const model = genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash',
+        // Overridable via env so a Google model rename never needs a code change.
+        model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
         systemInstruction: system || undefined,
       })
       const result = await model.generateContent({
