@@ -761,10 +761,13 @@ export default function ItemCatalog() {
     setSuggestError('')
     setSuggestions(null)
     try {
-      const catalogSummary = catalog.map(({ id, name, description, unit, unitPrice, category }) =>
-        ({ id, name, description: description || '', unit, unitPrice, category })
+      // Categorization only needs name + current category + a short description
+      // snippet. Sending full descriptions pretty-printed blew past the model's
+      // per-minute token cap on large catalogs.
+      const catalogSummary = catalog.map(({ id, name, category, description }) =>
+        ({ id, name, category, description: (description || '').slice(0, 60) })
       )
-      const prompt = `CURRENT CATALOG (${catalogSummary.length} items):\n${JSON.stringify(catalogSummary, null, 2)}\n\nUSER REQUEST: Review every item in the catalog and identify any that appear to be miscategorized — where the item clearly belongs in a different category based on its name and description. Only flag items where the category is clearly wrong. Return only items that should move; don't change items that are already correct.`
+      const prompt = `CURRENT CATALOG (${catalogSummary.length} items):\n${JSON.stringify(catalogSummary)}\n\nUSER REQUEST: Review every item in the catalog and identify any that appear to be miscategorized — where the item clearly belongs in a different category based on its name and description. Only flag items where the category is clearly wrong. Return only items that should move; don't change items that are already correct.`
       const model = getModel(AI_CHAT_SYSTEM)
       const chat = model.startChat({ history: [] })
       const result = await chat.sendMessage(prompt)

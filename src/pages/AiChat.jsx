@@ -248,8 +248,10 @@ export default function AiChat() {
     try {
       const model = getModel(SYSTEM_PROMPT)
 
+      // Trim descriptions and drop pretty-print JSON so large catalogs stay under
+      // the AI provider's per-minute token cap (Groq free tier = 12K TPM).
       const catalogSummary = catalog.map(({ id, name, description, unit, unitPrice, category }) =>
-        ({ id, name, description: description || '', unit, unitPrice, category })
+        ({ id, name, category, unit, unitPrice, description: (description || '').slice(0, 120) })
       )
 
       // Build chat history (all but the last user message)
@@ -258,7 +260,7 @@ export default function AiChat() {
         content: m.content,
       }))
 
-      const lastText = `CURRENT CATALOG (${catalogSummary.length} items):\n${JSON.stringify(catalogSummary, null, 2)}\n\nUSER REQUEST: ${history[history.length - 1].content}`
+      const lastText = `CURRENT CATALOG (${catalogSummary.length} items):\n${JSON.stringify(catalogSummary)}\n\nUSER REQUEST: ${history[history.length - 1].content}`
 
       const chat = model.startChat({ history: chatHistory })
       const result = await chat.sendMessage(lastText)
