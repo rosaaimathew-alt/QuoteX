@@ -268,7 +268,8 @@ const EMPTY_FORM = { client: '', address: '', saleDate: '', total: '', projectTy
 const BULK_EMPTY = { count: '70', status: 'Lost', startDate: '2026-01-01', endDate: '2026-04-30' }
 
 function PastJobPanel() {
-  const { proposals, projectTypes: PROJECT_TYPES, importHistoricalJob, bulkImportHistoricalProposals, deleteProposal } = useStore()
+  const { proposals, projectTypes: PROJECT_TYPES, importHistoricalJob, bulkImportHistoricalProposals, deleteProposal,
+          importHistory2024_2025, clearHistory2024_2025, historyImported } = useStore()
   const [open, setOpen] = useState(false)
   const [tab, setTab]   = useState('won')   // 'won' | 'nonwon'
   const [form, setForm] = useState(EMPTY_FORM)
@@ -333,6 +334,26 @@ function PastJobPanel() {
 
       {open && (
         <div className="border-t border-gray-100 px-5 py-4">
+          {/* One-click load of the real 2024–2025 history */}
+          {!historyImported ? (
+            <div className="mb-4 flex items-center justify-between gap-3 bg-[var(--brand-50)] border border-[var(--brand-200)] rounded-xl px-4 py-3 flex-wrap">
+              <div>
+                <p className="text-sm font-semibold text-gray-800">Load 2024–2025 history</p>
+                <p className="text-xs text-gray-500 mt-0.5">One click: imports your <strong>93 real won jobs ($3.62M)</strong> and <strong>783 logged appointments</strong> (488 in 2024, 295 in 2025).</p>
+              </div>
+              <button onClick={importHistory2024_2025}
+                className="shrink-0 flex items-center gap-1.5 px-4 py-2 bg-[var(--brand-600)] text-white rounded-lg text-sm font-medium hover:bg-[var(--brand-700)] transition-colors">
+                <Plus size={14} /> Import history
+              </button>
+            </div>
+          ) : (
+            <div className="mb-4 flex items-center justify-between gap-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex-wrap">
+              <p className="text-sm text-green-800">✓ 2024–2025 history loaded — 93 jobs and 783 appointments are in your analytics.</p>
+              <button onClick={() => { if (window.confirm('Remove ALL imported 2024–2025 history (jobs + appointments)? This can’t be undone.')) clearHistory2024_2025() }}
+                className="text-xs text-gray-500 hover:text-red-600 shrink-0">Undo import</button>
+            </div>
+          )}
+
           {/* Tabs */}
           <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-4 w-fit">
             <button onClick={() => { setTab('won'); setError('') }}

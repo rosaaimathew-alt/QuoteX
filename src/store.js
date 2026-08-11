@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { supabase } from './supabase'
 import { DEMO, DEMO_STORE_KEY, buildDemoSeed } from './demo'
+import { HISTORICAL_JOBS, HISTORICAL_APPTS } from './historicalData'
 
 // Demo builds persist ONLY to the visitor's own browser under a separate key and
 // never touch the backend / Vercel KV — see smartStorage swap in persist config.
@@ -895,6 +896,47 @@ export const useStore = create(
           }
         }),
 
+      // One-click load of the real 2024–2025 history from historicalData.js:
+      // every won job as a dated Won proposal, plus the non-won remainder of each
+      // month's real appointment count as blank Lost proposals — all isHistorical
+      // so they feed revenue/appointment analytics without touching the live
+      // pipeline. Guarded so it can't double-import.
+      historyImported: false,
+      importHistory2024_2025: () =>
+        set((s) => {
+          if (s.historyImported) return {}
+          let id = s.nextProposalId
+          const mk = (over) => ({
+            id: id++, parentId: null, version: 1,
+            client: '', email: '', phone: '', address: '',
+            total: 0, projectTypes: ['Other'], projectSummary: '',
+            lines: [], isAlaCarte: false, showBreakdown: false,
+            margin: 0, expiration: '',
+            status: 'Won', winLossReason: null, activities: [], reminders: [],
+            isHistorical: true, ...over,
+          })
+          const props = []
+          for (const j of HISTORICAL_JOBS) {
+            const iso = new Date(j.date + 'T12:00:00Z').toISOString()
+            props.push(mk({ client: j.client, total: Number(j.total) || 0, status: 'Won', createdAt: iso, sentAt: iso, closedAt: iso }))
+          }
+          const wonByKey = {}
+          HISTORICAL_JOBS.forEach(j => { const k = j.date.slice(0, 7); wonByKey[k] = (wonByKey[k] || 0) + 1 })
+          for (const a of HISTORICAL_APPTS) {
+            const key = `${a.year}-${String(a.month + 1).padStart(2, '0')}`
+            const blanks = Math.max(0, a.appts - (wonByKey[key] || 0))
+            for (let i = 0; i < blanks; i++) {
+              const iso = new Date(Date.UTC(a.year, a.month, 2 + (i % 26), 12)).toISOString()
+              props.push(mk({ status: 'Lost', createdAt: iso, sentAt: iso, closedAt: iso }))
+            }
+          }
+          return { proposals: [...s.proposals, ...props], nextProposalId: id, historyImported: true }
+        }),
+
+      // Undo the historical import (remove every isHistorical proposal + reset the flag).
+      clearHistory2024_2025: () =>
+        set((s) => ({ proposals: s.proposals.filter(p => !p.isHistorical), historyImported: false })),
+
       deleteProposal: (id) =>
         set((s) => ({ proposals: s.proposals.filter((p) => p.id !== id) })),
 
@@ -1510,6 +1552,7 @@ export const useStore = create(
           porchFormulaLocked: persisted?.porchFormulaLocked ?? false,
           deckScopeTemplate:  persisted?.deckScopeTemplate  ?? DECK_SCOPE_DEFAULT,
           porchScopeTemplate: persisted?.porchScopeTemplate ?? PORCH_SCOPE_DEFAULT,
+          historyImported:    persisted?.historyImported    || false,
           catalogCategories:  persisted?.catalogCategories  || [
             'Fencing','Gates','Demo','Materials','Labor','Framing','Concrete','Electrical',
             'Plumbing','Roofing','Flooring','Drywall','Painting','HVAC','Windows','Doors',
