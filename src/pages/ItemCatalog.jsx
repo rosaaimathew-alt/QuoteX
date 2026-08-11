@@ -800,14 +800,14 @@ export default function ItemCatalog() {
         </button>
         <button onClick={() => setMode('formulas')}
           className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${mode === 'formulas' ? 'bg-white text-[var(--brand-700)] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-          <Settings2 size={14} /> Formulas
+          <Settings2 size={14} /> Tools
         </button>
       </div>
 
       {mode === 'formulas' ? (
         <>
           <div className="mb-4">
-            <h2 className="text-2xl font-bold text-gray-900 mb-0.5">Formulas</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-0.5">Tools</h2>
             <p className="text-sm text-gray-500">Manager-set pricing the builders use — set the rates, then lock them so sales must follow.</p>
           </div>
           <FormulasView />

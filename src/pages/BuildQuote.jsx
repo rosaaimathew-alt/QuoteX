@@ -200,7 +200,7 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
     })
   }, [customComponents])
 
-  // Manager control: pricing is set & locked in the Item Catalog → Formulas tab.
+  // Manager control: pricing is set & locked in the Item Catalog → Tools tab.
   // When locked (and the current user isn't a manager), rates are read-only here —
   // sales enters dimensions/quantities and the numbers come from the locked formula.
   const priceLocked = formulaLocked && !isManager
@@ -289,7 +289,7 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
     <div className="bg-white rounded-2xl border-2 border-[var(--brand-300)] shadow-sm p-5">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <p className="text-xs font-medium text-[var(--brand-600)] uppercase tracking-wide">Formula item · prototype</p>
+          <p className="text-xs font-medium text-[var(--brand-600)] uppercase tracking-wide">Tool</p>
           <h2 className="text-lg font-bold text-gray-900">Deck Builder</h2>
         </div>
         <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100" title="Close builder"><X size={18} /></button>
@@ -378,7 +378,7 @@ function DeckAssemblyPanel({ onClose, onAdd }) {
         </table>
         {priceLocked && (
           <p className="flex items-center gap-1.5 text-xs text-amber-600 mt-2">
-            <Lock size={12} /> Pricing locked by your manager — set in Item Catalog → Formulas.
+            <Lock size={12} /> Pricing locked by your manager — set in Item Catalog → Tools.
           </p>
         )}
       </div>
@@ -559,7 +559,7 @@ function PorchAssemblyPanel({ onClose, onAdd }) {
     <div className="bg-white rounded-2xl border-2 border-[var(--brand-300)] shadow-sm p-5">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <p className="text-xs font-medium text-[var(--brand-600)] uppercase tracking-wide">Formula item</p>
+          <p className="text-xs font-medium text-[var(--brand-600)] uppercase tracking-wide">Tool</p>
           <h2 className="text-lg font-bold text-gray-900">Porch Conversion — Eze-Breeze</h2>
         </div>
         <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100" title="Close builder"><X size={18} /></button>
@@ -619,7 +619,7 @@ function PorchAssemblyPanel({ onClose, onAdd }) {
         </table>
         {priceLocked && (
           <p className="flex items-center gap-1.5 text-xs text-amber-600 mt-2">
-            <Lock size={12} /> Pricing locked by your manager — set in Item Catalog → Formulas.
+            <Lock size={12} /> Pricing locked by your manager — set in Item Catalog → Tools.
           </p>
         )}
       </div>
