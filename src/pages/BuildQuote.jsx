@@ -1088,7 +1088,7 @@ export default function BuildQuote() {
               <span className={`relative w-8 h-4 rounded-full transition-colors shrink-0 ${showBreakdown ? 'bg-green-500' : 'bg-gray-300'}`}>
                 <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform ${showBreakdown ? 'translate-x-4' : 'translate-x-0.5'}`} />
               </span>
-              {showBreakdown ? 'Scope Visible' : 'Scope Hidden'}
+              {showBreakdown ? 'Itemized Pricing' : 'Lump Sum'}
             </button>
             {/* Summed / A La Carte toggle */}
             <button

@@ -332,22 +332,21 @@ export default function ProposalView() {
           </div>
         )}
 
-        {/* Scope of Work */}
-        {showBreakdown && (
-          <div className="px-10 py-7 border-b border-gray-100">
-            <p className="text-xs font-semibold uppercase tracking-widest mb-5" style={{ color: palette[700] }}>Scope of Work</p>
-            <div className="space-y-2">
-              {lines.map(line => (
-                <div key={line.id} className="border-l-2 border-gray-100 pl-3">
-                  <p className="text-sm font-semibold text-gray-800">{line.name}</p>
-                  {line.description && (
-                    <p className="text-sm text-gray-500 leading-relaxed mt-0.5">{line.description}</p>
-                  )}
-                </div>
-              ))}
-            </div>
+        {/* Scope of Work — always shown (broken down by item); the toggle only
+            controls whether the PRICE table is itemized or a single lump sum. */}
+        <div className="px-10 py-7 border-b border-gray-100">
+          <p className="text-xs font-semibold uppercase tracking-widest mb-5" style={{ color: palette[700] }}>Scope of Work</p>
+          <div className="space-y-2">
+            {lines.map(line => (
+              <div key={line.id} className="border-l-2 border-gray-100 pl-3">
+                <p className="text-sm font-semibold text-gray-800">{line.name}</p>
+                {line.description && (
+                  <p className="text-sm text-gray-500 leading-relaxed mt-0.5">{line.description}</p>
+                )}
+              </div>
+            ))}
           </div>
-        )}
+        </div>
 
         {/* Pricing Table */}
         <div className="px-10 py-7">
