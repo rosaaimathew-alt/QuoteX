@@ -843,7 +843,8 @@ export default function BuildQuote() {
     const roof = (plan.roofType || '').toLowerCase()
 
     const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '')
-    const byName = (frag) => { const f = norm(frag); return catalogRaw.find(c => norm(c.name).includes(f)) }
+    const byExact = (name) => { const n = norm(name); return n ? catalogRaw.find(c => norm(c.name) === n) : null }
+    const byName = (frag) => { const f = norm(frag); return f ? catalogRaw.find(c => norm(c.name).includes(f)) : null }
     const made = []
     const missing = []
     const mkLine = (item, over = {}) => ({
@@ -860,47 +861,52 @@ export default function BuildQuote() {
     })
 
     for (const it of (plan.items || [])) {
+      // The AI picked the exact catalog item name; that's the authority (it respects
+      // roof type, substrate like "on PT-Wood Deck", flooring product, etc.).
+      const matched = it.match ? (byExact(it.match) || byName(it.match)) : null
       switch (it.kind) {
         case 'structure': {
-          // Match the pre-priced catalog item for this roof + size.
-          const cands = catalogRaw.filter(c => /porch/i.test(c.name || '') && (!roof || new RegExp(roof, 'i').test(c.name || '')))
-          const sizeHit = cands.find(c => {
-            const raw = norm(c.name)
-            return raw.includes(norm(`${W}x${D}`)) || raw.includes(norm(`${D}x${W}`))
-          })
-          if (sizeHit) made.push(mkLine(sizeHit))
-          else if (cands.length) { made.push(mkLine(cands[0])); missing.push(`exact ${W}×${D} ${roof} structure (used "${cands[0].name}" — verify size/price)`) }
+          let item = matched
+          if (!item) {
+            const cands = catalogRaw.filter(c => /porch/i.test(c.name || '') && (!roof || new RegExp(roof, 'i').test(c.name || '')))
+            item = cands.find(c => { const raw = norm(c.name); return raw.includes(norm(`${W}x${D}`)) || raw.includes(norm(`${D}x${W}`)) }) || cands[0]
+            if (item) missing.push(`exact ${W}×${D} ${roof} structure (used "${item.name}" — verify size/price)`)
+          }
+          if (item) made.push(mkLine(item))
           else missing.push(`${roof || ''} porch structure ${W}×${D}`.trim())
           break
         }
         case 'lvp': {
-          const item = byName('lvp') || { name: 'LVP Floor as Porch Floor', unit: 'SF', category: 'General', description: 'Provide and install 3/4" plywood subfloor and underlayment, then install LVP flooring as porch floor.' }
+          const item = matched || byName('lvp') || { name: 'LVP Floor as Porch Floor', unit: 'SF', category: 'General', description: 'Provide and install 3/4" plywood subfloor and underlayment, then install LVP flooring as porch floor.' }
           made.push(mkLine(item, { unit: 'SF', qty: area, unitPrice: PLAY_LVP_SF_RATE }))
           break
         }
         case 'cable_rail': {
-          const item = byName('cable rail') || byName('cable railing')
+          const item = matched || byName('cable rail') || byName('cable railing')
           if (item) made.push(mkLine(item, { unit: 'LF', qty: railLF, unitPrice: item.unitPrice || 75 }))
           else missing.push('cable railing')
           break
         }
         case 'eze_breeze_windows': {
-          const item = byName('eze breeze window') || byName('ezebreezewindow') || byName('eze breeze')
+          const item = matched || byName('eze breeze window') || byName('eze breeze')
           if (item) made.push(mkLine(item, { unit: 'EA', qty: totalWindows, unitPrice: PLAY_EZE_UNIT_RATE }))
           else missing.push('Eze-Breeze windows')
           break
         }
         case 'electrical_package': {
+          // Span rule wins: >20' → the larger package, else the standard one.
           const cands = catalogRaw.filter(c => /electric/i.test(c.name || ''))
           if (cands.length) {
             const target = span > PLAY_ELEC_SPAN_FT ? 3810 : 2900
             const pick = cands.reduce((b, c) => Math.abs((c.unitPrice || 0) - target) < Math.abs((b.unitPrice || 0) - target) ? c : b, cands[0])
             made.push(mkLine(pick, { qty: 1 }))
-          } else missing.push('electrical package')
+          } else if (matched) made.push(mkLine(matched, { qty: 1 }))
+          else missing.push('electrical package')
           break
         }
         default: {
-          const item = byName(it.text || '')
+          // Any other named item → the AI's matched catalog item, sized by its unit.
+          const item = matched || byName(it.text || '')
           if (item) {
             const u = (item.unit || 'EA').toUpperCase()
             made.push(mkLine(item, { qty: u === 'SF' ? area : u === 'LF' ? railLF : 1 }))
@@ -928,7 +934,7 @@ export default function BuildQuote() {
     if (!quickText.trim() || quickBusy) return
     setQuickBusy(true); setQuickErr(''); setQuickNote('')
     try {
-      const spec = await parseBuildSpec(quickText, { collections: collectionNames })
+      const spec = await parseBuildSpec(quickText, { collections: collectionNames, catalog: catalogRaw.map(c => c.name) })
       if (spec.mode === 'catalog') {
         const { count, missing } = assembleFromCatalog(spec)
         setQuickText('')
