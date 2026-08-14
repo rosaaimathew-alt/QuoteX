@@ -226,8 +226,9 @@ export function getStages(proposal) {
   return null  // no type detected — force manual selection
 }
 
-const CO_STATUSES = ['Pending', 'Sent for Signature', 'Approved', 'Rejected']
+const CO_STATUSES = ['Draft', 'Pending', 'Sent for Signature', 'Approved', 'Rejected']
 const CO_STATUS_STYLE = {
+  Draft:                'bg-gray-100 text-gray-600',
   Pending:              'bg-amber-100 text-amber-700',
   'Sent for Signature': 'bg-blue-100 text-blue-700',
   Approved:             'bg-green-100 text-green-700',
@@ -338,6 +339,8 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
       pct: newTotal > 0 ? Number(p.amount || 0) / newTotal : 0,
     }))
     await onSave({
+      // Saving without sending = a Draft; sending flips to 'Sent for Signature'.
+      status: sendForSig ? 'Pending' : 'Draft',
       description,
       lines,
       amount: total,

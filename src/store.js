@@ -1145,7 +1145,7 @@ export const useStore = create(
                 ...(p.jobData || {}),
                 changeOrders: [
                   ...((p.jobData?.changeOrders) || []),
-                  { id: Date.now(), ...co, status: 'Pending', createdAt: new Date().toISOString() },
+                  { id: Date.now(), status: 'Pending', ...co, createdAt: new Date().toISOString() },
                 ],
               },
             }
