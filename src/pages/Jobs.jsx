@@ -329,8 +329,9 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
     setCoPayments(prev => prev.filter((_, idx) => idx !== i))
 
   const handleSave = async (sendForSig) => {
-    if (!description.trim()) return
+    if (sendForSig && !description.trim()) return   // a draft can be nameless
     setSending(true)
+    try {
     // Convert text block back to bullet array
     const scopeLines = scopeText.split('\n').map(s => s.trim()).filter(Boolean).map(text => ({ text }))
     // Recalculate pct for each payment based on total contract value
@@ -341,7 +342,7 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
     await onSave({
       // Saving without sending = a Draft; sending flips to 'Sent for Signature'.
       status: sendForSig ? 'Pending' : 'Draft',
-      description,
+      description: description.trim() || 'Untitled change order',
       lines,
       amount: total,
       notes,
@@ -355,7 +356,9 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
         companyName: branding?.companyName || 'Ebony Outdoor Living',
       },
     }, sendForSig)
-    setSending(false)
+    } finally {
+      setSending(false)
+    }
   }
 
   return (
@@ -562,19 +565,27 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
         </div>
 
         {/* Footer */}
-        <div className="flex gap-2 px-5 py-4 border-t border-gray-100 shrink-0">
-          <button onClick={onClose} className="px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50">
-            Cancel
-          </button>
-          <button onClick={() => handleSave(false)} disabled={!description.trim() || sending}
-            className="px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40">
-            Save Draft
-          </button>
-          <button onClick={() => handleSave(true)} disabled={!description.trim() || sending || !proposal.email}
-            className="flex-1 flex items-center justify-center gap-2 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-40 transition-colors">
-            <PenLine size={14} />
-            {sending ? 'Sending…' : 'Save & Send for Signature'}
-          </button>
+        <div className="px-5 py-4 border-t border-gray-100 shrink-0">
+          {(!description.trim() || !proposal.email) && (
+            <p className="text-xs text-gray-400 mb-2">
+              {!description.trim() && 'Add a description to send for signature. '}
+              {!proposal.email && 'No customer email on file — you can still Save Draft.'}
+            </p>
+          )}
+          <div className="flex gap-2">
+            <button onClick={onClose} className="px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50">
+              Cancel
+            </button>
+            <button onClick={() => handleSave(false)} disabled={sending}
+              className="px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40">
+              Save Draft
+            </button>
+            <button onClick={() => handleSave(true)} disabled={!description.trim() || sending || !proposal.email}
+              className="flex-1 flex items-center justify-center gap-2 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-40 transition-colors">
+              <PenLine size={14} />
+              {sending ? 'Sending…' : 'Save & Send for Signature'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
