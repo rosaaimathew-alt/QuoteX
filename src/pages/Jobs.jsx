@@ -1600,6 +1600,93 @@ function buildCloseOutHtml({ client, contractNum, address, projectType, completi
 </body></html>`
 }
 
+// ── Receipts tab — per-job receipt files, stored in Google Drive ────────────
+function ReceiptsTab({ proposal }) {
+  const { updateJobData } = useStore()
+  const receipts = proposal.jobData?.receipts || []
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState('')
+  const fileRef = useRef(null)
+  const contractNum = proposal.contractDraft?.contractNum || `EOL${String(70000 + proposal.id).padStart(6, '0')}`
+
+  const onFiles = async (e) => {
+    const files = [...(e.target.files || [])]
+    if (!files.length) return
+    setUploading(true); setError('')
+    try {
+      const added = []
+      for (const file of files) {
+        const base64 = await new Promise((resolve, reject) => {
+          const r = new FileReader()
+          r.onload = () => resolve(String(r.result).split(',')[1])
+          r.onerror = reject
+          r.readAsDataURL(file)
+        })
+        const res = await fetch('/api/drive/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            pdfBase64: base64,
+            fileName: `Receipt-${contractNum}-${Date.now()}-${file.name}`,
+            mimeType: file.type || 'application/octet-stream',
+          }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(data.error || 'Upload failed')
+        added.push({ id: data.fileId || `${Date.now()}${Math.random()}`, name: file.name, link: data.driveLink, mimeType: file.type, uploadedAt: new Date().toISOString() })
+      }
+      updateJobData(proposal.id, { receipts: [...receipts, ...added] })
+    } catch (err) {
+      setError(/token|auth|not connected|401|drive/i.test(err.message) ? 'Connect Google Drive in Settings first, then try again.' : err.message)
+    } finally {
+      setUploading(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
+  const remove = (id) => updateJobData(proposal.id, { receipts: receipts.filter(r => r.id !== id) })
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <p className="text-sm font-semibold text-gray-800">Receipts</p>
+          <p className="text-xs text-gray-400">{receipts.length} file{receipts.length !== 1 ? 's' : ''} · stored in your Google Drive</p>
+        </div>
+        <input ref={fileRef} type="file" accept="image/*,application/pdf" multiple onChange={onFiles} className="hidden" />
+        <button onClick={() => fileRef.current?.click()} disabled={uploading}
+          className="flex items-center gap-1.5 px-3 py-2 bg-[var(--brand-600)] text-white text-sm font-medium rounded-lg hover:bg-[var(--brand-700)] disabled:opacity-50 transition-colors">
+          {uploading ? <Loader size={14} className="animate-spin" /> : <Plus size={14} />}
+          {uploading ? 'Uploading…' : 'Add receipt'}
+        </button>
+      </div>
+
+      {error && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+
+      {receipts.length === 0 ? (
+        <div className="text-center py-8 text-sm text-gray-400 border border-dashed border-gray-200 rounded-xl">
+          No receipts yet. Add photos or PDFs of receipts for this job.
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          {receipts.map(r => (
+            <div key={r.id} className="flex items-center gap-3 px-3 py-2 bg-gray-50 rounded-lg group">
+              <FileText size={15} className="text-gray-400 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-gray-800 truncate">{r.name}</p>
+                <p className="text-[11px] text-gray-400">{fmtDate(r.uploadedAt)}</p>
+              </div>
+              {r.link && <a href={r.link} target="_blank" rel="noopener noreferrer" className="text-xs text-[var(--brand-600)] hover:underline shrink-0">View</a>}
+              <button onClick={() => { if (window.confirm('Remove this receipt from the job? (The file stays in your Drive.)')) remove(r.id) }}
+                className="text-gray-300 hover:text-red-500 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Job Card ────────────────────────────────────────────────────────────────
 function JobCard({ proposal }) {
   const { toggleJobStage, updateJobData } = useStore()
@@ -1625,6 +1712,7 @@ function JobCard({ proposal }) {
   const coCount       = (jobData.changeOrders || []).length
   const openWarranty  = (jobData.warrantyItems || []).filter(w => w.status === 'Open').length
   const logCount      = (jobData.dailyLogs || []).length
+  const receiptCount  = (jobData.receipts || []).length
 
   const saveNote = () => { updateJobData(proposal.id, { notes: noteText }); setEditingNote(false) }
 
@@ -1634,6 +1722,7 @@ function JobCard({ proposal }) {
     { key: 'co',      label: `Change Orders${coCount ? ` (${coCount})` : ''}` },
     { key: 'log',     label: `Daily Log${logCount ? ` (${logCount})` : ''}` },
     { key: 'warranty',label: `Warranty${openWarranty ? ` (${openWarranty})` : ''}` },
+    { key: 'receipts',label: `Receipts${receiptCount ? ` (${receiptCount})` : ''}` },
   ]
 
   // One soft-pill status system for the card badge.
@@ -1830,6 +1919,7 @@ function JobCard({ proposal }) {
             {tab === 'co'      && <ChangeOrdersTab proposal={proposal} />}
             {tab === 'log'     && <DailyLogTab proposal={proposal} />}
             {tab === 'warranty'&& <WarrantyTab proposal={proposal} />}
+            {tab === 'receipts'&& <ReceiptsTab proposal={proposal} />}
           </div>
         </div>
       )}

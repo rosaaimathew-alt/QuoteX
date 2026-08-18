@@ -174,14 +174,14 @@ async function getValidAccessToken() {
   return merged.access_token
 }
 
-export async function uploadToDrive({ pdfBase64, fileName }) {
+export async function uploadToDrive({ pdfBase64, fileName, mimeType = 'application/pdf' }) {
   const accessToken = await getValidAccessToken()
   const buffer      = Buffer.from(pdfBase64, 'base64')
   const boundary    = 'QuoteXBoundary' + Date.now()
-  const metadata    = JSON.stringify({ name: fileName, mimeType: 'application/pdf' })
+  const metadata    = JSON.stringify({ name: fileName, mimeType })
 
   const body = Buffer.concat([
-    Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: application/pdf\r\n\r\n`),
+    Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`),
     buffer,
     Buffer.from(`\r\n--${boundary}--`),
   ])
