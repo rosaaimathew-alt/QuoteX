@@ -16,6 +16,10 @@ import { requireAuth } from './_auth.js'
 
 export const config = { api: { bodyParser: { sizeLimit: '10mb' } } }
 
+// Remembers a model we've confirmed works, so we don't re-discover on every call
+// (survives within a warm serverless instance).
+let _groqModelCache = null
+
 // Convert our Anthropic-style messages into Gemini "contents".
 function toGeminiContents(messages) {
   return messages.map(m => {
@@ -63,13 +67,35 @@ export default async function handler(req, res) {
   try {
     if (groqKey) {
       const base = process.env.OPENAI_BASE_URL || 'https://api.groq.com/openai/v1'
-      const modelName = process.env.GROQ_MODEL || 'llama-3.1-8b-instant'
-      const r = await fetch(`${base}/chat/completions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${groqKey}` },
-        body: JSON.stringify({ model: modelName, max_tokens: maxTokens || 4096, messages: toOpenAIMessages(system, messages) }),
+      const authHdr = { 'Content-Type': 'application/json', Authorization: `Bearer ${groqKey}` }
+      const callModel = (model) => fetch(`${base}/chat/completions`, {
+        method: 'POST', headers: authHdr,
+        body: JSON.stringify({ model, max_tokens: maxTokens || 4096, messages: toOpenAIMessages(system, messages) }),
       })
-      const j = await r.json().catch(() => ({}))
+
+      const preferred = process.env.GROQ_MODEL || _groqModelCache || 'llama-3.1-8b-instant'
+      let r = await callModel(preferred)
+      let j = await r.json().catch(() => ({}))
+
+      // Self-heal: if the model is unknown/unavailable for this key, ask the
+      // provider what IS available and retry once with a usable chat model.
+      if (!r.ok && /model|does not exist|not found|access|decommission/i.test(j.error?.message || '')) {
+        try {
+          const lr = await fetch(`${base}/models`, { headers: authHdr })
+          const lj = await lr.json().catch(() => ({}))
+          const ids = (lj.data || []).map(m => m.id).filter(Boolean)
+          const usable = ids.filter(id => !/whisper|guard|tts|embed|vision|prompt/i.test(id))
+          const pick = usable.find(id => /instant|8b/i.test(id)) || usable.find(id => /llama/i.test(id)) || usable[0] || ids[0]
+          if (pick && pick !== preferred) {
+            _groqModelCache = pick
+            r = await callModel(pick)
+            j = await r.json().catch(() => ({}))
+          }
+        } catch { /* fall through to the error below */ }
+      } else if (r.ok) {
+        _groqModelCache = preferred
+      }
+
       if (!r.ok) return res.status(500).json({ error: j.error?.message || `AI request failed (${r.status})` })
       return res.status(200).json({ text: j.choices?.[0]?.message?.content || '' })
     }
