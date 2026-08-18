@@ -1439,20 +1439,35 @@ function PaymentReminderModal({ proposal, onClose }) {
 
 // ── Close-Out Modal ──────────────────────────────────────────────────────────
 function CloseOutModal({ proposal, onClose }) {
-  const { toggleJobStage, updateJobData } = useStore()
+  const { toggleJobStage, updateJobData, saveJobCosts } = useStore()
   const draft = proposal.contractDraft || {}
   const contractNum = draft.contractNum || `EOL${String(70000 + proposal.id).padStart(6, '0')}`
   const projectTypes = (draft.projectTypes || []).join(', ') || ''
 
+  // Job revenue (signed contract + approved change orders) — the base for margin.
+  const revenue = contractTotalOf(proposal) + approvedChangeOrderTotal(proposal)
+
   const [completionDate, setCompletionDate] = useState(today())
+  const [profit, setProfit] = useState('')   // total profit $ achieved (optional, manual)
   const [sendEmail, setSendEmail] = useState(true)
   const [closing, setClosing] = useState(false)
   const [error, setError] = useState('')
+
+  // Two-way link between profit $ and margin %, both derived from revenue.
+  const marginVal = (revenue > 0 && profit !== '' && !Number.isNaN(Number(profit)))
+    ? +((Number(profit) / revenue) * 100).toFixed(1) : ''
+  const onMargin = (v) => setProfit(revenue > 0 && v !== '' ? String(Math.round(revenue * (Number(v) || 0) / 100)) : '')
 
   const closeOut = async () => {
     setClosing(true); setError('')
     try {
       updateJobData(proposal.id, { completionDate, closedAt: new Date().toISOString() })
+      // If a profit was entered, record it so it flows to the Profitability tracker.
+      // The tracker computes profit as revenue − costs, so we store cost = revenue − profit.
+      if (profit !== '' && !Number.isNaN(Number(profit))) {
+        const p = Number(profit)
+        saveJobCosts(proposal.id, { other: Math.max(0, revenue - p), enteredProfit: p, source: 'manual-closeout' })
+      }
       toggleJobStage(proposal.id, 'payment')
       toggleJobStage(proposal.id, 'closed')
 
@@ -1499,6 +1514,27 @@ function CloseOutModal({ proposal, onClose }) {
             <label className="block text-xs font-medium text-gray-600 mb-1">Completion Date</label>
             <input type="date" value={completionDate} onChange={e => setCompletionDate(e.target.value)}
               className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+          </div>
+
+          {/* Profit achieved — optional, feeds the Profitability tracker */}
+          <div className="border border-gray-200 rounded-xl p-3">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-semibold text-gray-700">Profit on this job <span className="font-normal text-gray-400">(optional)</span></label>
+              <span className="text-xs text-gray-400">Revenue ${fmtDol(revenue)}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <span className="block text-[11px] text-gray-500 mb-0.5">Profit $</span>
+                <input type="number" value={profit} onChange={e => setProfit(e.target.value)} placeholder="0"
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+              </div>
+              <div>
+                <span className="block text-[11px] text-gray-500 mb-0.5">Margin %</span>
+                <input type="number" value={marginVal} onChange={e => onMargin(e.target.value)} placeholder="0"
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+              </div>
+            </div>
+            <p className="text-[11px] text-gray-400 mt-1.5">Enter either one — it logs to your Profitability metrics. Leave blank to skip.</p>
           </div>
 
           <label className="flex items-center gap-3 cursor-pointer">
