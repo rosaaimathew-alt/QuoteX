@@ -216,10 +216,23 @@ export default function ProfitabilityTracker() {
   const [filterHasCosts, setFilterHasCosts] = useState('all')
   const [showMonthly, setShowMonthly] = useState(false)
 
+  // Profit is attributed to the month the job was SOLD (won), not closed out —
+  // "pay yourself first." Period scopes every metric; defaults to this year.
+  const CURRENT_YEAR = new Date().getFullYear()
+  const [statsYear, setStatsYear] = useState(CURRENT_YEAR)
+  const saleYearOf = (p) => new Date(p.closedAt || p.sentAt || p.createdAt || Date.now()).getFullYear()
+
   const wonJobs = useMemo(
     () => proposals.filter(p => p.status === 'Won'),
     [proposals]
   )
+
+  const statsYears = useMemo(() => {
+    const ys = new Set([CURRENT_YEAR])
+    wonJobs.forEach(p => { const y = saleYearOf(p); if (!Number.isNaN(y)) ys.add(y) })
+    return [...ys].sort((a, b) => b - a)
+  }, [wonJobs])
+  const periodLabel = statsYear === 'all' ? 'all time' : statsYear === CURRENT_YEAR ? `${statsYear} YTD` : String(statsYear)
 
   // Derived per-job metrics
   const jobs = useMemo(() => wonJobs.map(p => {
@@ -233,19 +246,25 @@ export default function ProfitabilityTracker() {
     return { ...p, rev, totalCost, profit, margin, hasCosts: totalCost !== null }
   }), [wonJobs, jobCosts])
 
-  // Summary stats
+  // Everything below is scoped to the selected period, by SALE (won) month.
+  const periodJobs = useMemo(
+    () => statsYear === 'all' ? jobs : jobs.filter(j => saleYearOf(j) === statsYear),
+    [jobs, statsYear]
+  )
+
+  // Summary stats (period-scoped)
   const stats = useMemo(() => {
-    const withCosts = jobs.filter(j => j.hasCosts)
-    const totalRev     = jobs.reduce((s, j) => s + j.rev, 0)
+    const withCosts = periodJobs.filter(j => j.hasCosts)
+    const totalRev     = periodJobs.reduce((s, j) => s + j.rev, 0)
     const totalCost    = withCosts.reduce((s, j) => s + j.totalCost, 0)
     const totalProfit  = withCosts.reduce((s, j) => s + j.profit, 0)
     const avgMargin    = withCosts.length > 0
       ? withCosts.reduce((s, j) => s + j.margin, 0) / withCosts.length
       : null
     const jobsEntered  = withCosts.length
-    const jobsPending  = jobs.length - withCosts.length
-    return { totalRev, totalCost, totalProfit, avgMargin, jobsEntered, jobsPending, withCosts: withCosts.length }
-  }, [jobs])
+    const jobsPending  = periodJobs.length - withCosts.length
+    return { totalRev, totalCost, totalProfit, avgMargin, jobsEntered, jobsPending, withCosts: withCosts.length, jobCount: periodJobs.length }
+  }, [periodJobs])
 
   // Close rate overall + monthly breakdown
   const closeStats = useMemo(() => {
@@ -273,10 +292,10 @@ export default function ProfitabilityTracker() {
   // Sort
   const sorted = useMemo(() => {
     const list = filterHasCosts === 'entered'
-      ? jobs.filter(j => j.hasCosts)
+      ? periodJobs.filter(j => j.hasCosts)
       : filterHasCosts === 'pending'
-      ? jobs.filter(j => !j.hasCosts)
-      : [...jobs]
+      ? periodJobs.filter(j => !j.hasCosts)
+      : [...periodJobs]
     return list.sort((a, b) => {
       let av = a[sortField], bv = b[sortField]
       if (sortField === 'closedAt' || sortField === 'createdAt') {
@@ -287,7 +306,7 @@ export default function ProfitabilityTracker() {
       if (bv == null) return -1
       return sortDir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1)
     })
-  }, [jobs, sortField, sortDir, filterHasCosts])
+  }, [periodJobs, sortField, sortDir, filterHasCosts])
 
   const toggleSort = (field) => {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -324,6 +343,23 @@ export default function ProfitabilityTracker() {
         )}
       </div>
 
+      {/* Period selector — scopes every metric below, by sale (won) month */}
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Performance · {periodLabel}</p>
+        <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5 flex-wrap">
+          {statsYears.map(y => (
+            <button key={y} onClick={() => setStatsYear(y)}
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${statsYear === y ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+              {y}{y === CURRENT_YEAR ? ' (YTD)' : ''}
+            </button>
+          ))}
+          <button onClick={() => setStatsYear('all')}
+            className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${statsYear === 'all' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+            All time
+          </button>
+        </div>
+      </div>
+
       {/* KPI cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
@@ -332,7 +368,7 @@ export default function ProfitabilityTracker() {
             <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">Won Revenue</span>
           </div>
           <p className="text-2xl font-bold text-gray-900">{fmtSh(stats.totalRev)}</p>
-          <p className="text-xs text-gray-400 mt-0.5">{jobs.length} won job{jobs.length !== 1 ? 's' : ''}</p>
+          <p className="text-xs text-gray-400 mt-0.5">{stats.jobCount} won job{stats.jobCount !== 1 ? 's' : ''} · {periodLabel}</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
           <div className="flex items-center gap-2 mb-2">
@@ -376,7 +412,7 @@ export default function ProfitabilityTracker() {
             {showMonthly ? <ChevronDown size={16} className="text-gray-400" /> : <ChevronRight size={16} className="text-gray-400" />}
             Monthly Revenue vs Profit (Won Jobs)
           </button>
-          {showMonthly && <MonthlyChart jobs={wonJobs} jobCosts={jobCosts} />}
+          {showMonthly && <MonthlyChart jobs={periodJobs} jobCosts={jobCosts} />}
         </div>
       )}
 
