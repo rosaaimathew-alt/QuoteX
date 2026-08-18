@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { getModel } from '../gemini'
+import { runOverCatalog } from '../aiCatalog'
 import { useStore } from '../store'
 import {
   Send, Loader, Bot, User, CheckCircle, X, Sparkles,
@@ -246,32 +246,26 @@ export default function AiChat() {
       .map(m => ({ role: m.role, content: m.text }))
 
     try {
-      const model = getModel(SYSTEM_PROMPT)
-
-      // Trim descriptions and drop pretty-print JSON so large catalogs stay under
-      // the AI provider's per-minute token cap (Groq free tier = 12K TPM).
-      const catalogSummary = catalog.map(({ id, name, description, unit, unitPrice, category }) =>
-        ({ id, name, category, unit, unitPrice, description: (description || '').slice(0, 120) })
-      )
-
       // Build chat history (all but the last user message)
-      const chatHistory = history.slice(0, -1).map(m => ({
-        role: m.role,
-        content: m.content,
-      }))
+      const chatHistory = history.slice(0, -1).map(m => ({ role: m.role, content: m.content }))
+      const command = history[history.length - 1].content
 
-      const lastText = `CURRENT CATALOG (${catalogSummary.length} items):\n${JSON.stringify(catalogSummary)}\n\nUSER REQUEST: ${history[history.length - 1].content}`
-
-      const chat = model.startChat({ history: chatHistory })
-      const result = await chat.sendMessage(lastText)
-      const text = result.response.text()
-
-      const changesMatch = text.match(/<changes>([\s\S]*?)<\/changes>/)
-      let changes = null
-      let displayText = text
-      if (changesMatch) {
-        try { changes = JSON.parse(changesMatch[1].trim()); displayText = text.replace(/<changes>[\s\S]*?<\/changes>/, '').trim() } catch {}
-      }
+      // Run the command over the catalog in token-safe chunks so large catalogs
+      // never exceed the free-tier per-minute token cap; merge the changes.
+      const { changes: merged, text } = await runOverCatalog(catalog, {
+        system: SYSTEM_PROMPT,
+        history: chatHistory,
+        chunkSize: 40,
+        buildPrompt: (chunk) => {
+          const summary = chunk.map(({ id, name, description, unit, unitPrice, category }) =>
+            ({ id, name, category, unit, unitPrice, description: (description || '').slice(0, 120) }))
+          return `CURRENT CATALOG (${summary.length} items):\n${JSON.stringify(summary)}\n\nUSER REQUEST: ${command}`
+        },
+      })
+      const changes = merged.length ? merged : null
+      const displayText = text || (merged.length
+        ? `Done — ${merged.length} change${merged.length !== 1 ? 's' : ''} ready to review below.`
+        : 'No changes needed for that.')
 
       setMessages(prev => prev.map(m =>
         m.id === loadingMsg.id

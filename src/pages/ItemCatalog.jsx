@@ -5,7 +5,7 @@ import {
   Sparkles, Loader, MoveRight, Settings2, Pencil, Lock, Unlock,
 } from 'lucide-react'
 import { useStore, DECK_COMPONENT_DEFAULTS, PORCH_COMPONENT_DEFAULTS } from '../store'
-import { getModel } from '../gemini'
+import { runOverCatalog } from '../aiCatalog'
 
 const AI_CHAT_SYSTEM = `You are a pricing catalog assistant for a contractor estimating tool called QUOTEX.
 Your job is to help contractors bulk-edit their pricing catalog using plain English commands.
@@ -761,26 +761,21 @@ export default function ItemCatalog() {
     setSuggestError('')
     setSuggestions(null)
     try {
-      // Categorization only needs name + current category + a short description
-      // snippet. Sending full descriptions pretty-printed blew past the model's
-      // per-minute token cap on large catalogs.
-      const catalogSummary = catalog.map(({ id, name, category, description }) =>
-        ({ id, name, category, description: (description || '').slice(0, 60) })
-      )
-      const prompt = `CURRENT CATALOG (${catalogSummary.length} items):\n${JSON.stringify(catalogSummary)}\n\nUSER REQUEST: Review every item in the catalog and identify any that appear to be miscategorized — where the item clearly belongs in a different category based on its name and description. Only flag items where the category is clearly wrong. Return only items that should move; don't change items that are already correct.`
-      const model = getModel(AI_CHAT_SYSTEM)
-      const chat = model.startChat({ history: [] })
-      const result = await chat.sendMessage(prompt)
-      const text = result.response.text()
-      const changesMatch = text.match(/<changes>([\s\S]*?)<\/changes>/)
-      const changes = changesMatch ? JSON.parse(changesMatch[1].trim()) : null
-      if (changes?.length) {
-        const catChanges = changes.filter(c => c.category)
-        setSuggestions(catChanges.length ? catChanges : null)
-        if (!catChanges.length) setSuggestError('AI found no miscategorized items — your catalog looks well organized!')
-      } else {
-        setSuggestError('AI found no miscategorized items — your catalog looks well organized!')
-      }
+      // Reviewed in token-safe chunks so a large catalog never trips the
+      // provider's per-minute token cap. Each item sends only name/category +
+      // a short description snippet.
+      const { changes } = await runOverCatalog(catalog, {
+        system: AI_CHAT_SYSTEM,
+        chunkSize: 60,
+        buildPrompt: (chunk) => {
+          const summary = chunk.map(({ id, name, category, description }) =>
+            ({ id, name, category, description: (description || '').slice(0, 60) }))
+          return `CURRENT CATALOG (${summary.length} items):\n${JSON.stringify(summary)}\n\nUSER REQUEST: Review every item in the catalog and identify any that appear to be miscategorized — where the item clearly belongs in a different category based on its name and description. Only flag items where the category is clearly wrong. Return only items that should move; don't change items that are already correct.`
+        },
+      })
+      const catChanges = changes.filter(c => c.category)
+      if (catChanges.length) setSuggestions(catChanges)
+      else setSuggestError('AI found no miscategorized items — your catalog looks well organized!')
     } catch (err) {
       setSuggestError(err.message)
     } finally {
