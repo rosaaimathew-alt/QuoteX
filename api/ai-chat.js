@@ -63,7 +63,7 @@ export default async function handler(req, res) {
   try {
     if (groqKey) {
       const base = process.env.OPENAI_BASE_URL || 'https://api.groq.com/openai/v1'
-      const modelName = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'
+      const modelName = process.env.GROQ_MODEL || 'llama-3.1-8b-instant'
       const r = await fetch(`${base}/chat/completions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${groqKey}` },
