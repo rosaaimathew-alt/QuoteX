@@ -1053,12 +1053,16 @@ export default function Analytics() {
     })
     const find = (d) => months.find(mm => mm.year === d.getFullYear() && mm.month === d.getMonth())
 
-    // Revenue/jobs by WON date (matches the cards' won filter: tagged Won OR signed)
+    // Win COUNT = tagged Won OR signed (matches the win-rate card). REVENUE, though,
+    // only counts realized Won contracts — a signed-but-not-yet-tagged deal is a win
+    // but not recognized revenue yet — so the graph's sales total matches the cards.
     proposals.filter(p => p.status === 'Won' || p.contractDraft?.signed === true).forEach(p => {
       const m = find(new Date(p.closedAt || p.contractDraft?.signedAt || p.sentAt || p.createdAt || Date.now()))
       if (!m) return
+      m.jobCount += 1
+      if (p.status !== 'Won') return   // signed-only deals: count as a win, not revenue
       const rev = wonRevenueOf(p)
-      m.total += rev; m.jobCount += 1
+      m.total += rev
       const types = p.contractDraft?.projectTypes?.length ? p.contractDraft.projectTypes : p.projectTypes?.length ? p.projectTypes : ['Other']
       types.forEach(t => { m.byType[t] = (m.byType[t] || 0) + rev / types.length })
     })

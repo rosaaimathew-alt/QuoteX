@@ -156,7 +156,9 @@ export default function Dashboard() {
   const wonClients   = buildGroups(proposals.filter(p => p.status !== 'Archived'))
     .filter(({ root, revisions }) => [root, ...revisions]
       .some(p => isWon(p) && inPeriodByClose(wonDate(p))))
-  const won          = proposals.filter(p => isWon(p) && inPeriodByClose(wonDate(p)))
+  // Revenue counts realized Won contracts only (a signed-but-untagged deal is a win,
+  // not recognized revenue yet) so the $ total matches the Analytics cards.
+  const won          = proposals.filter(p => p.status === 'Won' && inPeriodByClose(p.closedAt || p.sentAt || p.createdAt))
   const active       = proposals.filter(p => ['Sent', 'Followed Up', 'Negotiating'].includes(p.status))
   const wonRevenue   = won.reduce((s, p) => s + wonRevenueOf(p), 0)
   const pipeline     = active.reduce((s, p) => s + (p.total || 0), 0)
