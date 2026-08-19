@@ -920,7 +920,6 @@ function TrendChart({ months, activeTypes, allTypes }) {
 export default function Analytics() {
   const proposals    = useStore(s => s.proposals)
   const PROJECT_TYPES = useStore(s => s.projectTypes)
-  const [rangeMonths, setRangeMonths]   = useState(12)
   const CURRENT_YEAR = new Date().getFullYear()
   // Stat-card period: month / quarter / last-quarter / this-year (YTD) / a prior
   // year / all time. Defaults to this year.
@@ -1017,45 +1016,47 @@ export default function Analytics() {
     }
   }, [proposals, statsPeriod])
 
-  // Build trend months separately (depends on rangeMonths)
+  // Trend months span the SELECTED period, and count won/appointments the same
+  // way the cards do — so the chart totals reconcile with the cards exactly.
   const trendData = useMemo(() => {
-    const won = proposals.filter(p => p.status === 'Won')
     const now = new Date()
-    const months = Array.from({ length: rangeMonths }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() - (rangeMonths - 1 - i), 1)
-      return {
-        label: d.toLocaleDateString('en-US', { month: 'short' }),
-        labelFull: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-        year: d.getFullYear(),
-        month: d.getMonth(),
-        total: 0,
-        byType: {},
-        jobCount: 0,
-        apptCount: 0,
-      }
+    const list = []
+    if (statsPeriod === 'this-month') list.push([now.getFullYear(), now.getMonth()])
+    else if (statsPeriod === 'this-quarter') { const q = Math.floor(now.getMonth() / 3); for (let m = q * 3; m <= now.getMonth(); m++) list.push([now.getFullYear(), m]) }
+    else if (statsPeriod === 'last-quarter') { let y = now.getFullYear(), lq = Math.floor(now.getMonth() / 3) - 1; if (lq < 0) { lq = 3; y-- } for (let m = lq * 3; m < lq * 3 + 3; m++) list.push([y, m]) }
+    else if (statsPeriod === 'this-year') { for (let m = 0; m <= now.getMonth(); m++) list.push([now.getFullYear(), m]) }
+    else if (statsPeriod === 'all') {
+      let min = now
+      proposals.forEach(p => { const d = new Date(p.closedAt || p.createdAt || p.sentAt); if (!Number.isNaN(d.getTime()) && d < min) min = d })
+      let y = min.getFullYear(), m = min.getMonth()
+      while (y < now.getFullYear() || (y === now.getFullYear() && m <= now.getMonth())) { list.push([y, m]); if (++m > 11) { m = 0; y++ } }
+    } else { for (let m = 0; m < 12; m++) list.push([statsPeriod, m]) }  // a specific prior year
+
+    const months = list.map(([y, m]) => {
+      const d = new Date(y, m, 1)
+      return { label: d.toLocaleDateString('en-US', { month: 'short' }), labelFull: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }), year: y, month: m, total: 0, byType: {}, jobCount: 0, apptCount: 0 }
     })
-    won.forEach(p => {
-      const d = new Date(p.closedAt || p.createdAt || p.sentAt || Date.now())
-      const m = months.find(m => m.year === d.getFullYear() && m.month === d.getMonth())
+    const find = (d) => months.find(mm => mm.year === d.getFullYear() && mm.month === d.getMonth())
+
+    // Revenue/jobs by WON date (matches the cards' won filter)
+    proposals.filter(p => p.status === 'Won').forEach(p => {
+      const m = find(new Date(p.closedAt || p.sentAt || p.createdAt || Date.now()))
       if (!m) return
       const rev = wonRevenueOf(p)
-      m.total += rev
-      m.jobCount += 1
-      const types = p.contractDraft?.projectTypes?.length
-        ? p.contractDraft.projectTypes
-        : p.projectTypes?.length ? p.projectTypes : ['Other']
+      m.total += rev; m.jobCount += 1
+      const types = p.contractDraft?.projectTypes?.length ? p.contractDraft.projectTypes : p.projectTypes?.length ? p.projectTypes : ['Other']
       types.forEach(t => { m.byType[t] = (m.byType[t] || 0) + rev / types.length })
     })
-    // Appointments = original estimates done (each root proposal, not revisions),
-    // counted by when it was created. Tracks activity volume vs. revenue.
-    proposals.forEach(p => {
-      if (p.parentId) return
-      const d = new Date(p.createdAt || p.sentAt || p.closedAt || Date.now())
-      const m = months.find(m => m.year === d.getFullYear() && m.month === d.getMonth())
+    // Appointments = root opportunities (fully-archived excluded), by created date
+    const ids = new Set(proposals.map(p => p.id))
+    proposals.filter(p => !p.parentId || !ids.has(p.parentId)).forEach(root => {
+      const group = [root, ...proposals.filter(p => p.parentId === root.id)]
+      if (!group.some(p => p.status !== 'Archived')) return
+      const m = find(new Date(root.createdAt || root.sentAt || root.closedAt || Date.now()))
       if (m) m.apptCount += 1
     })
     return months
-  }, [proposals, rangeMonths])
+  }, [proposals, statsPeriod])
 
   const toggleType = type => {
     setActiveTypes(prev => {
@@ -1097,17 +1098,9 @@ export default function Analytics() {
         <div className="flex items-start justify-between flex-wrap gap-3 mb-4">
           <div>
             <h2 className="font-semibold text-gray-900 text-sm">Revenue Trend &amp; Seasonality</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Revenue by month (left axis, $) vs. appointments done (right axis, teal dashed). Toggle any line below.</p>
+            <p className="text-xs text-gray-400 mt-0.5">{periodLabel} · revenue by month (left, $) vs. appointments done (right, teal). Matches the cards above.</p>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
-              {[12, 18, 24].map(n => (
-                <button key={n} onClick={() => setRangeMonths(n)}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${rangeMonths === n ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
-                  {n}mo
-                </button>
-              ))}
-            </div>
             <div className="relative">
               <button onClick={() => setShowTrendMenu(o => !o)}
                 aria-label="More actions"
