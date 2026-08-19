@@ -143,10 +143,10 @@ export default function Dashboard() {
   const periodProps = proposals.filter(inPeriod)
 
   // Win rate scoped to the selected period (defaults to this year), matching the
-  // other tiles — clients whose estimates fall in the period.
-  const outcomes     = clientOutcomes(periodProps)
+  // other tiles. Archived proposals are neutral (superseded revisions), so they're
+  // excluded — they must not count as "not won."
+  const outcomes     = clientOutcomes(periodProps.filter(p => p.status !== 'Archived'))
   const wonClients   = outcomes.filter(o => o.isWon)
-  const lostClients  = outcomes.filter(o => !o.isWon)
   const won          = periodProps.filter(p => p.status === 'Won')
   const active       = proposals.filter(p => ['Sent', 'Followed Up', 'Negotiating'].includes(p.status))
   const wonRevenue   = won.reduce((s, p) => s + wonRevenueOf(p), 0)
@@ -246,7 +246,7 @@ export default function Dashboard() {
         <KpiCard
           icon={Award} label="Win Rate" color="bg-[var(--brand-500)]"
           value={winRate !== null ? `${winRate}%` : '—'}
-          sub={`${wonClients.length}W · ${lostClients.length} not won · ${outcomes.length} clients · ${pLabel}`}
+          sub={`${wonClients.length} won of ${outcomes.length} · ${pLabel}`}
           onClick={() => navigate('/tracker')}
         />
         <KpiCard

@@ -963,15 +963,19 @@ export default function Analytics() {
     // Revenue counts by WON date (closedAt); win-rate & appointments by the date
     // the estimate was DONE (createdAt).
     const won  = proposals.filter(p => p.status === 'Won' && matchesPeriod(p.closedAt || p.sentAt || p.createdAt))
-    const lost = proposals.filter(p => p.status !== 'Won' && matchesPeriod(p.createdAt || p.sentAt || p.closedAt))
+    // 'Archived' is a superseded revision — neutral, never counted as a loss.
+    const lost = proposals.filter(p => p.status !== 'Won' && p.status !== 'Archived' && matchesPeriod(p.createdAt || p.sentAt || p.closedAt))
 
     // Win rate = deals won ÷ APPOINTMENTS completed (not proposals sent). An
     // appointment = one estimate/opportunity (a root proposal, revisions excluded);
     // it's "won" if any version of it closed. e.g. 3 won / 12 appointments = 25%.
     const ids     = new Set(proposals.map(p => p.id))
     const roots   = proposals.filter(p => (!p.parentId || !ids.has(p.parentId)) && matchesPeriod(p.createdAt || p.sentAt || p.closedAt))
-    const apptCount = roots.length
-    const wonAppts  = roots.filter(root => [root, ...proposals.filter(p => p.parentId === root.id)].some(p => p.status === 'Won')).length
+    const apptGroups = roots
+      .map(root => [root, ...proposals.filter(p => p.parentId === root.id)])
+      .filter(group => group.some(p => p.status !== 'Archived'))   // drop fully-archived opportunities
+    const apptCount = apptGroups.length
+    const wonAppts  = apptGroups.filter(group => group.some(p => p.status === 'Won')).length
     const winRate   = apptCount > 0 ? (wonAppts / apptCount) * 100 : 0
 
     // Use the actual contract value (à la carte = items sold), not the full
