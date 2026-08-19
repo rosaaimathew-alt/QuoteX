@@ -965,14 +965,14 @@ export default function Analytics() {
     const won  = proposals.filter(p => p.status === 'Won' && matchesPeriod(p.closedAt || p.sentAt || p.createdAt))
     const lost = proposals.filter(p => p.status !== 'Won' && matchesPeriod(p.createdAt || p.sentAt || p.closedAt))
 
-    // Client-group win rate — root estimates (appointments) done in the period
-    const ids    = new Set(proposals.map(p => p.id))
-    const roots  = proposals.filter(p => (!p.parentId || !ids.has(p.parentId)) && matchesPeriod(p.createdAt || p.sentAt || p.closedAt))
-    const groups = roots.map(root => {
-      const all = [root, ...proposals.filter(p => p.parentId === root.id)]
-      return all.some(p => p.status === 'Won')
-    })
-    const winRate = groups.length > 0 ? (groups.filter(Boolean).length / groups.length) * 100 : 0
+    // Win rate = deals won ÷ APPOINTMENTS completed (not proposals sent). An
+    // appointment = one estimate/opportunity (a root proposal, revisions excluded);
+    // it's "won" if any version of it closed. e.g. 3 won / 12 appointments = 25%.
+    const ids     = new Set(proposals.map(p => p.id))
+    const roots   = proposals.filter(p => (!p.parentId || !ids.has(p.parentId)) && matchesPeriod(p.createdAt || p.sentAt || p.closedAt))
+    const apptCount = roots.length
+    const wonAppts  = roots.filter(root => [root, ...proposals.filter(p => p.parentId === root.id)].some(p => p.status === 'Won')).length
+    const winRate   = apptCount > 0 ? (wonAppts / apptCount) * 100 : 0
 
     // Use the actual contract value (à la carte = items sold), not the full
     // proposal menu, so declined options don't inflate won revenue.
@@ -1007,7 +1007,7 @@ export default function Analytics() {
       .reduce((s, p) => s + Number(p.total || 0), 0)
 
     return {
-      stats: { won, lost, totalClients: groups.length, totalRevenue, avgDeal, winRate, typeRows, winReasons, lossReasons, pipelineValue },
+      stats: { won, lost, apptCount, wonAppts, totalRevenue, avgDeal, winRate, typeRows, winReasons, lossReasons, pipelineValue },
       trendMonths: [],
       allTypes,
     }
@@ -1083,7 +1083,7 @@ export default function Analytics() {
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <StatCard icon={DollarSign} label="Total Revenue"  value={`$${fmt(stats.totalRevenue)}`} sub={`${stats.won.length} jobs won · ${periodLabel}`} color="green" />
-        <StatCard icon={Target}     label="Win Rate"       value={`${stats.winRate.toFixed(0)}%`} sub={`${stats.won.length}W · ${stats.lost.length} not won · ${stats.totalClients} clients · ${periodLabel}`} color="blue" />
+        <StatCard icon={Target}     label="Win Rate"       value={`${stats.winRate.toFixed(0)}%`} sub={`${stats.wonAppts} won / ${stats.apptCount} appointment${stats.apptCount !== 1 ? 's' : ''} · ${periodLabel}`} color="blue" />
         <StatCard icon={Award}      label="Avg Deal Size"  value={`$${fmt(stats.avgDeal)}`}       sub={`per won job · ${periodLabel}`} color="amber" />
         <StatCard icon={TrendingUp} label="Pipeline"       value={`$${fmt(stats.pipelineValue)}`} sub={`open proposals · ${periodLabel}`} color="blue" />
       </div>
