@@ -147,14 +147,16 @@ export default function Dashboard() {
   // excluded — they must not count as "not won."
   // Denominator = appointments (opportunities) whose ESTIMATE was done in the period.
   const outcomes     = clientOutcomes(periodProps.filter(p => p.status !== 'Archived'))
-  // Numerator = deals WON in the period, counted by the win date (closedAt) and once
-  // per opportunity — INDEPENDENT of when the estimate happened, so a deal estimated
-  // last month but signed this month still counts this month. Matches Analytics.
+  // A deal counts as WON the moment the client commits — tagged 'Won' OR contract
+  // signed (even if the status wasn't manually flipped). Numerator = deals won in the
+  // period by win date, once per opportunity, independent of when the estimate happened.
+  const isWon        = (p) => p.status === 'Won' || p.contractDraft?.signed === true
+  const wonDate      = (p) => p.closedAt || p.contractDraft?.signedAt || p.sentAt || p.createdAt
   const inPeriodByClose = (dateStr) => { const d = new Date(dateStr); return !Number.isNaN(d.getTime()) && d >= pStart && d <= pEnd }
   const wonClients   = buildGroups(proposals.filter(p => p.status !== 'Archived'))
     .filter(({ root, revisions }) => [root, ...revisions]
-      .some(p => p.status === 'Won' && inPeriodByClose(p.closedAt || p.sentAt || p.createdAt)))
-  const won          = proposals.filter(p => p.status === 'Won' && inPeriodByClose(p.closedAt || p.sentAt || p.createdAt))
+      .some(p => isWon(p) && inPeriodByClose(wonDate(p))))
+  const won          = proposals.filter(p => isWon(p) && inPeriodByClose(wonDate(p)))
   const active       = proposals.filter(p => ['Sent', 'Followed Up', 'Negotiating'].includes(p.status))
   const wonRevenue   = won.reduce((s, p) => s + wonRevenueOf(p), 0)
   const pipeline     = active.reduce((s, p) => s + (p.total || 0), 0)

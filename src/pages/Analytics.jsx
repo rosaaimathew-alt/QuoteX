@@ -979,12 +979,17 @@ export default function Analytics() {
       matchesPeriod(group[0].createdAt || group[0].sentAt || group[0].closedAt))
     const apptCount = apptGroups.length
 
+    // A deal counts as WON the moment the client commits — either it's tagged 'Won'
+    // OR its contract is signed (even if the status wasn't manually flipped yet).
+    // "Whether they sign it today or tomorrow, it's a win."
+    const isWon   = (p) => p.status === 'Won' || p.contractDraft?.signed === true
+    const wonDate = (p) => p.closedAt || p.contractDraft?.signedAt || p.sentAt || p.createdAt
     // Deals WON in the period = the win landed in the period (closedAt), counted once
     // per opportunity — INDEPENDENT of when the estimate was done, so a deal estimated
     // last month but signed this month still counts as this month's win. This matches
     // the trend chart (which also counts wins by closedAt) so card and graph reconcile.
     const wonAppts = rootGroups.filter(group =>
-      group.some(p => p.status === 'Won' && matchesPeriod(p.closedAt || p.sentAt || p.createdAt))).length
+      group.some(p => isWon(p) && matchesPeriod(wonDate(p)))).length
     const winRate  = apptCount > 0 ? (wonAppts / apptCount) * 100 : 0
 
     // Use the actual contract value (à la carte = items sold), not the full
@@ -1048,9 +1053,9 @@ export default function Analytics() {
     })
     const find = (d) => months.find(mm => mm.year === d.getFullYear() && mm.month === d.getMonth())
 
-    // Revenue/jobs by WON date (matches the cards' won filter)
-    proposals.filter(p => p.status === 'Won').forEach(p => {
-      const m = find(new Date(p.closedAt || p.sentAt || p.createdAt || Date.now()))
+    // Revenue/jobs by WON date (matches the cards' won filter: tagged Won OR signed)
+    proposals.filter(p => p.status === 'Won' || p.contractDraft?.signed === true).forEach(p => {
+      const m = find(new Date(p.closedAt || p.contractDraft?.signedAt || p.sentAt || p.createdAt || Date.now()))
       if (!m) return
       const rev = wonRevenueOf(p)
       m.total += rev; m.jobCount += 1
