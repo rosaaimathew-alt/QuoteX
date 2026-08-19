@@ -969,13 +969,23 @@ export default function Analytics() {
     // appointment = one estimate/opportunity (a root proposal, revisions excluded);
     // it's "won" if any version of it closed. e.g. 3 won / 12 appointments = 25%.
     const ids     = new Set(proposals.map(p => p.id))
-    const roots   = proposals.filter(p => (!p.parentId || !ids.has(p.parentId)) && matchesPeriod(p.createdAt || p.sentAt || p.closedAt))
-    const apptGroups = roots
+    const rootGroups = proposals
+      .filter(p => !p.parentId || !ids.has(p.parentId))
       .map(root => [root, ...proposals.filter(p => p.parentId === root.id)])
       .filter(group => group.some(p => p.status !== 'Archived'))   // drop fully-archived opportunities
+
+    // Appointments completed in the period = estimates DONE in the period (root date).
+    const apptGroups = rootGroups.filter(group =>
+      matchesPeriod(group[0].createdAt || group[0].sentAt || group[0].closedAt))
     const apptCount = apptGroups.length
-    const wonAppts  = apptGroups.filter(group => group.some(p => p.status === 'Won')).length
-    const winRate   = apptCount > 0 ? (wonAppts / apptCount) * 100 : 0
+
+    // Deals WON in the period = the win landed in the period (closedAt), counted once
+    // per opportunity — INDEPENDENT of when the estimate was done, so a deal estimated
+    // last month but signed this month still counts as this month's win. This matches
+    // the trend chart (which also counts wins by closedAt) so card and graph reconcile.
+    const wonAppts = rootGroups.filter(group =>
+      group.some(p => p.status === 'Won' && matchesPeriod(p.closedAt || p.sentAt || p.createdAt))).length
+    const winRate  = apptCount > 0 ? (wonAppts / apptCount) * 100 : 0
 
     // Use the actual contract value (à la carte = items sold), not the full
     // proposal menu, so declined options don't inflate won revenue.

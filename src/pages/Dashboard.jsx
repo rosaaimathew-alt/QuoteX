@@ -145,9 +145,16 @@ export default function Dashboard() {
   // Win rate scoped to the selected period (defaults to this year), matching the
   // other tiles. Archived proposals are neutral (superseded revisions), so they're
   // excluded — they must not count as "not won."
+  // Denominator = appointments (opportunities) whose ESTIMATE was done in the period.
   const outcomes     = clientOutcomes(periodProps.filter(p => p.status !== 'Archived'))
-  const wonClients   = outcomes.filter(o => o.isWon)
-  const won          = periodProps.filter(p => p.status === 'Won')
+  // Numerator = deals WON in the period, counted by the win date (closedAt) and once
+  // per opportunity — INDEPENDENT of when the estimate happened, so a deal estimated
+  // last month but signed this month still counts this month. Matches Analytics.
+  const inPeriodByClose = (dateStr) => { const d = new Date(dateStr); return !Number.isNaN(d.getTime()) && d >= pStart && d <= pEnd }
+  const wonClients   = buildGroups(proposals.filter(p => p.status !== 'Archived'))
+    .filter(({ root, revisions }) => [root, ...revisions]
+      .some(p => p.status === 'Won' && inPeriodByClose(p.closedAt || p.sentAt || p.createdAt)))
+  const won          = proposals.filter(p => p.status === 'Won' && inPeriodByClose(p.closedAt || p.sentAt || p.createdAt))
   const active       = proposals.filter(p => ['Sent', 'Followed Up', 'Negotiating'].includes(p.status))
   const wonRevenue   = won.reduce((s, p) => s + wonRevenueOf(p), 0)
   const pipeline     = active.reduce((s, p) => s + (p.total || 0), 0)
