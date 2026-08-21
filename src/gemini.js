@@ -50,9 +50,9 @@ export function getModel(systemInstruction) {
         },
       }
     },
-    async generateContent(prompt) {
+    async generateContent(prompt, opts = {}) {
       const content = toContent(prompt, 'Extract all line items.')
-      const out = await callAI({ system: systemInstruction, messages: [{ role: 'user', content }], maxTokens: 8192 })
+      const out = await callAI({ system: systemInstruction, messages: [{ role: 'user', content }], maxTokens: opts.maxTokens || 8192 })
       return { response: { text: () => out } }
     },
   }

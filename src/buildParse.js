@@ -37,7 +37,9 @@ export async function parseBuildSpec(text, { collections = [], catalog = [] } = 
   const model = getModel(SYSTEM)
   const names = catalog.slice(0, 400).map(n => `- ${n}`).join('\n')
   const prompt = `AVAILABLE COLLECTIONS: ${collections.length ? collections.join(', ') : '(none configured)'}\n\nCATALOG ITEMS:\n${names || '(none)'}\n\nJOB: ${clean}`
-  const out = await model.generateContent(prompt)
+  // The parse returns a small JSON spec, so cap the completion low — Groq counts
+  // the reserved output tokens against the per-minute limit, and 8192 blew past it.
+  const out = await model.generateContent(prompt, { maxTokens: 1200 })
   const raw = out.response.text()
   const match = raw.match(/\{[\s\S]*\}/)
   if (!match) throw new Error('Could not read that. Try rephrasing the job.')
