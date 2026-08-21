@@ -2066,12 +2066,22 @@ export default function Jobs() {
   const [filter, setFilter] = useState('active')
   const [query,  setQuery]  = useState('')
 
+  // A job's phase: closed, in-progress (≥1 stage done, not closed), or not-started.
+  const phaseOf = (p) => {
+    const cs = p.jobData?.completedStages || []
+    if (cs.includes('closed')) return 'closed'
+    const stages = getStages(p) || []
+    const done = stages.filter(s => cs.includes(s.key)).length
+    return done > 0 ? 'in-progress' : 'not-started'
+  }
+
   const wonJobs = proposals.filter(p => p.status === 'Won')
   const filtered = wonJobs.filter(p => {
-    const completedStages = p.jobData?.completedStages || []
-    const isClosed = completedStages.includes('closed')
-    if (filter === 'active' && isClosed) return false
-    if (filter === 'closed' && !isClosed) return false
+    const phase = phaseOf(p)
+    if (filter === 'active'      && phase === 'closed')        return false
+    if (filter === 'in-progress' && phase !== 'in-progress')   return false
+    if (filter === 'not-started' && phase !== 'not-started')   return false
+    if (filter === 'closed'      && phase !== 'closed')        return false
     if (query) {
       const q = query.toLowerCase()
       const contractNum = p.contractDraft?.contractNum || `EOL${String(70000 + p.id).padStart(6, '0')}`
@@ -2084,8 +2094,8 @@ export default function Jobs() {
     return aDate < bDate ? 1 : -1
   })
 
-  const activeCount = wonJobs.filter(p => !(p.jobData?.completedStages || []).includes('closed')).length
-  const closedCount = wonJobs.filter(p =>  (p.jobData?.completedStages || []).includes('closed')).length
+  const counts = { all: wonJobs.length, active: 0, 'in-progress': 0, 'not-started': 0, closed: 0 }
+  wonJobs.forEach(p => { const ph = phaseOf(p); counts[ph] += 1; if (ph !== 'closed') counts.active += 1 })
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
@@ -2099,9 +2109,11 @@ export default function Jobs() {
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-5">
         <div className="flex gap-1 bg-gray-100 rounded-xl p-1 self-start">
           {[
-            { key: 'all',    label: 'All',    count: wonJobs.length },
-            { key: 'active', label: 'Active', count: activeCount },
-            { key: 'closed', label: 'Closed', count: closedCount },
+            { key: 'all',         label: 'All',         count: counts.all },
+            { key: 'active',      label: 'Active',      count: counts.active },
+            { key: 'in-progress', label: 'In Progress', count: counts['in-progress'] },
+            { key: 'not-started', label: 'Not Started', count: counts['not-started'] },
+            { key: 'closed',      label: 'Closed',      count: counts.closed },
           ].map(f => (
             <button key={f.key} onClick={() => setFilter(f.key)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
