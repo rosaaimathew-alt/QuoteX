@@ -26,7 +26,7 @@ import Jobs from './pages/Jobs'
 import Subcontractors from './pages/Subcontractors'
 import Scheduler from './pages/Scheduler'
 import AuthGuard, { logout } from './components/AuthGuard'
-import { useStore } from './store'
+import { useStore, syncFromServer } from './store'
 import { applyBrandStyles, applyTheme, DEFAULT_BRAND_COLOR } from './brand'
 import { canAccessRoute, landingRoute } from './plans'
 import { canRoleAccess, roleLanding } from './roles'
@@ -258,6 +258,24 @@ function AppShell() {
     const timer = setInterval(async () => { try { await check() } catch {} }, UNREAD_POLL)
     return () => clearInterval(timer)
   }, [readMessageIds])
+
+  // Live multi-user sync: pull + merge the shared store every few seconds (only
+  // while the tab is visible), and immediately whenever the tab regains focus, so
+  // two people on the app see each other's changes within a few seconds without a
+  // manual refresh. syncFromServer is a no-op when nothing changed.
+  useEffect(() => {
+    const tick = () => { if (document.visibilityState === 'visible') syncFromServer() }
+    const onVisible = () => { if (document.visibilityState === 'visible') syncFromServer() }
+    const timer = setInterval(tick, 4000)
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
+    syncFromServer()   // sync once on mount too
+    return () => {
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
+    }
+  }, [])
 
   const companyName = branding?.companyName || 'QUOTEX'
   const logo        = branding?.logo        || null

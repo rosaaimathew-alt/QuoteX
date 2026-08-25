@@ -1669,6 +1669,65 @@ export const useStore = create(
   )
 )
 
+// ── Live multi-user sync ──────────────────────────────────────────────────────
+// A cheap fingerprint of the data that matters, so a poll can tell whether the
+// server holds something new (or we hold something the server is missing)
+// WITHOUT diffing the whole blob or re-rendering on every tick. Captures list
+// sizes, the newest proposal timestamp, and total nested richness (so adding a
+// change order / stage / note is detected even though top-level dates don't move).
+function _syncSig(st) {
+  st = st || {}
+  const p = st.proposals || []
+  let maxT = 0, rich = 0
+  for (const x of p) { const t = _score(x); if (t > maxT) maxT = t; rich += _richness(x) }
+  const L = k => (st[k] || []).length
+  return [
+    p.length, rich, maxT,
+    L('catalog'), L('templates'), L('scopeTemplates'), L('paymentSchedules'),
+    L('subcontractors'), L('standaloneChangeOrders'), L('todos'), L('plannedProjects'),
+    L('emailTemplates'), L('financeCards'), L('expenses'),
+    Object.keys(st.jobCosts || {}).length,
+    L('deckCustomComponents'), L('porchCustomComponents'),
+  ].join('|')
+}
+
+// Pull the shared server state, merge it with what's in memory using the SAME
+// non-destructive merge as hydration, then apply anything new and heal the server
+// with anything it was missing. Safe to call on a timer and on tab focus — a
+// no-op (no setState, no upload) when nothing changed. This is what makes two
+// people on the app see each other's changes within a few seconds.
+let _syncing = false
+export async function syncFromServer() {
+  if (_syncing || !_hydrated || DEMO || !_token()) return
+  _syncing = true
+  try {
+    const r = await fetch('/api/store', { headers: _authHeaders(), signal: AbortSignal.timeout(6000) })
+    if (!r.ok) return
+    const text = await r.text()
+    const serverStr = (text && text !== 'null') ? text : null
+    if (!serverStr) return
+    const cur = useStore.getState()
+    const localStr = JSON.stringify({ state: cur, version: 6 })
+    const merged = mergeStoreStrings(serverStr, localStr)
+    let nextState, serverState
+    try { nextState = JSON.parse(merged).state; serverState = JSON.parse(serverStr).state } catch { return }
+    if (!nextState || typeof nextState !== 'object') return
+    const nextSig = _syncSig(nextState)
+    // Server had something we don't → apply it (functions are preserved because
+    // setState shallow-merges over the current state).
+    if (nextSig !== _syncSig(cur)) {
+      useStore.setState(nextState)
+      try { localStorage.setItem('quotex-store', merged) } catch {}
+    }
+    // We hold something the server is missing → push the superset up.
+    if (nextSig !== _syncSig(serverState)) _pushToServer(merged)
+  } catch {
+    // transient network error — the next tick retries
+  } finally {
+    _syncing = false
+  }
+}
+
 // Demo mode: seed the sandbox with fictional sample data the first time a
 // visitor loads it (i.e. when their browser has no demo data yet).
 if (DEMO && typeof window !== 'undefined') {
