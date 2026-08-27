@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate, useLocation } from 'react-router-dom'
-import { LayoutGrid, User, FileText, Cloud, Package, ListChecks, LineChart, Tag, UserCog, Wrench, Calendar, BarChart3, TrendingUp, Wallet, Mail, Search, X, Settings as SettingsIcon, Sun, Moon, LogOut, Menu } from 'lucide-react'
+import { LayoutGrid, User, FileText, Cloud, Package, ListChecks, LineChart, Tag, UserCog, Wrench, Calendar, BarChart3, TrendingUp, Wallet, Mail, Search, X, Settings as SettingsIcon, Sun, Moon, LogOut, Menu, CheckSquare } from 'lucide-react'
 import { Component, useEffect, useState, useRef } from 'react'
 import Dashboard from './pages/Dashboard'
 import Analyze from './pages/Analyze'
@@ -25,6 +25,7 @@ import ProfitabilityTracker from './pages/ProfitabilityTracker'
 import Jobs from './pages/Jobs'
 import Subcontractors from './pages/Subcontractors'
 import Scheduler from './pages/Scheduler'
+import Checklists from './pages/Checklists'
 import AuthGuard, { logout } from './components/AuthGuard'
 import { useStore, syncFromServer } from './store'
 import { applyBrandStyles, applyTheme, DEFAULT_BRAND_COLOR } from './brand'
@@ -50,6 +51,7 @@ const NAV_SECTIONS = [
     { to: '/jobs',      label: 'Job Management',  icon: UserCog },
     { to: '/subs',      label: 'Subcontractors',  icon: Wrench },
     { to: '/scheduler', label: 'Scheduler',       icon: Calendar },
+    { to: '/checklists',label: 'Checklists',       icon: CheckSquare },
   ] },
   { section: 'Financials', items: [
     { to: '/analytics',     label: 'Analytics',     icon: BarChart3 },
@@ -425,6 +427,7 @@ function AppShell() {
             <Route path="/jobs"          element={<Gated path="/jobs"><Jobs /></Gated>} />
             <Route path="/subs"          element={<Gated path="/subs"><Subcontractors /></Gated>} />
             <Route path="/scheduler"     element={<Gated path="/scheduler"><Scheduler /></Gated>} />
+            <Route path="/checklists"    element={<Gated path="/checklists"><Checklists /></Gated>} />
             <Route path="/profitability" element={<Gated path="/profitability"><ProfitabilityTracker /></Gated>} />
             <Route path="/finance"       element={<Gated path="/finance"><Finance /></Gated>} />
             {/* Pipeline folded into the Proposal Tracker's Pipeline tab */}

@@ -30,6 +30,17 @@ function _token() {
   try { return localStorage.getItem('qx_token') } catch { return null }
 }
 
+// The email of the signed-in user, decoded from the session token payload.
+// Used to attribute who checked off a shared checklist item. '' when unknown.
+export function currentUserEmail() {
+  try {
+    const t = _token()
+    if (!t) return ''
+    const payload = JSON.parse(atob(t.split('.')[0]))
+    return payload?.email || ''
+  } catch { return '' }
+}
+
 // ── Supabase per-organization data ─────────────────────────────────────────
 // When the user has a Supabase session, their org's data document (org_stores)
 // is the source of truth. Without a session, everything falls back to the
@@ -149,6 +160,7 @@ export function mergeStoreStrings(serverStr, localStr) {
   merged.subcontractors   = _unionById(s.subcontractors, l.subcontractors)
   merged.standaloneChangeOrders = _unionById(s.standaloneChangeOrders, l.standaloneChangeOrders, true)
   merged.todos            = _unionById(s.todos, l.todos, true)
+  merged.checklists       = _unionById(s.checklists, l.checklists, true)
   merged.plannedProjects  = _unionById(s.plannedProjects, l.plannedProjects, true)
   merged.emailTemplates   = _unionById(s.emailTemplates, l.emailTemplates)
   merged.financeCards     = _unionById(s.financeCards, l.financeCards)
@@ -1411,6 +1423,54 @@ export const useStore = create(
         set((s) => ({ todos: s.todos.filter((t) => !t.done) })),
       setTodoPin: (side) => set({ todoPin: side }),
 
+      // ── Shared checklists ────────────────────────────────────────────────────
+      // Named checklists that live in the shared workspace, so every member of the
+      // org sees the same lists and (with live sync) each other's checks in real
+      // time. Each change stamps updatedAt so the newest-wins merge propagates
+      // item toggles reliably (toggling an item doesn't move a top-level date).
+      checklists: [],
+      addChecklist: (title) =>
+        set((s) => ({
+          checklists: [
+            { id: Date.now(), title: (title || '').trim() || 'Untitled checklist', items: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+            ...s.checklists,
+          ],
+        })),
+      renameChecklist: (id, title) =>
+        set((s) => ({ checklists: s.checklists.map((c) => (c.id === id ? { ...c, title: (title || '').trim() || c.title, updatedAt: new Date().toISOString() } : c)) })),
+      deleteChecklist: (id) =>
+        set((s) => ({ checklists: s.checklists.filter((c) => c.id !== id) })),
+      addChecklistItem: (id, text) =>
+        set((s) => ({
+          checklists: s.checklists.map((c) =>
+            c.id === id
+              ? { ...c, items: [...(c.items || []), { id: Date.now(), text: (text || '').trim(), done: false, doneBy: '', doneAt: null }], updatedAt: new Date().toISOString() }
+              : c
+          ),
+        })),
+      toggleChecklistItem: (id, itemId, byEmail) =>
+        set((s) => ({
+          checklists: s.checklists.map((c) =>
+            c.id === id
+              ? {
+                  ...c,
+                  items: (c.items || []).map((it) =>
+                    it.id === itemId
+                      ? { ...it, done: !it.done, doneBy: !it.done ? (byEmail || '') : '', doneAt: !it.done ? new Date().toISOString() : null }
+                      : it
+                  ),
+                  updatedAt: new Date().toISOString(),
+                }
+              : c
+          ),
+        })),
+      deleteChecklistItem: (id, itemId) =>
+        set((s) => ({
+          checklists: s.checklists.map((c) =>
+            c.id === id ? { ...c, items: (c.items || []).filter((it) => it.id !== itemId), updatedAt: new Date().toISOString() } : c
+          ),
+        })),
+
       // ── Branding ─────────────────────────────────────────────────────────────
       branding: {
         companyName: 'QUOTEX',
@@ -1530,6 +1590,7 @@ export const useStore = create(
           nextProposalId:     persisted?.nextProposalId     || 1,
           readMessageIds:     persisted?.readMessageIds     || [],
           todos:              persisted?.todos              || [],
+          checklists:         persisted?.checklists         || [],
           todoPin:            persisted?.todoPin            || 'off',
           role:               persisted?.role               || 'manager',
           plannedProjects:    persisted?.plannedProjects    || [],
@@ -1688,6 +1749,10 @@ function _syncSig(st) {
     L('emailTemplates'), L('financeCards'), L('expenses'),
     Object.keys(st.jobCosts || {}).length,
     L('deckCustomComponents'), L('porchCustomComponents'),
+    // checklists: count lists + total items + checked items so adds AND toggles
+    // by a teammate are picked up by the live-sync poll.
+    L('checklists'),
+    (st.checklists || []).reduce((a, c) => a + (c.items || []).length + (c.items || []).filter(i => i.done).length, 0),
   ].join('|')
 }
 
