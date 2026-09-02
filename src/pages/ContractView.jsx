@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Printer, Send, ChevronDown, ChevronUp, Lock, Sparkles, Loader2, X, Save, BookOpen, Bold } from 'lucide-react'
+import { ArrowLeft, Printer, Send, ChevronDown, ChevronUp, Lock, Sparkles, Loader2, X, Save, BookOpen, Bold, Plus } from 'lucide-react'
 import { useStore } from '../store'
 import { generatePalette, DEFAULT_BRAND_COLOR } from '../brand'
 import { DEMO } from '../demo'
@@ -368,6 +368,7 @@ export default function ContractView() {
   const [contractNum,     setContractNum]     = useState('')
   const [city,            setCity]            = useState('')
   const [state,           setState]           = useState('North Carolina')
+  const [newElecLabel,         setNewElecLabel]         = useState('')
   const [showItemPicker,       setShowItemPicker]       = useState(false)
   const [pickerSelection,      setPickerSelection]      = useState(new Set())
   const [milestoneLabels,        setMilestoneLabels]        = useState([])
@@ -384,6 +385,15 @@ export default function ContractView() {
   const [mergeModal,           setMergeModal]           = useState(null) // { template, missing: [{txt, checked}] }
 
   const contractDocRef = useRef(null)
+
+  // Add a custom electrical item to this contract's spec sheet (persists in the
+  // saved draft alongside the built-in options).
+  const addElecItem = () => {
+    const label = newElecLabel.trim()
+    if (!label) return
+    setElecItems(prev => [...prev, { id: `custom-${Date.now()}`, label, qty: '', custom: true }])
+    setNewElecLabel('')
+  }
 
   // Demo sandbox: swap real company/partner names for the fictional demo company
   // after every render (runs only when DEMO is on; a no-op on the real site).
@@ -2260,16 +2270,38 @@ export default function ContractView() {
                           ) : item.label}
                         </td>
                         <td className="border border-gray-400 px-3 py-2 text-center">
-                          <input
-                            className="no-print w-full text-center border border-gray-200 rounded px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-300"
-                            value={item.qty}
-                            onChange={e => setElecItems(prev => prev.map(i => i.id === item.id ? { ...i, qty: e.target.value } : i))}
-                            placeholder="—"
-                          />
+                          <div className="no-print flex items-center gap-1.5 justify-center">
+                            <input
+                              className="w-full text-center border border-gray-200 rounded px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-300"
+                              value={item.qty}
+                              onChange={e => setElecItems(prev => prev.map(i => i.id === item.id ? { ...i, qty: e.target.value } : i))}
+                              placeholder="—"
+                            />
+                            <button title="Remove item" onClick={() => setElecItems(prev => prev.filter(i => i.id !== item.id))}
+                              className="text-gray-300 hover:text-red-500 shrink-0"><X size={13} /></button>
+                          </div>
                           <span className="print-only">{item.qty || ''}</span>
                         </td>
                       </tr>
                     ))}
+                    {/* Add a custom electrical item (screen only) */}
+                    <tr className="no-print">
+                      <td colSpan={2} className="border border-gray-400 px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <input
+                            value={newElecLabel}
+                            onChange={e => setNewElecLabel(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addElecItem() } }}
+                            placeholder="Add another electrical item (e.g. Under-cabinet lighting, EV charger prewire)…"
+                            className="flex-1 text-sm border border-gray-200 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-300"
+                          />
+                          <button onClick={addElecItem} disabled={!newElecLabel.trim()}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 disabled:opacity-40 transition-colors shrink-0">
+                            <Plus size={13} /> Add item
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
 
