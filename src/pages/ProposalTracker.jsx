@@ -8,7 +8,7 @@ import {
   DollarSign, FileText, Plus, ChevronDown, ChevronUp, MessageSquare,
   Phone, Mail, Send, Users, BarChart2, Columns, List, Award, ThumbsDown,
   Eye, Copy, GitBranch, FileSignature, ChevronLeft, ChevronRight, ShoppingCart,
-  GitMerge, Unlink, Search, MoreHorizontal,
+  GitMerge, Unlink, Search, MoreHorizontal, Link2,
 } from 'lucide-react'
 import { getPeriodRange, shiftPeriod, isCurrentPeriod } from '../periodUtils'
 import { wonRevenueOf } from '../contractTotal'
@@ -200,10 +200,48 @@ function WinLossModal({ proposal, onSave, onClose }) {
 
 // ── Activity Log ───────────────────────────────────────────────────────────
 function ActivityLog({ proposal }) {
-  const { addActivity, deleteActivity } = useStore()
+  const { addActivity, deleteActivity, setProposalViewToken } = useStore()
+  const branding = useStore(s => s.branding)
   const [type, setType] = useState('Call')
   const [text, setText] = useState('')
   const [opens, setOpens] = useState(null)   // null = not loaded / no tracked link
+  const [linkUrl, setLinkUrl] = useState('')
+  const [linkBusy, setLinkBusy] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  // Build / fetch the permanent tracked link for pasting into your own email.
+  const makeLink = async () => {
+    setLinkBusy(true)
+    try {
+      const snapshot = {
+        client:         proposal.client || '',
+        address:        proposal.address || '',
+        expiration:     proposal.expiration || '',
+        total:          Number(proposal.total) || 0,
+        projectSummary: proposal.projectSummary || proposal.contractDraft?.projectSummary || '',
+        lines: (proposal.lines || [])
+          .filter(l => (l.name || '').trim())
+          .map(l => ({ name: l.name, qty: Number(l.qty) || 1, unitPrice: Number(l.unitPrice) || 0 })),
+        contractNum:  proposal.contractDraft?.contractNum || '',
+        companyName:  branding?.companyName || 'QUOTEX',
+        logo:         branding?.logo || null,
+        primaryColor: branding?.primaryColor || null,
+      }
+      const r = await fetch('/api/sign/pcreate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proposalId: proposal.id, snapshot }),
+      })
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok || !d.url) throw new Error(d.error || 'Could not create link')
+      if (d.token) setProposalViewToken(proposal.id, d.token)
+      setLinkUrl(d.url)
+      try { await navigator.clipboard.writeText(d.url); setCopied(true); setTimeout(() => setCopied(false), 2000) } catch { /* shown for manual copy */ }
+    } catch { /* leave linkUrl empty; user can retry */ }
+    finally { setLinkBusy(false) }
+  }
+  const copyLink = async () => {
+    try { await navigator.clipboard.writeText(linkUrl); setCopied(true); setTimeout(() => setCopied(false), 2000) } catch {}
+  }
 
   // Pull the customer's open history for the tracked proposal link, if one was
   // sent. Read-only — this doesn't record an open (that only happens when the
@@ -280,6 +318,25 @@ function ActivityLog({ proposal }) {
           )}
         </div>
       )}
+
+      {/* Shareable tracked link — create once, paste into any email */}
+      <div className="mb-2">
+        {!linkUrl ? (
+          <button onClick={makeLink} disabled={linkBusy}
+            className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 disabled:opacity-50">
+            <Link2 size={13} /> {linkBusy ? 'Creating link…' : 'Get shareable tracked link'}
+          </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <input readOnly value={linkUrl} onFocus={e => e.target.select()}
+              className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+            <button onClick={copyLink}
+              className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 shrink-0">
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+        )}
+      </div>
       {/* Activity list */}
       <div className="space-y-1.5 max-h-48 overflow-y-auto">
         {(proposal.activities || []).length === 0 && (
