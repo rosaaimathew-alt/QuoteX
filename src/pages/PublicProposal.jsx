@@ -55,42 +55,30 @@ export default function PublicProposal() {
   }
   const estimateDate = fmtDate(s.estimateDate, false)
   const expiry = fmtDate(s.expiration, true)
+  // Never show the app's placeholder name — brand with the logo only.
+  const companyLabel = s.companyName && s.companyName.trim().toUpperCase() !== 'QUOTEX' ? s.companyName.trim() : ''
 
   return (
     <div style={wrap}>
       <div style={card}>
-        {/* Header */}
-        <div style={{ background: accent, padding: '28px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+        {/* Header — white, logo only (no colored bar, no app name) */}
+        <div style={{ padding: '28px 32px 20px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
           <div>
-            <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#fff' }}>{s.companyName || 'Your Proposal'}</p>
-            <p style={{ margin: '6px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>Proposal{s.contractNum ? ` · ${s.contractNum}` : ''}</p>
+            <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: accent, letterSpacing: '-0.02em' }}>PROPOSAL</h1>
+            {estimateDate && <p style={{ margin: '6px 0 0', fontSize: 13, color: '#64748b' }}>{estimateDate}</p>}
+            {expiry && <p style={{ margin: '2px 0 0', fontSize: 13, fontWeight: 600, color: '#b91c1c' }}>Valid Until: {expiry}</p>}
+            {s.contractNum ? <p style={{ margin: '2px 0 0', fontSize: 12, color: '#94a3b8' }}>{s.contractNum}</p> : null}
           </div>
-          {s.logo ? <img src={s.logo} alt="logo" style={{ height: 44, objectFit: 'contain' }} /> : null}
+          {s.logo
+            ? <img src={s.logo} alt="logo" style={{ height: 56, objectFit: 'contain', marginLeft: 'auto' }} />
+            : (companyLabel ? <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: accent }}>{companyLabel}</p> : null)}
         </div>
 
-        <div style={{ padding: '28px 32px' }}>
-          <p style={{ margin: '0 0 4px', fontSize: 15, color: '#0f172a', fontWeight: 600 }}>
-            {s.client ? `Prepared for ${s.client}` : 'Your Proposal'}
-          </p>
-          {s.address ? <p style={{ margin: '0 0 12px', fontSize: 13, color: '#64748b' }}>{s.address}</p> : <div style={{ height: 8 }} />}
-
-          {/* Dates */}
-          {(estimateDate || expiry) && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, margin: '0 0 20px' }}>
-              {estimateDate && (
-                <div>
-                  <p style={dateLabel}>Estimate Date</p>
-                  <p style={dateValue}>{estimateDate}</p>
-                </div>
-              )}
-              {expiry && (
-                <div>
-                  <p style={dateLabel}>Valid Until</p>
-                  <p style={{ ...dateValue, color: '#b91c1c' }}>{expiry}</p>
-                </div>
-              )}
-            </div>
-          )}
+        <div style={{ padding: '24px 32px 28px' }}>
+          <p style={{ ...sectionLabel, color: accent }}>Prepared For</p>
+          {s.client && <p style={{ margin: '0 0 2px', fontSize: 16, color: '#0f172a', fontWeight: 600 }}>{s.client}</p>}
+          {s.address ? <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>{s.address}</p> : null}
+          <div style={{ height: 20 }} />
 
           {s.projectSummary ? (
             <div style={{ background: '#f8fafc', borderRadius: 10, padding: '14px 18px', marginBottom: 24 }}>
@@ -163,9 +151,11 @@ export default function PublicProposal() {
           </div>
         </div>
 
-        <div style={{ background: '#f8fafc', padding: '16px 32px', borderTop: '1px solid #e2e8f0' }}>
-          <p style={{ margin: 0, fontSize: 12, color: '#94a3b8' }}>{s.companyName || 'Ebony Outdoor Living'}</p>
-        </div>
+        {companyLabel && (
+          <div style={{ background: '#f8fafc', padding: '16px 32px', borderTop: '1px solid #e2e8f0' }}>
+            <p style={{ margin: 0, fontSize: 12, color: '#94a3b8' }}>{companyLabel}</p>
+          </div>
+        )}
       </div>
     </div>
   )

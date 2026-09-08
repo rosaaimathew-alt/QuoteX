@@ -27,7 +27,7 @@ export function buildProposalSnapshot(data = {}, branding = {}) {
     total:          Number(data.total) || subtotal,
     projectSummary: data.projectSummary || data.contractDraft?.projectSummary || '',
     contractNum:    data.contractDraft?.contractNum || '',
-    companyName:    branding?.companyName || 'QUOTEX',
+    companyName:    branding?.companyName || '',
     logo:           branding?.logo || null,
     primaryColor:   branding?.primaryColor || null,
   }
