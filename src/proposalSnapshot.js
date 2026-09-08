@@ -15,6 +15,8 @@ export function buildProposalSnapshot(data = {}, branding = {}) {
   return {
     client:         data.client || '',
     address:        data.address || '',
+    // Estimate date = when the proposal was sent, else created, else today.
+    estimateDate:   data.sentAt || data.createdAt || new Date().toISOString(),
     expiration:     data.expiration || '',
     // À la carte: options priced individually, customer selects, NO grand total.
     isAlaCarte:     !!data.isAlaCarte,

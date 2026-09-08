@@ -48,9 +48,13 @@ export default function PublicProposal() {
     ? s.subtotal
     : lines.reduce((a, l) => a + (Number(l.qty) || 1) * (Number(l.unitPrice) || 0), 0)
   const showItemized = s.showBreakdown || s.isAlaCarte
-  const expiry = s.expiration
-    ? new Date(s.expiration + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-    : null
+  const fmtDate = (v, dateOnly) => {
+    if (!v) return null
+    const d = dateOnly ? new Date(v + 'T00:00:00') : new Date(v)
+    return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+  }
+  const estimateDate = fmtDate(s.estimateDate, false)
+  const expiry = fmtDate(s.expiration, true)
 
   return (
     <div style={wrap}>
@@ -68,7 +72,25 @@ export default function PublicProposal() {
           <p style={{ margin: '0 0 4px', fontSize: 15, color: '#0f172a', fontWeight: 600 }}>
             {s.client ? `Prepared for ${s.client}` : 'Your Proposal'}
           </p>
-          {s.address ? <p style={{ margin: '0 0 20px', fontSize: 13, color: '#64748b' }}>{s.address}</p> : <div style={{ height: 12 }} />}
+          {s.address ? <p style={{ margin: '0 0 12px', fontSize: 13, color: '#64748b' }}>{s.address}</p> : <div style={{ height: 8 }} />}
+
+          {/* Dates */}
+          {(estimateDate || expiry) && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, margin: '0 0 20px' }}>
+              {estimateDate && (
+                <div>
+                  <p style={dateLabel}>Estimate Date</p>
+                  <p style={dateValue}>{estimateDate}</p>
+                </div>
+              )}
+              {expiry && (
+                <div>
+                  <p style={dateLabel}>Valid Until</p>
+                  <p style={{ ...dateValue, color: '#b91c1c' }}>{expiry}</p>
+                </div>
+              )}
+            </div>
+          )}
 
           {s.projectSummary ? (
             <div style={{ background: '#f8fafc', borderRadius: 10, padding: '14px 18px', marginBottom: 24 }}>
@@ -76,47 +98,33 @@ export default function PublicProposal() {
             </div>
           ) : null}
 
-          {/* Scope of Work — names + descriptions */}
+          {/* Scope of Work — each item with its description and a price box, like the PDF */}
           {lines.length > 0 && (
-            <div style={{ marginBottom: 24 }}>
-              <p style={{ ...sectionLabel, color: accent }}>Scope of Work</p>
-              {lines.map((l, i) => (
-                <div key={i} style={{ borderLeft: '2px solid #e5e7eb', paddingLeft: 12, marginBottom: 10 }}>
-                  <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: '#1f2937' }}>{l.name || '—'}</p>
-                  {l.description ? <p style={{ margin: '2px 0 0', fontSize: 13, color: '#64748b', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{l.description}</p> : null}
-                </div>
-              ))}
+            <div style={{ marginBottom: 18 }}>
+              <p style={{ ...sectionLabel, color: accent }}>{s.isAlaCarte ? 'Options & Pricing' : 'Scope of Work'}</p>
+              {s.isAlaCarte && (
+                <p style={{ margin: '0 0 14px', fontSize: 12, fontStyle: 'italic', color: '#64748b' }}>
+                  These options are priced individually — reply to let us know which you’d like to proceed with.
+                </p>
+              )}
+              {lines.map((l, i) => {
+                const price = (Number(l.qty) || 1) * (Number(l.unitPrice) || 0)
+                return (
+                  <div key={i} style={{ borderLeft: `2px solid ${accent}`, paddingLeft: 12, marginBottom: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
+                      <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: '#1f2937' }}>{l.name || '—'}</p>
+                      {showItemized && (
+                        <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', background: '#f1f5f9', borderRadius: 6, padding: '3px 12px' }}>
+                          ${fmt(price)}
+                        </span>
+                      )}
+                    </div>
+                    {l.description ? <p style={{ margin: '3px 0 0', fontSize: 13, color: '#64748b', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{l.description}</p> : null}
+                  </div>
+                )
+              })}
             </div>
           )}
-
-          {/* Pricing */}
-          <p style={{ ...sectionLabel, color: accent }}>{s.isAlaCarte ? 'Options & Pricing' : 'Pricing'}</p>
-          {s.isAlaCarte && (
-            <p style={{ margin: '0 0 12px', fontSize: 12, fontStyle: 'italic', color: '#64748b' }}>
-              These options are priced individually — reply to let us know which you’d like to proceed with.
-            </p>
-          )}
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
-                <th style={{ ...th, textAlign: 'left' }}>{s.isAlaCarte ? 'Option' : 'Item'}</th>
-                <th style={{ ...th, textAlign: 'right', width: 120 }}>Price</th>
-              </tr>
-            </thead>
-            <tbody>
-              {showItemized ? lines.map((l, i) => (
-                <tr key={i} style={{ background: i % 2 ? '#f8fafc' : '#fff', borderBottom: '1px solid #f1f5f9' }}>
-                  <td style={td}>{l.name || '—'}</td>
-                  <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>${fmt((Number(l.qty) || 1) * (Number(l.unitPrice) || 0))}</td>
-                </tr>
-              )) : (
-                <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                  <td style={td}>Project Total</td>
-                  <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>${fmt(subtotal)}</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
 
           {/* Grand total — summed mode only; à la carte has none by design */}
           {!s.isAlaCarte && (
@@ -146,5 +154,5 @@ export default function PublicProposal() {
 const wrap = { minHeight: '100vh', background: '#f1f5f9', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '32px 16px', fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif" }
 const card = { width: 640, maxWidth: '100%', background: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
 const sectionLabel = { fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', margin: '0 0 12px' }
-const th = { padding: '8px 4px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b' }
-const td = { padding: '10px 4px', fontSize: 13, color: '#1e293b' }
+const dateLabel = { margin: 0, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#94a3b8' }
+const dateValue = { margin: '2px 0 0', fontSize: 13, fontWeight: 600, color: '#1f2937' }
