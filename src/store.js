@@ -732,6 +732,15 @@ export const useStore = create(
           ),
         })),
 
+      // Remember the tracked view-link token for a proposal so the activity log
+      // can pull its open history (how many times the customer viewed it).
+      setProposalViewToken: (id, viewToken) =>
+        set((s) => ({
+          proposals: s.proposals.map((p) =>
+            p.id === id ? { ...p, viewToken } : p
+          ),
+        })),
+
       updateProposalStatus: (id, status) =>
         set((s) => {
           const target = s.proposals.find((p) => p.id === id)

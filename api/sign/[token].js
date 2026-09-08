@@ -13,7 +13,7 @@ export default async function handler(req, res) {
 
   // Admin actions (create links / recover links / look up by contract number)
   // require a signed-in operator. Client signing via role tokens stays public.
-  const isAdminAction = token === 'create' || token.startsWith('recover-') || token.startsWith('lookup-') || token.startsWith('record-')
+  const isAdminAction = token === 'create' || token === 'pcreate' || token.startsWith('recover-') || token.startsWith('lookup-') || token.startsWith('record-') || token.startsWith('pdata-')
   if (isAdminAction) {
     const header = req.headers.authorization || ''
     const bearer = header.startsWith('Bearer ') ? header.slice(7) : (req.headers['x-qx-token'] || null)
@@ -73,6 +73,62 @@ export default async function handler(req, res) {
           gc:      `${proto}://${host}/sign/${roleTokens.gc}`,
         },
       })
+    }
+
+    // ── CREATE a tracked proposal-view link (auth) ───────────────────
+    // Stores a display-only snapshot of the proposal under a permanent token
+    // (no TTL) so the customer's link never expires, and logs every open.
+    if (token === 'pcreate') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+      const { proposalId, snapshot } = req.body || {}
+      if (!snapshot) return res.status(400).json({ error: 'Missing snapshot' })
+      // Reuse the same link for a given proposal across re-sends so the open
+      // history stays on one link instead of fragmenting.
+      let viewToken = proposalId != null ? await kv.get(`pview-by-proposal:${proposalId}`) : null
+      if (viewToken) {
+        const existing = await kv.get(`pview:${viewToken}`)
+        if (existing) await kv.set(`pview:${viewToken}`, { ...existing, snapshot, updatedAt: Date.now() })
+        else viewToken = null
+      }
+      if (!viewToken) {
+        viewToken = crypto.randomUUID()
+        await kv.set(`pview:${viewToken}`, { proposalId: proposalId ?? null, snapshot, opens: [], createdAt: Date.now() })
+        if (proposalId != null) await kv.set(`pview-by-proposal:${proposalId}`, viewToken)
+      }
+      const host  = req.headers['x-forwarded-host'] || req.headers.host || 'quotexsolutions.com'
+      const proto = host.includes('localhost') ? 'http' : 'https'
+      return res.json({ token: viewToken, url: `${proto}://${host}/p/${viewToken}` })
+    }
+
+    // ── PUBLIC: open a tracked proposal — records the view ────────────
+    if (token.startsWith('popen-')) {
+      if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+      const viewToken = token.slice('popen-'.length)
+      const rec = await kv.get(`pview:${viewToken}`)
+      if (!rec) return res.status(404).json({ error: 'Proposal not found' })
+      // Don't let email-security scanners / link-preview crawlers inflate the
+      // count — still render the page for them, just don't log it as an open.
+      const ua = req.headers['user-agent'] || ''
+      const isBot = /bot|crawler|spider|preview|scanner|facebookexternalhit|slackbot|whatsapp|telegram|proofpoint|mimecast|barracuda|googleimageproxy|bingpreview|linkpreview|curl|wget|python-requests|headless/i.test(ua)
+      let opens = rec.opens || []
+      if (!isBot) {
+        opens = [...opens, {
+          at: Date.now(),
+          ua: ua.slice(0, 200),
+          ip: (req.headers['x-forwarded-for'] || '').split(',')[0].trim(),
+        }].slice(-1000)
+        await kv.set(`pview:${viewToken}`, { ...rec, opens })
+      }
+      return res.json({ snapshot: rec.snapshot, openCount: opens.length })
+    }
+
+    // ── ADMIN: read a proposal's open history for the activity log ────
+    if (token.startsWith('pdata-')) {
+      if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+      const viewToken = token.slice('pdata-'.length)
+      const rec = await kv.get(`pview:${viewToken}`)
+      const opens = rec?.opens || []
+      return res.json({ opens, openCount: opens.length })
     }
 
     // ── Admin record lookup: /api/sign/record-<recordId> ─────────────

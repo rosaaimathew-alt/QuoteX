@@ -203,12 +203,29 @@ function ActivityLog({ proposal }) {
   const { addActivity, deleteActivity } = useStore()
   const [type, setType] = useState('Call')
   const [text, setText] = useState('')
+  const [opens, setOpens] = useState(null)   // null = not loaded / no tracked link
+
+  // Pull the customer's open history for the tracked proposal link, if one was
+  // sent. Read-only — this doesn't record an open (that only happens when the
+  // customer loads the link).
+  useEffect(() => {
+    if (!proposal.viewToken) { setOpens(null); return }
+    let alive = true
+    fetch(`/api/sign/pdata-${proposal.viewToken}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (alive && d) setOpens(d.opens || []) })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [proposal.viewToken])
 
   const submit = () => {
     if (!text.trim()) return
     addActivity(proposal.id, { type, text: text.trim() })
     setText('')
   }
+
+  const openCount = opens?.length || 0
+  const lastOpen  = openCount ? opens[openCount - 1].at : null
 
   return (
     <div className="px-4 pb-4 pt-2 bg-gray-50 border-t border-gray-100">
@@ -236,6 +253,33 @@ function ActivityLog({ proposal }) {
           Log
         </button>
       </div>
+      {/* Email open tracking — shown when a tracked view link was sent */}
+      {proposal.viewToken && (
+        <div className="bg-white rounded-lg px-3 py-2 border border-blue-100 mb-2">
+          <div className="flex items-center gap-2">
+            <Eye size={13} className="text-blue-500 shrink-0" />
+            <span className="text-xs font-semibold text-gray-700">
+              {opens === null ? 'Checking views…'
+                : openCount === 0 ? 'Sent — not opened online yet'
+                : `Customer opened the proposal ${openCount} time${openCount !== 1 ? 's' : ''}`}
+            </span>
+            {lastOpen && (
+              <span className="text-[11px] text-gray-400 ml-auto">
+                last {new Date(lastOpen).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} {new Date(lastOpen).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+              </span>
+            )}
+          </div>
+          {openCount > 0 && (
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {opens.slice(-10).reverse().map((o, i) => (
+                <span key={i} className="text-[11px] text-gray-500 bg-gray-50 rounded px-1.5 py-0.5">
+                  {new Date(o.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {new Date(o.at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       {/* Activity list */}
       <div className="space-y-1.5 max-h-48 overflow-y-auto">
         {(proposal.activities || []).length === 0 && (

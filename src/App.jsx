@@ -26,6 +26,7 @@ import Jobs from './pages/Jobs'
 import Subcontractors from './pages/Subcontractors'
 import Scheduler from './pages/Scheduler'
 import Checklists from './pages/Checklists'
+import PublicProposal from './pages/PublicProposal'
 import AuthGuard, { logout } from './components/AuthGuard'
 import { useStore, syncFromServer } from './store'
 import { applyBrandStyles, applyTheme, DEFAULT_BRAND_COLOR } from './brand'
@@ -490,6 +491,7 @@ export default function App() {
         <Route path="/welcome"     element={<Landing />} />
         <Route path="/login"       element={<Login />} />
         <Route path="/sign/:token" element={<SignBoundary><SignPage /></SignBoundary>} />
+        <Route path="/p/:token"    element={<PublicProposal />} />
         <Route path="/co/:token"   element={<SignBoundary><COSignPage /></SignBoundary>} />
         <Route path="/view/:recordId" element={<SignBoundary><ContractViewFull /></SignBoundary>} />
         <Route path="*"            element={<AuthGuard><AppBoundary><AppShell /></AppBoundary></AuthGuard>} />

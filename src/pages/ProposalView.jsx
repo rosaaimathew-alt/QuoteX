@@ -23,7 +23,7 @@ export default function ProposalView() {
 
   const proposalDocRef = useRef(null)
   const proposalIdRef = useRef(null)
-  const { saveProposal, markProposalSent } = useStore()
+  const { saveProposal, markProposalSent, setProposalViewToken } = useStore()
   const branding = useStore(s => s.branding)
   const palette  = generatePalette(branding?.primaryColor || DEFAULT_BRAND_COLOR)
   const companyName = branding?.companyName || 'QUOTEX'
@@ -164,6 +164,37 @@ export default function ProposalView() {
       }
       const pdfBase64 = pdf.output('datauristring').split(',')[1]
 
+      // Create/refresh a permanent tracked view link so the email carries a
+      // "View Your Proposal" button and every open is logged to this proposal's
+      // activity. Best-effort — if it fails, the email still sends with the PDF.
+      let viewUrl = null
+      try {
+        const pid = proposalIdRef.current ?? data.id ?? null
+        const snapshot = {
+          client:         data.client || '',
+          address:        data.address || '',
+          expiration:     data.expiration || '',
+          total:          Number(data.total) || 0,
+          projectSummary: data.projectSummary || data.contractDraft?.projectSummary || '',
+          lines: (data.lines || [])
+            .filter(l => (l.name || '').trim())
+            .map(l => ({ name: l.name, qty: Number(l.qty) || 1, unitPrice: Number(l.unitPrice) || 0 })),
+          contractNum:  data.contractDraft?.contractNum || '',
+          companyName,
+          logo:         branding?.logo || null,
+          primaryColor: branding?.primaryColor || null,
+        }
+        const vr = await fetch('/api/sign/pcreate', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ proposalId: pid, snapshot }),
+        })
+        if (vr.ok) {
+          const vd = await vr.json()
+          viewUrl = vd.url || null
+          if (pid != null && vd.token) setProposalViewToken(pid, vd.token)
+        }
+      } catch { /* non-fatal — send without the tracked link */ }
+
       const res = await fetch('/api/email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -173,6 +204,7 @@ export default function ProposalView() {
           fromEmail,
           pdfBase64,
           pdfFilename: `Proposal-${(data.client || 'Client').replace(/\s+/g, '-')}.pdf`,
+          viewUrl,
         }),
       })
       const result = await res.json()

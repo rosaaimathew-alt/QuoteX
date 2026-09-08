@@ -24,8 +24,18 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
 ))
 
+// "View Your Proposal" button — only rendered when a tracked view link exists.
+// Opening it logs a view against the proposal's activity feed.
+const viewButton = (viewUrl) => {
+  if (!viewUrl || !/^https?:\/\//i.test(viewUrl)) return ''
+  const safe = esc(viewUrl)
+  return `<div style="text-align:center;margin:8px 0 24px;">
+    <a href="${safe}" style="display:inline-block;background:#3b82f6;color:#ffffff;font-size:15px;font-weight:600;padding:14px 36px;border-radius:8px;text-decoration:none;">View Your Proposal</a>
+  </div>`
+}
+
 // ── Proposal email HTML ───────────────────────────────────────────────────────
-function buildProposalHtml({ client, email, address, expiration, lines, companyName, fromName }) {
+function buildProposalHtml({ client, email, address, expiration, lines, companyName, fromName, viewUrl }) {
   const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
   const expirationFormatted = expiration
     ? new Date(expiration + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -55,6 +65,7 @@ function buildProposalHtml({ client, email, address, expiration, lines, companyN
           Feel free to reach out with any questions.
         </p>
       </td></tr>
+      ${viewUrl ? `<tr><td style="padding:0 40px;">${viewButton(viewUrl)}</td></tr>` : ''}
       ${address ? `<tr><td style="padding:0 40px 20px;">
         <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:8px;padding:16px;">
           <tr><td style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;padding-bottom:8px;">Project Address</td></tr>
@@ -311,7 +322,7 @@ export default async function handler(req, res) {
   }
 
   // ── Proposal email (default) ──────────────────────────────────────────────
-  const { proposal, fromName, fromEmail, replyText, inReplyTo, subject: customSubject, pdfBase64, pdfFilename } = body
+  const { proposal, fromName, fromEmail, replyText, inReplyTo, subject: customSubject, pdfBase64, pdfFilename, viewUrl } = body
   const recipientEmail = proposal?.email
   if (!recipientEmail) return res.status(400).json({ error: 'Recipient email is required.' })
 
@@ -339,8 +350,9 @@ export default async function handler(req, res) {
   <tr><td style="padding:32px 40px;">
     <p style="margin:0 0 14px;font-size:15px;color:#1e293b;">Hi ${client},</p>
     <p style="margin:0 0 14px;font-size:14px;color:#475569;line-height:1.7;">
-      Thank you for the opportunity to work with you. Please find your project proposal attached as a PDF. ${expLine}
+      Thank you for the opportunity to work with you. You can view your proposal online with the button below, or open the attached PDF. ${expLine}
     </p>
+    ${viewButton(viewUrl)}
     <p style="margin:0;font-size:14px;color:#475569;line-height:1.7;">
       To accept this proposal, simply reply to this email or give us a call. A 20% deposit is required to schedule your project.
     </p>
@@ -354,7 +366,7 @@ export default async function handler(req, res) {
 </table></td></tr></table></body></html>`
     subject = customSubject || `Proposal for ${proposal.client || 'Your Project'}${proposal.expiration ? ` — Valid Until ${new Date(proposal.expiration + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}`
   } else {
-    html    = buildProposalHtml({ ...proposal, fromName })
+    html    = buildProposalHtml({ ...proposal, fromName, viewUrl })
     subject = customSubject || `Proposal for ${proposal.client || 'Your Project'}${proposal.expiration ? ` — Valid Until ${new Date(proposal.expiration + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}`
   }
 
