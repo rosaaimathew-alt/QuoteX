@@ -142,12 +142,27 @@ export default function PublicProposal() {
             </div>
           )}
 
-          {expiry && <p style={{ margin: '18px 0 0', fontSize: 13, color: '#64748b' }}>This proposal is valid until <strong style={{ color: '#0f172a' }}>{expiry}</strong>.</p>}
+          {/* Terms & Conditions — mirrors the PDF */}
+          <div style={{ background: '#f8fafc', borderRadius: 8, padding: '16px 18px', marginTop: 26, fontSize: 12, color: '#64748b', lineHeight: 1.7 }}>
+            <p style={{ margin: '0 0 8px', fontWeight: 600, color: '#475569' }}>Terms &amp; Conditions</p>
+            <p style={{ margin: '0 0 8px' }}>{expiry ? `This proposal is valid until ${expiry}.` : 'This proposal is valid for 30 days from the date above.'}</p>
+            <p style={{ margin: '0 0 8px' }}><strong style={{ color: '#475569' }}>Payment:</strong> A 20% deposit is required to schedule work. Progress payments will follow different stages of completion as labeled in a scope of work document drafted once the proposal has been accepted.</p>
+            <p style={{ margin: '0 0 8px' }}><strong style={{ color: '#475569' }}>Site Conditions:</strong> Pricing is based on normal site conditions. Any unforeseen conditions may result in additional costs with prior written approval.</p>
+            <p style={{ margin: '0 0 8px' }}><strong style={{ color: '#475569' }}>Warranty:</strong> All projects include a standard 1-year warranty on materials and a 5-year structural warranty.</p>
+            <p style={{ margin: '0 0 4px', fontWeight: 600, color: '#475569' }}>Addendums</p>
+            <p style={{ margin: 0 }}>Any changes resulting in additional charges must be paid at the time of the change. If the inspector requires engineering, it will result in an additional charge.</p>
+          </div>
 
-          <div style={{ background: '#eff6ff', borderRadius: 8, borderLeft: '4px solid #3b82f6', padding: '14px 18px', marginTop: 22 }}>
-            <p style={{ margin: 0, fontSize: 13, color: '#1e40af', lineHeight: 1.6 }}>
-              To accept this proposal or ask any questions, simply reply to the email we sent you or give us a call. A 20% deposit is required to schedule your project.
-            </p>
+          {/* Signature lines */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40, marginTop: 32 }}>
+            <div>
+              <div style={{ borderBottom: '1px solid #cbd5e1', paddingBottom: 28, marginBottom: 6 }} />
+              <p style={{ margin: 0, fontSize: 11, color: '#94a3b8' }}>Client Signature &amp; Date</p>
+            </div>
+            <div>
+              <div style={{ borderBottom: '1px solid #cbd5e1', paddingBottom: 28, marginBottom: 6 }} />
+              <p style={{ margin: 0, fontSize: 11, color: '#94a3b8' }}>Contractor Signature &amp; Date</p>
+            </div>
           </div>
         </div>
 
