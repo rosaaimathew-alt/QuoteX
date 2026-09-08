@@ -3,7 +3,9 @@ import { useParams } from 'react-router-dom'
 
 // Public, read-only proposal a customer opens from the email link. Fetching it
 // records the open server-side (that's the tracking) and returns a display-only
-// snapshot — no pricing internals, costs, or app data.
+// snapshot — no pricing internals, costs, or app data. Mirrors the app's own
+// proposal layout: Scope of Work with descriptions, and à-la-carte vs. summed
+// pricing (à la carte shows each option priced individually with NO grand total).
 const fmt = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 export default function PublicProposal() {
@@ -41,8 +43,11 @@ export default function PublicProposal() {
 
   const s = snapshot
   const accent = s.primaryColor || '#0f172a'
-  const subtotal = (s.lines || []).reduce((a, l) => a + (Number(l.qty) || 1) * (Number(l.unitPrice) || 0), 0)
-  const total = s.total || subtotal
+  const lines = s.lines || []
+  const subtotal = typeof s.subtotal === 'number'
+    ? s.subtotal
+    : lines.reduce((a, l) => a + (Number(l.qty) || 1) * (Number(l.unitPrice) || 0), 0)
+  const showItemized = s.showBreakdown || s.isAlaCarte
   const expiry = s.expiration
     ? new Date(s.expiration + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     : null
@@ -66,34 +71,59 @@ export default function PublicProposal() {
           {s.address ? <p style={{ margin: '0 0 20px', fontSize: 13, color: '#64748b' }}>{s.address}</p> : <div style={{ height: 12 }} />}
 
           {s.projectSummary ? (
-            <div style={{ background: '#f8fafc', borderRadius: 10, padding: '14px 18px', marginBottom: 20 }}>
+            <div style={{ background: '#f8fafc', borderRadius: 10, padding: '14px 18px', marginBottom: 24 }}>
               <p style={{ margin: 0, fontSize: 13, color: '#475569', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{s.projectSummary}</p>
             </div>
           ) : null}
 
-          {(s.lines || []).length > 0 && (
-            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 4 }}>
-              <thead>
-                <tr style={{ background: '#f1f5f9' }}>
-                  <th style={th}>Item</th>
-                  <th style={{ ...th, textAlign: 'right', width: 120 }}>Amount</th>
+          {/* Scope of Work — names + descriptions */}
+          {lines.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <p style={{ ...sectionLabel, color: accent }}>Scope of Work</p>
+              {lines.map((l, i) => (
+                <div key={i} style={{ borderLeft: '2px solid #e5e7eb', paddingLeft: 12, marginBottom: 10 }}>
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: '#1f2937' }}>{l.name || '—'}</p>
+                  {l.description ? <p style={{ margin: '2px 0 0', fontSize: 13, color: '#64748b', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{l.description}</p> : null}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Pricing */}
+          <p style={{ ...sectionLabel, color: accent }}>{s.isAlaCarte ? 'Options & Pricing' : 'Pricing'}</p>
+          {s.isAlaCarte && (
+            <p style={{ margin: '0 0 12px', fontSize: 12, fontStyle: 'italic', color: '#64748b' }}>
+              These options are priced individually — reply to let us know which you’d like to proceed with.
+            </p>
+          )}
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
+                <th style={{ ...th, textAlign: 'left' }}>{s.isAlaCarte ? 'Option' : 'Item'}</th>
+                <th style={{ ...th, textAlign: 'right', width: 120 }}>Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              {showItemized ? lines.map((l, i) => (
+                <tr key={i} style={{ background: i % 2 ? '#f8fafc' : '#fff', borderBottom: '1px solid #f1f5f9' }}>
+                  <td style={td}>{l.name || '—'}</td>
+                  <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>${fmt((Number(l.qty) || 1) * (Number(l.unitPrice) || 0))}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {s.lines.map((l, i) => (
-                  <tr key={i} style={{ background: i % 2 ? '#f8fafc' : '#fff' }}>
-                    <td style={td}>{l.name}</td>
-                    <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>${fmt((Number(l.qty) || 1) * (Number(l.unitPrice) || 0))}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr style={{ background: accent }}>
-                  <td style={{ ...td, color: '#fff', fontWeight: 700, letterSpacing: '0.02em' }}>TOTAL INVESTMENT</td>
-                  <td style={{ ...td, color: '#fff', fontWeight: 700, textAlign: 'right', fontSize: 18 }}>${fmt(total)}</td>
+              )) : (
+                <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <td style={td}>Project Total</td>
+                  <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>${fmt(subtotal)}</td>
                 </tr>
-              </tfoot>
-            </table>
+              )}
+            </tbody>
+          </table>
+
+          {/* Grand total — summed mode only; à la carte has none by design */}
+          {!s.isAlaCarte && (
+            <div style={{ borderTop: '2px solid #d1d5db', marginTop: 8, paddingTop: 14, textAlign: 'right' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#94a3b8', marginRight: 16 }}>Total</span>
+              <span style={{ fontSize: 20, fontWeight: 700, color: accent }}>${fmt(subtotal)}</span>
+            </div>
           )}
 
           {expiry && <p style={{ margin: '18px 0 0', fontSize: 13, color: '#64748b' }}>This proposal is valid until <strong style={{ color: '#0f172a' }}>{expiry}</strong>.</p>}
@@ -115,5 +145,6 @@ export default function PublicProposal() {
 
 const wrap = { minHeight: '100vh', background: '#f1f5f9', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '32px 16px', fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif" }
 const card = { width: 640, maxWidth: '100%', background: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
-const th = { padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b' }
-const td = { padding: '10px 16px', fontSize: 13, color: '#1e293b', borderBottom: '1px solid #f1f5f9' }
+const sectionLabel = { fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', margin: '0 0 12px' }
+const th = { padding: '8px 4px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b' }
+const td = { padding: '10px 4px', fontSize: 13, color: '#1e293b' }

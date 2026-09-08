@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Printer, Copy, ArrowLeft, CheckCircle, Send, X, Loader, Link2 } from 'lucide-react'
 import { useStore } from '../store'
+import { buildProposalSnapshot } from '../proposalSnapshot'
 import { generatePalette, DEFAULT_BRAND_COLOR } from '../brand'
 import { toCanvas } from 'html-to-image'
 import jsPDF from 'jspdf'
@@ -172,20 +173,7 @@ export default function ProposalView() {
       let viewUrl = null
       try {
         const pid = proposalIdRef.current ?? data.id ?? null
-        const snapshot = {
-          client:         data.client || '',
-          address:        data.address || '',
-          expiration:     data.expiration || '',
-          total:          Number(data.total) || 0,
-          projectSummary: data.projectSummary || data.contractDraft?.projectSummary || '',
-          lines: (data.lines || [])
-            .filter(l => (l.name || '').trim())
-            .map(l => ({ name: l.name, qty: Number(l.qty) || 1, unitPrice: Number(l.unitPrice) || 0 })),
-          contractNum:  data.contractDraft?.contractNum || '',
-          companyName,
-          logo:         branding?.logo || null,
-          primaryColor: branding?.primaryColor || null,
-        }
+        const snapshot = buildProposalSnapshot(data, branding)
         const vr = await fetch('/api/sign/pcreate', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ proposalId: pid, snapshot }),
@@ -226,20 +214,7 @@ export default function ProposalView() {
     setGettingLink(true)
     try {
       const pid = proposalIdRef.current ?? data.id ?? null
-      const snapshot = {
-        client:         data.client || '',
-        address:        data.address || '',
-        expiration:     data.expiration || '',
-        total:          Number(data.total) || 0,
-        projectSummary: data.projectSummary || data.contractDraft?.projectSummary || '',
-        lines: (data.lines || [])
-          .filter(l => (l.name || '').trim())
-          .map(l => ({ name: l.name, qty: Number(l.qty) || 1, unitPrice: Number(l.unitPrice) || 0 })),
-        contractNum:  data.contractDraft?.contractNum || '',
-        companyName,
-        logo:         branding?.logo || null,
-        primaryColor: branding?.primaryColor || null,
-      }
+      const snapshot = buildProposalSnapshot(data, branding)
       const r = await fetch('/api/sign/pcreate', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ proposalId: pid, snapshot }),

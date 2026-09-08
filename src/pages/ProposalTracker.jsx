@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { buildProposalSnapshot } from '../proposalSnapshot'
 import {
   useStore, PROPOSAL_STATUSES, WIN_REASONS, LOSS_REASONS, ACTIVITY_TYPES,
 } from '../store'
@@ -213,20 +214,7 @@ function ActivityLog({ proposal }) {
   const makeLink = async () => {
     setLinkBusy(true)
     try {
-      const snapshot = {
-        client:         proposal.client || '',
-        address:        proposal.address || '',
-        expiration:     proposal.expiration || '',
-        total:          Number(proposal.total) || 0,
-        projectSummary: proposal.projectSummary || proposal.contractDraft?.projectSummary || '',
-        lines: (proposal.lines || [])
-          .filter(l => (l.name || '').trim())
-          .map(l => ({ name: l.name, qty: Number(l.qty) || 1, unitPrice: Number(l.unitPrice) || 0 })),
-        contractNum:  proposal.contractDraft?.contractNum || '',
-        companyName:  branding?.companyName || 'QUOTEX',
-        logo:         branding?.logo || null,
-        primaryColor: branding?.primaryColor || null,
-      }
+      const snapshot = buildProposalSnapshot(proposal, branding)
       const r = await fetch('/api/sign/pcreate', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ proposalId: proposal.id, snapshot }),
