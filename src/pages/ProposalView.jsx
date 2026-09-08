@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Printer, Copy, ArrowLeft, CheckCircle, Send, X, Loader } from 'lucide-react'
+import { Printer, Copy, ArrowLeft, CheckCircle, Send, X, Loader, Link2 } from 'lucide-react'
 import { useStore } from '../store'
 import { generatePalette, DEFAULT_BRAND_COLOR } from '../brand'
 import { toCanvas } from 'html-to-image'
@@ -12,6 +12,8 @@ export default function ProposalView() {
   const navigate = useNavigate()
   const [data, setData] = useState(null)
   const [copied, setCopied] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
+  const [gettingLink, setGettingLink] = useState(false)
 
   // Send modal state
   const [showSend, setShowSend] = useState(false)
@@ -218,6 +220,39 @@ export default function ProposalView() {
     }
   }
 
+  // Create/refresh the permanent tracked link and copy it, so it can be pasted
+  // into your own email. Same link + open-logging as the "Send to Client" button.
+  const handleGetLink = async () => {
+    setGettingLink(true)
+    try {
+      const pid = proposalIdRef.current ?? data.id ?? null
+      const snapshot = {
+        client:         data.client || '',
+        address:        data.address || '',
+        expiration:     data.expiration || '',
+        total:          Number(data.total) || 0,
+        projectSummary: data.projectSummary || data.contractDraft?.projectSummary || '',
+        lines: (data.lines || [])
+          .filter(l => (l.name || '').trim())
+          .map(l => ({ name: l.name, qty: Number(l.qty) || 1, unitPrice: Number(l.unitPrice) || 0 })),
+        contractNum:  data.contractDraft?.contractNum || '',
+        companyName,
+        logo:         branding?.logo || null,
+        primaryColor: branding?.primaryColor || null,
+      }
+      const r = await fetch('/api/sign/pcreate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proposalId: pid, snapshot }),
+      })
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok || !d.url) throw new Error(d.error || 'Could not create link')
+      if (pid != null && d.token) setProposalViewToken(pid, d.token)
+      try { await navigator.clipboard.writeText(d.url); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000) }
+      catch { window.prompt('Copy your proposal link:', d.url) }
+    } catch { /* no-op — user can retry */ }
+    finally { setGettingLink(false) }
+  }
+
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Toolbar */}
@@ -241,6 +276,15 @@ export default function ProposalView() {
           className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
         >
           <Printer size={14} /> Print / Save PDF
+        </button>
+        <button
+          onClick={handleGetLink}
+          disabled={gettingLink}
+          title="Create a tracked link you can paste into your own email"
+          className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+        >
+          {linkCopied ? <CheckCircle size={14} className="text-[var(--brand-500)]" /> : <Link2 size={14} />}
+          {gettingLink ? 'Creating…' : linkCopied ? 'Link copied!' : 'Get link'}
         </button>
         <button
           onClick={() => { setShowSend(true); setSendSuccess(false); setSendError('') }}
