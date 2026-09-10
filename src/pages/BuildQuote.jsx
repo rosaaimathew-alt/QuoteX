@@ -112,11 +112,19 @@ function DeckAssemblyPanel({ onClose, onAdd, initial }) {
   const [border, setBorder]     = useState(initial?.border ?? 'None')       // None / Single / Double picture frame
   const [fieldWastePct, setFieldWastePct] = useState(8)  // extra field-decking waste when bordered
   const [fascia, setFascia]     = useState(initial?.fascia ? 'Matching' : 'None')  // None / Matching 1×12 fascia wrap
+  // Odd-shaped decks: extra sections (bump-outs / walkways) attached to the deck.
+  const [extraSections, setExtraSections] = useState(initial?.extraSections ?? [])
 
   const n = (v) => Number(v) || 0
   const W = n(width), D = n(depth), Hft = n(height), SW = n(stairWidth), LA = n(landings)
-  const area      = W * D
-  const perimeter = 2 * (W + D)
+  // Each attached section adds its own area (framing + decking) and its exposed
+  // edges (railing + fascia). Width = the side meeting the deck (not exposed);
+  // the net added edge is the far end + two sides − the shared edge = 2 × depth.
+  const extraArea      = extraSections.reduce((s, x) => s + n(x.width) * n(x.depth), 0)
+  const extraPerimeter = extraSections.reduce((s, x) => s + 2 * n(x.depth), 0)
+  const extraDeckingLF = extraSections.reduce((s, x) => s + n(x.width) * n(x.depth) * (12 / DECK_BOARD_FACE_IN), 0)
+  const area      = W * D + extraArea
+  const perimeter = 2 * (W + D) + extraPerimeter
   const heightIn  = Hft * 12
   const stepCount = heightIn > 0 ? Math.ceil(heightIn / DECK_RISER_MAX_IN) : 0
   const treadLF   = stepCount * SW
@@ -129,7 +137,7 @@ function DeckAssemblyPanel({ onClose, onAdd, initial }) {
   const frameAbsorbFt = 2 * borderCourses * (DECK_BOARD_FACE_IN / 12)
   const fieldDepthFt  = Math.max(0, D - frameAbsorbFt)                            // front/back borders reduce depth
   const fieldRows     = Math.ceil((fieldDepthFt * 12) / DECK_BOARD_FACE_IN)
-  const deckingLF     = fieldRows * sections * boardFt                            // field boards, full stock lengths
+  const deckingLF     = fieldRows * sections * boardFt + extraDeckingLF           // field boards + attached sections
   const borderLF      = perimeter * borderCourses
   const splineDeckingLF = splines * fieldDepthFt                                  // single spline board runs the depth
   const splineJoistLF   = splines * 2 * D                                         // double sister joist per spline
@@ -328,6 +336,42 @@ function DeckAssemblyPanel({ onClose, onAdd, initial }) {
         {dim('# Landings', landings, e => setLandings(e.target.value), { min: 0 })}
       </div>
 
+      {/* Odd shapes — bump-outs & walkways attached to the main deck */}
+      <div className="mb-3 border border-gray-100 rounded-lg p-3 bg-gray-50/50">
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="text-xs font-semibold text-gray-600">Bump-outs / walkways (attached sections)</label>
+          <button type="button" onClick={() => setExtraSections(s => [...s, { id: Date.now(), type: 'Bump-out', width: 4, depth: 4 }])}
+            className="flex items-center gap-1 text-xs font-medium text-[var(--brand-600)] hover:text-[var(--brand-700)]">
+            <Plus size={12} /> Add section
+          </button>
+        </div>
+        {extraSections.length === 0 ? (
+          <p className="text-xs text-gray-400">Rectangular main deck only. Add a bump-out or walkway for L-shapes and odd layouts.</p>
+        ) : (
+          <div className="space-y-2">
+            {extraSections.map(s => (
+              <div key={s.id} className="flex items-center gap-2 flex-wrap">
+                <select value={s.type} onChange={e => setExtraSections(cur => cur.map(x => x.id === s.id ? { ...x, type: e.target.value } : x))}
+                  className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand-300)]">
+                  {['Bump-out', 'Walkway'].map(t => <option key={t}>{t}</option>)}
+                </select>
+                <div className="flex items-center gap-1">
+                  <input type="number" min="0" value={s.width} onChange={e => setExtraSections(cur => cur.map(x => x.id === s.id ? { ...x, width: e.target.value } : x))}
+                    className="w-14 text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white" title="Width — the side attached to the deck" />
+                  <span className="text-xs text-gray-400">W ×</span>
+                  <input type="number" min="0" value={s.depth} onChange={e => setExtraSections(cur => cur.map(x => x.id === s.id ? { ...x, depth: e.target.value } : x))}
+                    className="w-14 text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white" title="Depth — how far it projects out from the deck" />
+                  <span className="text-xs text-gray-400">D ft</span>
+                </div>
+                <span className="text-xs text-gray-500">= {n(s.width) * n(s.depth)} SF</span>
+                <button type="button" onClick={() => setExtraSections(cur => cur.filter(x => x.id !== s.id))} className="ml-auto text-gray-300 hover:text-red-500"><X size={14} /></button>
+              </div>
+            ))}
+            <p className="text-[11px] text-gray-400">Width = the side that attaches to the deck · Depth = how far it projects out.</p>
+          </div>
+        )}
+      </div>
+
       {/* Materials / difficulty */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
         {drop('Decking brand', brand, e => { const b = e.target.value; setBrand(b); setCollection(Object.keys(brands[b] || {})[0]); patch('decking', { fromBrand: true }); patch('border', { fromBrand: true }); patch('spline', { fromBrand: true }) }, brandNames)}
@@ -344,6 +388,7 @@ function DeckAssemblyPanel({ onClose, onAdd, initial }) {
       {/* Recommendations */}
       <div className="bg-[var(--brand-50)] border border-[var(--brand-100)] rounded-lg px-3 py-2 mb-4 text-xs text-gray-600 space-y-0.5">
         <p><strong>{area} SF</strong> deck · perimeter <strong>{perimeter} LF</strong></p>
+        {extraSections.length > 0 && <p>Includes {extraSections.length} attached section{extraSections.length > 1 ? 's' : ''}: <strong>+{extraArea} SF</strong> · <strong>+{extraPerimeter} LF</strong> railing/fascia · <strong>+{Math.round(extraDeckingLF)} LF</strong> decking</p>}
         <p>Steps: ⌈{heightIn}" ÷ {DECK_RISER_MAX_IN}"⌉ = <strong>{stepCount} steps</strong> at {SW} ft wide</p>
         <p>Decking: {fieldRows} rows × {sections} run{sections > 1 ? 's' : ''} of <strong>{boardFt} ft</strong> board = <strong>{deckingLF} LF</strong> {borderCourses > 0 ? `(+${fieldWastePct}% field waste)` : ''}</p>
         {stepCount > 0 && <p>Stair treads: {stepCount} steps × {SW}′ × {DECK_TREAD_BOARDS} boards = <strong>{treadDeckingLF} LF</strong> decking</p>}
