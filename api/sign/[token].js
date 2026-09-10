@@ -202,6 +202,7 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       return res.json({
         role:         link.role,
+        recordId:     link.recordId,
         contractData: record.contractData,
         contractNum:  record.contractNum,
         status:       record.status,

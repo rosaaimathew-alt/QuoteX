@@ -257,14 +257,27 @@ export default function ContractsList() {
       for (const p of pending) {
         const draft = p.contractDraft || {}
         const contractNum = draft.contractNum || `EOL${String(70000 + p.id).padStart(6, '0')}`
-        // Self-healing: don't trust a single stored id. Try the stored record id
-        // AND a fresh lookup by contract number, then take whichever actually
-        // holds the client's signature — so a stale/missing id can't hide it.
+        // Self-healing: don't trust a single stored id. Probe every path that can
+        // reach the record and take whichever actually holds the client's
+        // signature — so a stale/missing id or contract-number can't hide it.
         const candidates = []
+        // 1) The signing links the customer actually used — the SAME path a
+        //    working "already signed" link uses, so if the link sees the
+        //    signature, this does too. Read the record id straight off it.
+        const linkUrl = draft.signLinks?.client || draft.signLinks?.builder || draft.signLinks?.gc
+        if (linkUrl) {
+          const tok = String(linkUrl).split('/sign/').pop()
+          if (tok) {
+            const viaLink = await probe(`/api/sign/${tok}`)
+            if (viaLink) candidates.push(viaLink)
+          }
+        }
+        // 2) The stored record id.
         if (draft.signRecordId) {
           const byId = await probe(`/api/sign/record-${draft.signRecordId}`)
           if (byId) candidates.push({ ...byId, recordId: byId.recordId || draft.signRecordId })
         }
+        // 3) A fresh lookup by contract number.
         const byNum = await probe(`/api/sign/lookup-${encodeURIComponent(contractNum)}`)
         if (byNum) candidates.push(byNum)
         if (cancelled) return
