@@ -203,6 +203,7 @@ export default function ContractsList() {
   const [viewingRecordId, setViewingRecordId] = useState(null)
   const [viewingLinks,    setViewingLinks]    = useState(null)
   const [recovering,      setRecovering]      = useState(null)
+  const [remote,          setRemote]          = useState({})   // proposalId -> { status, clientSigned, recordId }
 
   const handleRecoverLinks = async (p) => {
     const draft = p.contractDraft || {}
@@ -233,9 +234,44 @@ export default function ContractsList() {
   // Only Won proposals are relevant to contracts
   const wonProposals = proposals.filter(p => p.status === 'Won')
 
+  // Auto-detect signatures made remotely. When a customer signs from their own
+  // device the signature only lands on the server — this app is never told. On
+  // load, check each not-yet-signed contract's signing record and reflect it:
+  // fully signed → mark signed; client-signed (awaiting your countersignature)
+  // → flag it so a signed deal stops looking untouched.
+  useEffect(() => {
+    const pending = proposals.filter(p => p.status === 'Won' && p.contractDraft && !p.contractDraft.signed)
+    if (pending.length === 0) return
+    let cancelled = false
+    ;(async () => {
+      for (const p of pending) {
+        const draft = p.contractDraft || {}
+        const contractNum = draft.contractNum || `EOL${String(70000 + p.id).padStart(6, '0')}`
+        const url = draft.signRecordId
+          ? `/api/sign/record-${draft.signRecordId}`
+          : `/api/sign/lookup-${encodeURIComponent(contractNum)}`
+        try {
+          const r = await fetch(url)
+          if (!r.ok) continue
+          const d = await r.json()
+          if (cancelled || !d || d.error) continue
+          const clientSigned = !!(d.signatures && d.signatures.client)
+          const recordId = d.recordId || draft.signRecordId || null
+          if (d.status === 'signed' || d.status === 'partial' || clientSigned) {
+            setRemote(prev => ({ ...prev, [p.id]: { status: d.status, clientSigned, recordId } }))
+            if (recordId && !draft.signRecordId) saveContractDraft(p.id, { signRecordId: recordId })
+            if (d.status === 'signed') markContractSigned(p.id, true)
+          }
+        } catch { /* ignore per-contract errors */ }
+      }
+    })()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proposals.length])
+
   const getContractStatus = (p) => {
     if (!p.contractDraft) return 'not-started'
-    if (p.contractDraft.signed) return 'signed'
+    if (p.contractDraft.signed || remote[p.id]?.status === 'signed') return 'signed'
     return 'in-progress'
   }
 
@@ -429,8 +465,10 @@ export default function ContractsList() {
             const primaryLabel = status === 'not-started' ? 'Start' : status === 'signed' ? 'View' : 'Open'
 
             // Secondary actions live in the ⋯ menu.
+            const recId = draft.signRecordId || remote[p.id]?.recordId
+            const clientSignedPending = remote[p.id]?.clientSigned && status !== 'signed'
             const menu = []
-            if (draft.signRecordId) menu.push({ icon: <Eye size={14} className="text-gray-400" />, label: 'Signatures', onClick: () => setViewingRecordId(draft.signRecordId) })
+            if (recId) menu.push({ icon: <Eye size={14} className="text-gray-400" />, label: 'Signatures', onClick: () => setViewingRecordId(recId) })
             if (draft.signLinks)    menu.push({ icon: <Copy size={14} className="text-gray-400" />, label: 'Signing links', onClick: () => setViewingLinks(draft.signLinks) })
             if (status === 'in-progress' && !draft.signLinks) menu.push({ icon: <Copy size={14} className="text-gray-400" />, label: recovering === p.id ? 'Finding…' : 'Find links', onClick: () => handleRecoverLinks(p), disabled: recovering === p.id })
             if (status === 'in-progress') menu.push({ icon: <CheckCircle2 size={14} className="text-gray-400" />, label: 'Mark signed', onClick: () => markContractSigned(p.id, true) })
@@ -452,7 +490,15 @@ export default function ContractsList() {
                       : signedAt ? ` · Signed ${fmtDate(signedAt)}` : '')}
                   </p>
                 </div>
-                <StatusBadge status={status} />
+                {clientSignedPending ? (
+                  <button onClick={() => recId && setViewingRecordId(recId)}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 shrink-0 hover:bg-blue-200 transition-colors"
+                    title="Your customer signed — click to view and countersign">
+                    <CheckCircle2 size={10} /> Client signed
+                  </button>
+                ) : (
+                  <StatusBadge status={status} />
+                )}
                 <button
                   onClick={() => openContract(p)}
                   className="flex items-center gap-1.5 px-4 py-1.5 bg-[var(--brand-600)] text-white rounded-lg text-xs font-medium hover:bg-[var(--brand-700)] transition-colors shrink-0"
