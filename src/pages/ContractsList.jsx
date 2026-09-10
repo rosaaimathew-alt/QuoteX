@@ -243,26 +243,41 @@ export default function ContractsList() {
     const pending = proposals.filter(p => p.status === 'Won' && p.contractDraft && !p.contractDraft.signed)
     if (pending.length === 0) return
     let cancelled = false
+    // Fetch one endpoint and normalize the fields we care about.
+    const probe = async (url) => {
+      try {
+        const r = await fetch(url)
+        if (!r.ok) return null
+        const d = await r.json()
+        if (!d || d.error) return null
+        return { status: d.status, clientSigned: !!(d.signatures && d.signatures.client), recordId: d.recordId || null }
+      } catch { return null }
+    }
     ;(async () => {
       for (const p of pending) {
         const draft = p.contractDraft || {}
         const contractNum = draft.contractNum || `EOL${String(70000 + p.id).padStart(6, '0')}`
-        const url = draft.signRecordId
-          ? `/api/sign/record-${draft.signRecordId}`
-          : `/api/sign/lookup-${encodeURIComponent(contractNum)}`
-        try {
-          const r = await fetch(url)
-          if (!r.ok) continue
-          const d = await r.json()
-          if (cancelled || !d || d.error) continue
-          const clientSigned = !!(d.signatures && d.signatures.client)
-          const recordId = d.recordId || draft.signRecordId || null
-          if (d.status === 'signed' || d.status === 'partial' || clientSigned) {
-            setRemote(prev => ({ ...prev, [p.id]: { status: d.status, clientSigned, recordId } }))
-            if (recordId && !draft.signRecordId) saveContractDraft(p.id, { signRecordId: recordId })
-            if (d.status === 'signed') markContractSigned(p.id, true)
-          }
-        } catch { /* ignore per-contract errors */ }
+        // Self-healing: don't trust a single stored id. Try the stored record id
+        // AND a fresh lookup by contract number, then take whichever actually
+        // holds the client's signature — so a stale/missing id can't hide it.
+        const candidates = []
+        if (draft.signRecordId) {
+          const byId = await probe(`/api/sign/record-${draft.signRecordId}`)
+          if (byId) candidates.push({ ...byId, recordId: byId.recordId || draft.signRecordId })
+        }
+        const byNum = await probe(`/api/sign/lookup-${encodeURIComponent(contractNum)}`)
+        if (byNum) candidates.push(byNum)
+        if (cancelled) return
+        // Prefer a fully-signed record, then a client-signed one, then anything.
+        const best = candidates.find(c => c.status === 'signed')
+                  || candidates.find(c => c.clientSigned)
+                  || candidates[0]
+        if (!best) continue
+        if (best.status === 'signed' || best.clientSigned) {
+          setRemote(prev => ({ ...prev, [p.id]: best }))
+          if (best.recordId && best.recordId !== draft.signRecordId) saveContractDraft(p.id, { signRecordId: best.recordId })
+          if (best.status === 'signed') markContractSigned(p.id, true)
+        }
       }
     })()
     return () => { cancelled = true }
