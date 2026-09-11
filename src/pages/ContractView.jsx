@@ -479,6 +479,7 @@ export default function ContractView() {
       const pso = draft.paymentScheduleOverride ?? 'auto'
       setIsHardscape(hs)
       setProjectTag(tag)
+      if (Array.isArray(draft.projectTypes) && draft.projectTypes.length) setProjectTypes(draft.projectTypes)
       setPaymentScheduleOverride(pso)
       setMilestoneLabels(draft.milestoneLabels ?? getMilestoneSet(pso, tag, d.total).map(m => m.label))
       setMilestonePcts(draft.milestonePcts ?? [])
@@ -530,7 +531,11 @@ export default function ContractView() {
     )
   }
 
-  const { client, email, phone, address, projectTypes = [], contractNumber, salesperson } = data
+  const { client, email, phone, address, contractNumber, salesperson } = data
+  // Project types printed on the contract. Editable here so they can be set even
+  // when they weren't chosen at the proposal stage (otherwise they'd print blank).
+  const [projectTypes, setProjectTypes] = useState(data.contractDraft?.projectTypes || data.projectTypes || [])
+  const toggleProjectType = (t) => setProjectTypes(cur => cur.includes(t) ? cur.filter(x => x !== t) : [...cur, t])
   // Contract total = sum of the selected/priced scope items, so an à la carte
   // contract reflects the items actually chosen — not the full proposal value.
   // Falls back to the proposal total if there are no priced lines.
@@ -662,7 +667,7 @@ export default function ContractView() {
             contractNum, city, state, lotNumber, permitNumber, hoa, permitReq,
             specialInstructions, directions, lumberDrop, power, gateCode,
             paymentMethods, otherTerms, includesElectrical, recessedSize,
-            homePhone, cellPhone, elecItems, projectSummary, scopeLines,
+            homePhone, cellPhone, elecItems, projectSummary, scopeLines, projectTypes,
             ceilingFanNote, milestoneLabels, milestonePcts, isHardscape, projectTag, paymentScheduleOverride,
             signRecordId: result.recordId,
             signLinks:    result.links,
@@ -690,7 +695,7 @@ export default function ContractView() {
           contractNum, city, state, lotNumber, permitNumber, hoa, permitReq,
           specialInstructions, directions, lumberDrop, power, gateCode,
           paymentMethods, otherTerms, includesElectrical, recessedSize,
-          homePhone, cellPhone, elecItems, projectSummary, scopeLines,
+          homePhone, cellPhone, elecItems, projectSummary, scopeLines, projectTypes,
           ceilingFanNote, milestoneLabels,
           signRecordId: result.recordId,
           signLinks:    result.links,
@@ -949,7 +954,7 @@ export default function ContractView() {
               contractNum, city, state, lotNumber, permitNumber, hoa, permitReq,
               specialInstructions, directions, lumberDrop, power, gateCode,
               paymentMethods, otherTerms, includesElectrical, recessedSize,
-              homePhone, cellPhone, elecItems, projectSummary, scopeLines,
+              homePhone, cellPhone, elecItems, projectSummary, scopeLines, projectTypes,
               ceilingFanNote, milestoneLabels, milestonePcts, isHardscape, projectTag, paymentScheduleOverride,
             })
             // Learn from scope bullets written for this contract
@@ -1078,6 +1083,27 @@ export default function ContractView() {
                       : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500'
                   }`}>
                   {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Contract project types — the boxes checked on the printed contract.
+              Editable here so they're never blank if they weren't set on the proposal. */}
+          <div>
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-2">
+              Project Types on Contract
+              {projectTypes.length === 0 && <span className="ml-2 font-normal text-amber-600 normal-case">— none set; pick below so the contract isn't blank</span>}
+            </label>
+            <div className="flex gap-2 flex-wrap">
+              {PROJECT_TYPES.map(t => (
+                <button key={t} type="button" onClick={() => toggleProjectType(t)}
+                  className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${
+                    projectTypes.includes(t)
+                      ? 'bg-[var(--brand-600)] text-white border-[var(--brand-600)]'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500'
+                  }`}>
+                  {t}
                 </button>
               ))}
             </div>
