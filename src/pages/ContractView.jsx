@@ -369,6 +369,9 @@ export default function ContractView() {
   const [city,            setCity]            = useState('')
   const [state,           setState]           = useState('North Carolina')
   const [newElecLabel,         setNewElecLabel]         = useState('')
+  // Project types printed on the contract — editable so they're never blank when
+  // they weren't set at the proposal stage. Seeded from the draft/proposal on load.
+  const [projectTypes,   setProjectTypes]   = useState([])
   const [showItemPicker,       setShowItemPicker]       = useState(false)
   const [pickerSelection,      setPickerSelection]      = useState(new Set())
   const [milestoneLabels,        setMilestoneLabels]        = useState([])
@@ -479,7 +482,7 @@ export default function ContractView() {
       const pso = draft.paymentScheduleOverride ?? 'auto'
       setIsHardscape(hs)
       setProjectTag(tag)
-      if (Array.isArray(draft.projectTypes) && draft.projectTypes.length) setProjectTypes(draft.projectTypes)
+      setProjectTypes(draft.projectTypes?.length ? draft.projectTypes : (d.projectTypes || []))
       setPaymentScheduleOverride(pso)
       setMilestoneLabels(draft.milestoneLabels ?? getMilestoneSet(pso, tag, d.total).map(m => m.label))
       setMilestonePcts(draft.milestonePcts ?? [])
@@ -532,9 +535,6 @@ export default function ContractView() {
   }
 
   const { client, email, phone, address, contractNumber, salesperson } = data
-  // Project types printed on the contract. Editable here so they can be set even
-  // when they weren't chosen at the proposal stage (otherwise they'd print blank).
-  const [projectTypes, setProjectTypes] = useState(data.contractDraft?.projectTypes || data.projectTypes || [])
   const toggleProjectType = (t) => setProjectTypes(cur => cur.includes(t) ? cur.filter(x => x !== t) : [...cur, t])
   // Contract total = sum of the selected/priced scope items, so an à la carte
   // contract reflects the items actually chosen — not the full proposal value.
