@@ -623,6 +623,24 @@ const apptDate = (p) => p?.createdAt || p?.sentAt || p?.closedAt || null
 
 function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onOpen, onRevise, onGenerateContract }) {
   const { deleteProposal, detachProposal, mergeProposalGroups } = useStore()
+  const branding = useStore(s => s.branding)
+  const setProposalViewToken = useStore(s => s.setProposalViewToken)
+
+  // Create/refresh a tracked shareable link for ANY proposal (a primary or an
+  // alternative) and copy it — each version gets its own link + open history.
+  const copyProposalLink = async (p) => {
+    try {
+      const r = await fetch('/api/sign/pcreate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proposalId: p.id, snapshot: buildProposalSnapshot(p, branding) }),
+      })
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok || !d.url) throw new Error(d.error || 'Could not create link')
+      if (d.token) setProposalViewToken(p.id, d.token)
+      try { await navigator.clipboard.writeText(d.url); window.alert('Shareable link copied to your clipboard:\n\n' + d.url) }
+      catch { window.prompt('Copy this proposal link:', d.url) }
+    } catch (e) { window.alert('Could not create link: ' + e.message) }
+  }
   const [expandedLog, setExpandedLog] = useState(null)   // proposal id with activity log open
   const [expandedAlts, setExpandedAlts] = useState(null) // root id with alts expanded
   const [followUpProposal, setFollowUpProposal] = useState(null)
@@ -722,6 +740,7 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
               </button>
               {/* Everything else in a single ⋯ overflow menu */}
               <RowMenu items={[
+                { label: 'Copy shareable link', icon: Link2, onClick: () => copyProposalLink(p) },
                 { label: 'Add reminder', icon: Bell, onClick: () => onReminderOpen(p.id) },
                 { label: 'Revise', icon: Copy, onClick: () => onRevise(p) },
                 { label: 'Merge into client', icon: GitMerge, onClick: onMerge },
@@ -817,6 +836,7 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
                         <div className="flex items-center justify-end gap-1">
                           <button onClick={() => onOpen(alt)} className="p-1 rounded text-gray-300 hover:bg-gray-50 hover:text-gray-700 transition-colors" title="Open"><Eye size={12} /></button>
                           <RowMenu items={[
+                            { label: 'Copy shareable link', icon: Link2, onClick: () => copyProposalLink(alt) },
                             { label: 'Revise', icon: Copy, onClick: () => onRevise(alt) },
                             { label: 'Detach', icon: Unlink, onClick: () => handleDetach(alt.id) },
                             { label: 'Delete', icon: Trash2, onClick: () => deleteProposal(alt.id), danger: true },
