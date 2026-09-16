@@ -466,7 +466,6 @@ export default function ContractViewFull() {
               <table className="w-full text-[10pt] border-collapse mb-4">
                 <thead><tr><th className="border border-gray-400 px-2 py-2 text-left font-bold">ELECTRICAL ITEM</th><th className="border border-gray-400 px-2 py-2 text-center font-bold w-16">QTY</th></tr></thead>
                 <tbody>
-                  <tr><td className="border border-gray-400 px-2 py-2"><p className="font-bold">Standard electrical package</p></td><td className="border border-gray-400 px-2 py-2 text-center">1</td></tr>
                   {elecItems.filter(i=>i.qty).map(item => <tr key={item.id}><td className="border border-gray-400 px-2 py-2">{item.label}</td><td className="border border-gray-400 px-2 py-2 text-center">{item.qty}</td></tr>)}
                 </tbody>
               </table>

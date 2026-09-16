@@ -884,7 +884,6 @@ export default function SignPage() {
               <table className="w-full text-[10pt] border-collapse">
                 <thead><tr><th className="border border-gray-400 px-2 py-2 text-left font-bold">ELECTRICAL ITEM</th><th className="border border-gray-400 px-2 py-2 text-center font-bold w-16">QTY</th></tr></thead>
                 <tbody>
-                  <tr><td className="border border-gray-400 px-2 py-2"><p className="font-bold">Standard electrical package:</p><p>Prewire for (1) homeowner supplied a fan with a switch, (1) outlet and (1) flood light with a switch.</p></td><td className="border border-gray-400 px-2 py-2 text-center font-semibold">1</td></tr>
                   {elecItems.filter(i => i.qty).map(item => (
                     <tr key={item.id}><td className="border border-gray-400 px-2 py-2">{item.isRecessed?<>{item.label} <span className="text-[9px]">({recessedSize==='6'?'X':' '}) 6" &nbsp; ({recessedSize==='4'?'X':' '}) 4"</span></>:item.label}</td><td className="border border-gray-400 px-2 py-2 text-center">{item.qty}</td></tr>
                   ))}

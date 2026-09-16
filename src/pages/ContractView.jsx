@@ -2264,17 +2264,6 @@ export default function ContractView() {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td className="border border-gray-400 px-3 py-2">
-                        <p className="font-bold">Standard electrical package:</p>
-                        <p>Prewire for (1) homeowner supplied a fan with a switch, (1) outlet and (1) flood light with a switch.</p>
-                        <p className="italic text-gray-500">*Dimmer switch available for additional cost</p>
-                      </td>
-                      <td className="border border-gray-400 px-3 py-2 text-center font-semibold">1</td>
-                    </tr>
-                    <tr>
-                      <td colSpan={2} className="border border-gray-400 px-3 py-2 font-bold bg-gray-50">ADDITIONAL ELECTRICAL ITEMS AVAILABLE</td>
-                    </tr>
                     {elecItems.map(item => (
                       <tr key={item.id}>
                         <td className="border border-gray-400 px-3 py-2">
