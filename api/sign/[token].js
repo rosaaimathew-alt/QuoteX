@@ -97,7 +97,14 @@ export default async function handler(req, res) {
       }
       const host  = req.headers['x-forwarded-host'] || req.headers.host || 'quotexsolutions.com'
       const proto = host.includes('localhost') ? 'http' : 'https'
-      return res.json({ token: viewToken, url: `${proto}://${host}/p/${viewToken}` })
+      // Carry the customer's contact info on the link so a downstream sender/agent
+      // can read who it belongs to. The page itself ignores these params.
+      const params = new URLSearchParams()
+      if (snapshot.email)  params.set('email', snapshot.email)
+      if (snapshot.client) params.set('name', snapshot.client)
+      if (snapshot.phone)  params.set('phone', snapshot.phone)
+      const qs = params.toString()
+      return res.json({ token: viewToken, url: `${proto}://${host}/p/${viewToken}${qs ? `?${qs}` : ''}` })
     }
 
     // ── PUBLIC: open a tracked proposal — records the view ────────────

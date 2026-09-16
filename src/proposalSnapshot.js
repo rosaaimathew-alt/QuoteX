@@ -14,6 +14,8 @@ export function buildProposalSnapshot(data = {}, branding = {}) {
   const subtotal = lines.reduce((s, l) => s + l.qty * l.unitPrice, 0)
   return {
     client:         data.client || '',
+    email:          data.email || '',
+    phone:          data.phone || '',
     address:        data.address || '',
     // Estimate date = when the proposal was sent, else created, else today.
     estimateDate:   data.sentAt || data.createdAt || new Date().toISOString(),
