@@ -166,6 +166,16 @@ export function mergeStoreStrings(serverStr, localStr) {
   merged.financeCards     = _unionById(s.financeCards, l.financeCards)
   merged.expenses         = _unionById(s.expenses, l.expenses, true)
   merged.jobCosts         = { ...(s.jobCosts || {}), ...(l.jobCosts || {}) }
+  // Deletions: a union merge can't represent a removal, so honor tombstones.
+  // Keep every tombstone from both sides, then drop any record they mark as
+  // deleted — this is what makes a delete stick (and propagate) instead of the
+  // server copy resurrecting it on the next sync/refresh.
+  merged.tombstones = [...new Set([...(s.tombstones || []), ...(l.tombstones || [])])]
+  const _dead = new Set(merged.tombstones)
+  merged.proposals  = merged.proposals.filter(p => !_dead.has(`proposal:${p.id}`))
+  merged.todos      = (merged.todos || []).filter(t => !_dead.has(`todo:${t.id}`))
+  merged.checklists = (merged.checklists || []).filter(c => !_dead.has(`checklist:${c.id}`))
+  merged.expenses   = (merged.expenses || []).filter(e => !_dead.has(`expense:${e.id}`))
   // Manager-set deck/porch pricing. Without these explicit merges the wholesale
   // {...s, ...l} above lets a second device's untouched defaults win, silently
   // resetting customized rates on cross-device sync. Union the custom-component
@@ -956,10 +966,19 @@ export const useStore = create(
 
       // Undo the historical import (remove every isHistorical proposal + reset the flag).
       clearHistory2024_2025: () =>
-        set((s) => ({ proposals: s.proposals.filter(p => !p.isHistorical), historyImported: false })),
+        set((s) => ({
+          proposals: s.proposals.filter(p => !p.isHistorical),
+          historyImported: false,
+          tombstones: [...(s.tombstones || []), ...s.proposals.filter(p => p.isHistorical).map(p => `proposal:${p.id}`)],
+        })),
 
       deleteProposal: (id) =>
-        set((s) => ({ proposals: s.proposals.filter((p) => p.id !== id) })),
+        set((s) => ({
+          proposals: s.proposals.filter((p) => p.id !== id),
+          // Tombstone so the delete survives the union merge (and propagates to
+          // other users) instead of being resurrected from the server copy.
+          tombstones: [...(s.tombstones || []), `proposal:${id}`],
+        })),
 
       // ── Manual grouping controls ─────────────────────────────────────────
       // Pull a single proposal out of its group so it stands alone as its own
@@ -1025,7 +1044,8 @@ export const useStore = create(
           }
         }),
 
-      clearAllProposals: () => set({ proposals: [], nextProposalId: 1 }),
+      clearAllProposals: () =>
+        set((s) => ({ proposals: [], nextProposalId: 1, tombstones: [...(s.tombstones || []), ...s.proposals.map(p => `proposal:${p.id}`)] })),
 
       saveContractDraft: (proposalId, draft) =>
         set((s) => ({
@@ -1408,7 +1428,7 @@ export const useStore = create(
       updateExpense: (id, changes) =>
         set((s) => ({ expenses: s.expenses.map((e) => (e.id === id ? { ...e, ...changes } : e)) })),
       deleteExpense: (id) =>
-        set((s) => ({ expenses: s.expenses.filter((e) => e.id !== id) })),
+        set((s) => ({ expenses: s.expenses.filter((e) => e.id !== id), tombstones: [...(s.tombstones || []), `expense:${id}`] })),
 
       // ── One-click follow-up email templates ──────────────────────────────────
       emailTemplates: DEFAULT_EMAIL_TEMPLATES,
@@ -1421,15 +1441,21 @@ export const useStore = create(
 
       // ── Daily to-do list ─────────────────────────────────────────────────────
       todos: [],
+      // Deletion tombstones ("proposal:<id>", "todo:<id>", …) so removals survive
+      // the union merge and propagate to other users instead of resurrecting.
+      tombstones: [],
       todoPin: 'off', // 'off' | 'right' — pins the list as a side panel
       addTodo: (text) =>
         set((s) => ({ todos: [{ id: Date.now(), text, done: false, createdAt: new Date().toISOString() }, ...s.todos] })),
       toggleTodo: (id) =>
         set((s) => ({ todos: s.todos.map((t) => (t.id === id ? { ...t, done: !t.done } : t)) })),
       deleteTodo: (id) =>
-        set((s) => ({ todos: s.todos.filter((t) => t.id !== id) })),
+        set((s) => ({ todos: s.todos.filter((t) => t.id !== id), tombstones: [...(s.tombstones || []), `todo:${id}`] })),
       clearDoneTodos: () =>
-        set((s) => ({ todos: s.todos.filter((t) => !t.done) })),
+        set((s) => ({
+          todos: s.todos.filter((t) => !t.done),
+          tombstones: [...(s.tombstones || []), ...s.todos.filter((t) => t.done).map((t) => `todo:${t.id}`)],
+        })),
       setTodoPin: (side) => set({ todoPin: side }),
 
       // ── Shared checklists ────────────────────────────────────────────────────
@@ -1448,7 +1474,7 @@ export const useStore = create(
       renameChecklist: (id, title) =>
         set((s) => ({ checklists: s.checklists.map((c) => (c.id === id ? { ...c, title: (title || '').trim() || c.title, updatedAt: new Date().toISOString() } : c)) })),
       deleteChecklist: (id) =>
-        set((s) => ({ checklists: s.checklists.filter((c) => c.id !== id) })),
+        set((s) => ({ checklists: s.checklists.filter((c) => c.id !== id), tombstones: [...(s.tombstones || []), `checklist:${id}`] })),
       addChecklistItem: (id, text) =>
         set((s) => ({
           checklists: s.checklists.map((c) =>
@@ -1599,6 +1625,7 @@ export const useStore = create(
           nextProposalId:     persisted?.nextProposalId     || 1,
           readMessageIds:     persisted?.readMessageIds     || [],
           todos:              persisted?.todos              || [],
+          tombstones:         persisted?.tombstones         || [],
           checklists:         persisted?.checklists         || [],
           todoPin:            persisted?.todoPin            || 'off',
           role:               persisted?.role               || 'manager',
@@ -1756,6 +1783,7 @@ function _syncSig(st) {
     L('catalog'), L('templates'), L('scopeTemplates'), L('paymentSchedules'),
     L('subcontractors'), L('standaloneChangeOrders'), L('todos'), L('plannedProjects'),
     L('emailTemplates'), L('financeCards'), L('expenses'),
+    L('tombstones'),   // a deletion changes the signature so it syncs + pushes
     Object.keys(st.jobCosts || {}).length,
     L('deckCustomComponents'), L('porchCustomComponents'),
     // checklists: count lists + total items + checked items so adds AND toggles
