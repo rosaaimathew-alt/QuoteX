@@ -97,14 +97,9 @@ export default async function handler(req, res) {
       }
       const host  = req.headers['x-forwarded-host'] || req.headers.host || 'quotexsolutions.com'
       const proto = host.includes('localhost') ? 'http' : 'https'
-      // Carry the customer's contact info on the link so a downstream sender/agent
-      // can read who it belongs to. The page itself ignores these params.
-      const params = new URLSearchParams()
-      if (snapshot.email)  params.set('email', snapshot.email)
-      if (snapshot.client) params.set('name', snapshot.client)
-      if (snapshot.phone)  params.set('phone', snapshot.phone)
-      const qs = params.toString()
-      return res.json({ token: viewToken, url: `${proto}://${host}/p/${viewToken}${qs ? `?${qs}` : ''}` })
+      // No customer PII in the URL (leaks via logs/history/referrer). Contact info
+      // is read separately through the authenticated pdata- lookup by token.
+      return res.json({ token: viewToken, url: `${proto}://${host}/p/${viewToken}` })
     }
 
     // ── PUBLIC: open a tracked proposal — records the view ────────────
@@ -126,16 +121,26 @@ export default async function handler(req, res) {
         }].slice(-1000)
         await kv.set(`pview:${viewToken}`, { ...rec, opens })
       }
-      return res.json({ snapshot: rec.snapshot, openCount: opens.length })
+      // Strip contact PII from the PUBLIC response — the quote page doesn't need
+      // the customer's email/phone, so don't expose it to anyone holding the link.
+      const { email, phone, ...publicSnapshot } = rec.snapshot || {}
+      return res.json({ snapshot: publicSnapshot, openCount: opens.length })
     }
 
-    // ── ADMIN: read a proposal's open history for the activity log ────
+    // ── ADMIN: open history + customer contact for the activity log / sender agent.
+    // Auth-gated (isAdminAction), so contact PII is only ever returned to a
+    // signed-in operator/agent — never in the URL or the public page.
     if (token.startsWith('pdata-')) {
       if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
       const viewToken = token.slice('pdata-'.length)
       const rec = await kv.get(`pview:${viewToken}`)
       const opens = rec?.opens || []
-      return res.json({ opens, openCount: opens.length })
+      const s = rec?.snapshot || {}
+      return res.json({
+        opens,
+        openCount: opens.length,
+        contact: { name: s.client || '', email: s.email || '', phone: s.phone || '' },
+      })
     }
 
     // ── Admin record lookup: /api/sign/record-<recordId> ─────────────
