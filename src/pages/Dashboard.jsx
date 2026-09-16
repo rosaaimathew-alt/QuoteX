@@ -146,7 +146,7 @@ export default function Dashboard() {
   // other tiles. Archived proposals are neutral (superseded revisions), so they're
   // excluded — they must not count as "not won."
   // Denominator = appointments (opportunities) whose ESTIMATE was done in the period.
-  const outcomes     = clientOutcomes(periodProps.filter(p => p.status !== 'Archived'))
+  const outcomes     = clientOutcomes(periodProps.filter(p => p.status !== 'Archived' && p.status !== 'Draft'))
   // A deal counts as WON the moment the client commits — tagged 'Won' OR contract
   // signed (even if the status wasn't manually flipped). Numerator = deals won in the
   // period by win date, once per opportunity, independent of when the estimate happened.

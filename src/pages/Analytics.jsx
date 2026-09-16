@@ -975,8 +975,12 @@ export default function Analytics() {
       .filter(group => group.some(p => p.status !== 'Archived'))   // drop fully-archived opportunities
 
     // Appointments completed in the period = estimates DONE in the period (root date).
+    // A never-sent Draft isn't a completed appointment, so require at least one
+    // version that actually left Draft (sent/lost/won/etc.) — this keeps forgotten
+    // drafts from inflating the denominator.
     const apptGroups = rootGroups.filter(group =>
-      matchesPeriod(group[0].createdAt || group[0].sentAt || group[0].closedAt))
+      matchesPeriod(group[0].createdAt || group[0].sentAt || group[0].closedAt) &&
+      group.some(p => p.status !== 'Archived' && p.status !== 'Draft'))
     const apptCount = apptGroups.length
 
     // A deal counts as WON the moment the client commits — either it's tagged 'Won'
@@ -1066,11 +1070,12 @@ export default function Analytics() {
       const types = p.contractDraft?.projectTypes?.length ? p.contractDraft.projectTypes : p.projectTypes?.length ? p.projectTypes : ['Other']
       types.forEach(t => { m.byType[t] = (m.byType[t] || 0) + rev / types.length })
     })
-    // Appointments = root opportunities (fully-archived excluded), by created date
+    // Appointments = root opportunities that were actually sent (archived + never-
+    // sent drafts excluded), by created date — matches the card's denominator.
     const ids = new Set(proposals.map(p => p.id))
     proposals.filter(p => !p.parentId || !ids.has(p.parentId)).forEach(root => {
       const group = [root, ...proposals.filter(p => p.parentId === root.id)]
-      if (!group.some(p => p.status !== 'Archived')) return
+      if (!group.some(p => p.status !== 'Archived' && p.status !== 'Draft')) return
       const m = find(new Date(root.createdAt || root.sentAt || root.closedAt || Date.now()))
       if (m) m.apptCount += 1
     })
