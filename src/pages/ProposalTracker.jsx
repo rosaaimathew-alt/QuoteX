@@ -26,6 +26,79 @@ function buildGroups(proposals) {
   }))
 }
 
+// Label a proposal by its role in the group: the root is "Proposal", revisions
+// are "Alt <version>". Used by the activity feeds so each open says which version.
+function versionLabelFor(p, group) {
+  const ids = new Set(group.map(x => x.id))
+  const isRoot = !p.parentId || !ids.has(p.parentId)
+  return isRoot ? 'Proposal' : `Alt ${p.version || '—'}`
+}
+
+// Fetch and flatten open events for a set of proposals that have tracked links.
+// Each event: { at, proposalId, client, versionLabel, contractNum }. Only hits
+// proposals that were actually shared (have a viewToken), so it stays light.
+async function gatherOpenEvents(proposals, groupProposals) {
+  const tracked = proposals.filter(p => p.viewToken)
+  const lists = await Promise.all(tracked.map(async (p) => {
+    try {
+      const r = await fetch(`/api/sign/pdata-${p.viewToken}`)
+      if (!r.ok) return []
+      const d = await r.json()
+      const contractNum = p.contractDraft?.contractNum || `EOL${String(70000 + p.id).padStart(6, '0')}`
+      return (d.opens || []).map(o => ({
+        at: o.at,
+        proposalId: p.id,
+        client: p.client || 'No name',
+        versionLabel: versionLabelFor(p, groupProposals || proposals),
+        contractNum,
+      }))
+    } catch { return [] }
+  }))
+  return lists.flat().sort((a, b) => b.at - a.at)
+}
+
+// A single vertical open-event row, shared by both the global feed and the
+// per-customer log: date/time, then client · contract#, then which version.
+function OpenEventRow({ e, showClient = true }) {
+  const d = new Date(e.at)
+  return (
+    <div className="flex gap-3 py-2.5 border-b border-gray-50 last:border-b-0">
+      <Eye size={13} className="text-blue-500 mt-0.5 shrink-0" />
+      <div className="min-w-0">
+        <p className="text-xs font-semibold text-gray-700">
+          {d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}, {d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+        </p>
+        {showClient && <p className="text-xs text-gray-600">{e.client}{e.contractNum ? ` · ${e.contractNum}` : ''}</p>}
+        <p className="text-xs text-gray-500">Opened {e.versionLabel}</p>
+      </div>
+    </div>
+  )
+}
+
+// Global chronological feed of every proposal open across all customers.
+function ActivityView({ proposals }) {
+  const [events, setEvents] = useState(null)
+  useEffect(() => {
+    let alive = true
+    gatherOpenEvents(proposals).then(ev => { if (alive) setEvents(ev) })
+    return () => { alive = false }
+  }, [proposals])
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 sm:p-6 max-w-2xl">
+      <p className="text-sm font-semibold text-gray-800 mb-1">Proposal Activity</p>
+      <p className="text-xs text-gray-400 mb-4">Every time a customer opens a proposal — newest first.</p>
+      {events === null ? (
+        <p className="text-xs text-gray-400 italic py-6 text-center">Loading activity…</p>
+      ) : events.length === 0 ? (
+        <p className="text-xs text-gray-400 italic py-6 text-center">No opens yet. Once customers open the links you send, they'll show here.</p>
+      ) : (
+        <div>{events.map((e, i) => <OpenEventRow key={i} e={e} />)}</div>
+      )}
+    </div>
+  )
+}
+
 // Collapse proposal groups to client-level outcomes for analytics
 function clientOutcomes(proposals) {
   const groups = buildGroups(proposals)
@@ -200,12 +273,12 @@ function WinLossModal({ proposal, onSave, onClose }) {
 }
 
 // ── Activity Log ───────────────────────────────────────────────────────────
-function ActivityLog({ proposal }) {
+function ActivityLog({ proposal, groupProposals }) {
   const { addActivity, deleteActivity, setProposalViewToken } = useStore()
   const branding = useStore(s => s.branding)
   const [type, setType] = useState('Call')
   const [text, setText] = useState('')
-  const [opens, setOpens] = useState(null)   // null = not loaded / no tracked link
+  const [events, setEvents] = useState(null)   // group open events, newest first
   const [linkUrl, setLinkUrl] = useState('')
   const [linkBusy, setLinkBusy] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -231,18 +304,17 @@ function ActivityLog({ proposal }) {
     try { await navigator.clipboard.writeText(linkUrl); setCopied(true); setTimeout(() => setCopied(false), 2000) } catch {}
   }
 
-  // Pull the customer's open history for the tracked proposal link, if one was
-  // sent. Read-only — this doesn't record an open (that only happens when the
-  // customer loads the link).
+  // Pull open history for the WHOLE customer group (main + every alternative),
+  // so this shows which version they opened and when — read-only.
+  const group = groupProposals && groupProposals.length ? groupProposals : [proposal]
+  const tokensKey = group.map(p => p.viewToken || '').join(',')
   useEffect(() => {
-    if (!proposal.viewToken) { setOpens(null); return }
+    if (!group.some(p => p.viewToken)) { setEvents([]); return }
     let alive = true
-    fetch(`/api/sign/pdata-${proposal.viewToken}`)
-      .then(r => (r.ok ? r.json() : null))
-      .then(d => { if (alive && d) setOpens(d.opens || []) })
-      .catch(() => {})
+    gatherOpenEvents(group, group).then(ev => { if (alive) setEvents(ev) })
     return () => { alive = false }
-  }, [proposal.viewToken])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tokensKey])
 
   const submit = () => {
     if (!text.trim()) return
@@ -250,8 +322,8 @@ function ActivityLog({ proposal }) {
     setText('')
   }
 
-  const openCount = opens?.length || 0
-  const lastOpen  = openCount ? opens[openCount - 1].at : null
+  const openCount = events?.length || 0
+  const lastOpen  = openCount ? events[0].at : null   // events are newest-first
 
   return (
     <div className="px-4 pb-4 pt-2 bg-gray-50 border-t border-gray-100">
@@ -279,15 +351,15 @@ function ActivityLog({ proposal }) {
           Log
         </button>
       </div>
-      {/* Email open tracking — shown when a tracked view link was sent */}
-      {proposal.viewToken && (
-        <div className="bg-white rounded-lg px-3 py-2 border border-blue-100 mb-2">
-          <div className="flex items-center gap-2">
+      {/* Open tracking — the whole customer group (main + alternatives), vertical, newest first */}
+      {group.some(p => p.viewToken) && (
+        <div className="bg-white rounded-lg px-3 py-2.5 border border-blue-100 mb-2">
+          <div className="flex items-center gap-2 mb-1">
             <Eye size={13} className="text-blue-500 shrink-0" />
             <span className="text-xs font-semibold text-gray-700">
-              {opens === null ? 'Checking views…'
+              {events === null ? 'Checking views…'
                 : openCount === 0 ? 'Sent — not opened online yet'
-                : `Customer opened the proposal ${openCount} time${openCount !== 1 ? 's' : ''}`}
+                : `Opened ${openCount} time${openCount !== 1 ? 's' : ''} across all versions`}
             </span>
             {lastOpen && (
               <span className="text-[11px] text-gray-400 ml-auto">
@@ -296,12 +368,8 @@ function ActivityLog({ proposal }) {
             )}
           </div>
           {openCount > 0 && (
-            <div className="mt-1.5 flex flex-wrap gap-1">
-              {opens.slice(-10).reverse().map((o, i) => (
-                <span key={i} className="text-[11px] text-gray-500 bg-gray-50 rounded px-1.5 py-0.5">
-                  {new Date(o.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {new Date(o.at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                </span>
-              ))}
+            <div className="max-h-56 overflow-y-auto">
+              {events.map((e, i) => <OpenEventRow key={i} e={e} showClient={false} />)}
             </div>
           )}
         </div>
@@ -685,7 +753,7 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
   // component and mounting it via <ProposalRow/> gave it a new identity on every
   // ListView render, so toggling a row remounted the whole table and threw the
   // scroll position back to the top. It uses no hooks, so calling it is safe.
-  const renderProposalRow = ({ p, altCount, showAltToggle, onDetach, onMerge }) => {
+  const renderProposalRow = ({ p, altCount, showAltToggle, onDetach, onMerge, groupProposals }) => {
     const isAltExpanded = expandedAlts === p.id
     return (
       <>
@@ -755,7 +823,7 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
         {expandedLog === p.id && (
           <tr className="border-t border-gray-100">
             <td colSpan={5} className="p-0">
-              <ActivityLog proposal={p} />
+              <ActivityLog proposal={p} groupProposals={groupProposals} />
             </td>
           </tr>
         )}
@@ -815,6 +883,7 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
                     altCount: alts.length,
                     onDetach: handleDetach,
                     onMerge: () => setMergeSource({ root, revisions }),
+                    groupProposals: all,
                   })}
                   {isAltExpanded && alts.map(alt => (
                     <tr key={alt.id} className="border-t border-gray-100 bg-gray-50 align-top">
@@ -1238,6 +1307,7 @@ export default function ProposalTracker() {
   const TABS = [
     { id: 'list', label: 'List', icon: List },
     { id: 'pipeline', label: 'Pipeline', icon: Columns },
+    { id: 'activity', label: 'Activity', icon: Eye },
     { id: 'analytics', label: 'Analytics', icon: BarChart2 },
   ]
 
@@ -1394,6 +1464,9 @@ export default function ProposalTracker() {
           proposals={filtered}
           onStatusChange={handleStatusChange}
         />
+      )}
+      {tab === 'activity' && (
+        <ActivityView proposals={proposals} />
       )}
       {tab === 'analytics' && (
         <AnalyticsView proposals={proposals} />
