@@ -53,6 +53,13 @@ export default function Login() {
             {loading ? 'Signing in…' : 'Sign In'}
           </button>
         </form>
+        <p className="text-center text-xs text-gray-400 mt-4">
+          <a href="/legal/terms" className="hover:text-gray-600 underline">Terms</a>
+          {' · '}
+          <a href="/legal/privacy" className="hover:text-gray-600 underline">Privacy</a>
+          {' · '}
+          <a href="/legal" className="hover:text-gray-600 underline">Policies</a>
+        </p>
       </div>
     </div>
   )

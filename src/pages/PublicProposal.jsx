@@ -166,11 +166,13 @@ export default function PublicProposal() {
           </div>
         </div>
 
-        {companyLabel && (
-          <div style={{ background: '#f8fafc', padding: '16px 32px', borderTop: '1px solid #e2e8f0' }}>
-            <p style={{ margin: 0, fontSize: 12, color: '#94a3b8' }}>{companyLabel}</p>
-          </div>
-        )}
+        <div style={{ background: '#f8fafc', padding: '14px 32px', borderTop: '1px solid #e2e8f0' }}>
+          {companyLabel && <p style={{ margin: '0 0 4px', fontSize: 12, color: '#94a3b8' }}>{companyLabel}</p>}
+          <p style={{ margin: 0, fontSize: 11, color: '#b6c0cc' }}>
+            This page contains your information and may record when it is viewed. See our{' '}
+            <a href="/legal/privacy" target="_blank" rel="noopener noreferrer" style={{ color: '#94a3b8', textDecoration: 'underline' }}>Privacy Policy</a>.
+          </p>
+        </div>
       </div>
     </div>
   )

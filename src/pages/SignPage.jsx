@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import SignaturePad from '../components/SignaturePad'
 import { X, CheckCircle2, ChevronDown } from 'lucide-react'
+import { ESIGN_DISCLOSURE } from '../legalContent'
 
 const fmt = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -87,6 +88,7 @@ export default function SignPage() {
   const [showCapture, setShowCapture] = useState(false)
   const [pendingField, setPendingField] = useState(null) // field waiting for first capture
   const [submitting, setSubmitting] = useState(false)
+  const [esignConsent, setEsignConsent] = useState(false)   // ESIGN/UETA consent
   const [done, setDone]           = useState(false)
 
   useEffect(() => {
@@ -128,6 +130,7 @@ export default function SignPage() {
 
   const handleSubmit = async () => {
     if (!masterSig) { alert('Please create your signature first'); return }
+    if (!esignConsent) { alert('Please agree to sign electronically before submitting.'); return }
     if (requiredFields.length > 0 && !isComplete) {
       alert(`Please sign all required fields (${requiredFields.length - signedCount} remaining)`)
       return
@@ -140,7 +143,7 @@ export default function SignPage() {
       const res = await fetch(`/api/sign/${token}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fieldSignatures, signatureDataUrl: masterSig, printedName }),
+        body: JSON.stringify({ fieldSignatures, signatureDataUrl: masterSig, printedName, esignConsent: true }),
       })
       const result = await res.json()
       if (!res.ok) throw new Error(result.error)
@@ -933,25 +936,35 @@ export default function SignPage() {
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-3">
-              <div className="flex-1">
-                {!isComplete ? (
-                  <p className="text-xs text-amber-700 font-medium">
-                    {requiredFields.length - signedCount} field{requiredFields.length - signedCount !== 1 ? 's' : ''} remaining — scroll up and tap each blue field to sign
-                  </p>
-                ) : (
-                  <p className="text-xs text-emerald-600 font-semibold">All fields signed — ready to submit</p>
-                )}
-                <div className="flex items-center gap-2 mt-1">
-                  <img src={masterSig} alt="sig" className="h-6 object-contain" />
-                  <span className="text-xs text-gray-500">{printedName}</span>
-                  <button onClick={() => openCapture()} className="text-xs text-blue-500 underline ml-1">change</button>
+            <div>
+              {/* ESIGN / UETA consent — must be agreed before submitting */}
+              <label className="flex items-start gap-2 mb-2 cursor-pointer">
+                <input type="checkbox" checked={esignConsent} onChange={e => setEsignConsent(e.target.checked)} className="mt-0.5 shrink-0" />
+                <span className="text-[11px] text-gray-600 leading-snug">
+                  {ESIGN_DISCLOSURE.body[0]}{' '}
+                  <a href="/legal/terms" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Learn more</a>
+                </span>
+              </label>
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  {!isComplete ? (
+                    <p className="text-xs text-amber-700 font-medium">
+                      {requiredFields.length - signedCount} field{requiredFields.length - signedCount !== 1 ? 's' : ''} remaining — scroll up and tap each blue field to sign
+                    </p>
+                  ) : (
+                    <p className="text-xs text-emerald-600 font-semibold">All fields signed{esignConsent ? ' — ready to submit' : ' — check the box above to submit'}</p>
+                  )}
+                  <div className="flex items-center gap-2 mt-1">
+                    <img src={masterSig} alt="sig" className="h-6 object-contain" />
+                    <span className="text-xs text-gray-500">{printedName}</span>
+                    <button onClick={() => openCapture()} className="text-xs text-blue-500 underline ml-1">change</button>
+                  </div>
                 </div>
+                <button onClick={handleSubmit} disabled={!isComplete || submitting || !esignConsent}
+                  className="shrink-0 bg-gray-900 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-gray-700 disabled:opacity-40 transition-colors whitespace-nowrap">
+                  {submitting ? 'Submitting…' : 'Sign & Submit'}
+                </button>
               </div>
-              <button onClick={handleSubmit} disabled={!isComplete || submitting}
-                className="shrink-0 bg-gray-900 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-gray-700 disabled:opacity-40 transition-colors whitespace-nowrap">
-                {submitting ? 'Submitting…' : 'Sign & Submit'}
-              </button>
             </div>
           )}
         </div>
