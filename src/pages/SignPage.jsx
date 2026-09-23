@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import SignaturePad from '../components/SignaturePad'
 import { X, CheckCircle2, ChevronDown } from 'lucide-react'
-import { ESIGN_DISCLOSURE } from '../legalContent'
+import { ESIGN_DISCLOSURE, AGREEMENT_ACK } from '../legalContent'
 
 const fmt = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -89,6 +89,7 @@ export default function SignPage() {
   const [pendingField, setPendingField] = useState(null) // field waiting for first capture
   const [submitting, setSubmitting] = useState(false)
   const [esignConsent, setEsignConsent] = useState(false)   // ESIGN/UETA consent
+  const [agreedAt, setAgreedAt]   = useState(null)          // binding-agreement acceptance, on open
   const [done, setDone]           = useState(false)
 
   useEffect(() => {
@@ -143,7 +144,7 @@ export default function SignPage() {
       const res = await fetch(`/api/sign/${token}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fieldSignatures, signatureDataUrl: masterSig, printedName, esignConsent: true }),
+        body: JSON.stringify({ fieldSignatures, signatureDataUrl: masterSig, printedName, esignConsent: true, agreementAgreedAt: agreedAt }),
       })
       const result = await res.json()
       if (!res.ok) throw new Error(result.error)
@@ -520,6 +521,31 @@ export default function SignPage() {
         className={`w-full h-8 flex items-center justify-center rounded text-[10px] font-bold transition-colors ${applied ? 'bg-emerald-50 text-emerald-600' : masterSig ? 'bg-blue-50 text-blue-600 border border-dashed border-blue-300' : 'bg-gray-50 text-gray-400 border border-dashed border-gray-300'}`}>
         {applied ? <><CheckCircle2 size={11} className="mr-1" />INITIALED</> : masterSig ? 'TAP TO INITIAL' : 'INITIAL'}
       </button>
+    )
+  }
+
+  // Agreement gate — shown on open, BEFORE the document, so the signer accepts the
+  // legally-binding terms up front. Acceptance time is recorded with the signature.
+  if (!agreedAt) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-lg w-full max-w-md p-6 sm:p-8 text-center">
+          <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4">
+            <CheckCircle2 size={22} />
+          </div>
+          <h1 className="text-lg font-bold text-gray-900 mb-2">Before you review your document</h1>
+          <p className="text-sm text-gray-600 leading-relaxed mb-5">
+            {AGREEMENT_ACK}{' '}
+            <a href="/legal/terms" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">View terms</a>.
+          </p>
+          <button
+            onClick={() => setAgreedAt(Date.now())}
+            className="w-full bg-gray-900 text-white font-bold py-3 rounded-xl text-sm hover:bg-gray-700 transition-colors">
+            I Agree — Continue to Document
+          </button>
+          <p className="text-[11px] text-gray-400 mt-3">Your agreement and the time are recorded.</p>
+        </div>
+      </div>
     )
   }
 

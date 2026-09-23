@@ -72,6 +72,10 @@ export const LEGAL_DOCS = {
   },
 }
 
+// Binding-agreement acknowledgment shown at signing, separate from e-sign consent.
+export const AGREEMENT_ACK =
+  'I have read and agree to the terms of this contract, and I understand that signing it forms a legally binding agreement.'
+
 // Shown on the signing page before a signature is captured (ESIGN/UETA).
 export const ESIGN_DISCLOSURE = {
   title: 'Consent to do business electronically',

@@ -224,7 +224,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      const { signatureDataUrl, fieldSignatures, printedName, pdfBase64, fileName, esignConsent } = req.body || {}
+      const { signatureDataUrl, fieldSignatures, printedName, pdfBase64, fileName, esignConsent, agreementAgreedAt } = req.body || {}
       if (!signatureDataUrl && !fieldSignatures) return res.status(400).json({ error: 'Missing signature' })
 
       const signatures = record.signatures || {}
@@ -239,6 +239,7 @@ export default async function handler(req, res) {
         userAgent:        req.headers['user-agent'] || 'unknown',
         esignConsent:     !!esignConsent,          // ESIGN/UETA consent captured at signing
         esignConsentAt:   esignConsent ? Date.now() : null,
+        agreementAgreedAt: agreementAgreedAt || null,  // binding-agreement accepted on open
       }
 
       const required  = ['client', 'builder']
