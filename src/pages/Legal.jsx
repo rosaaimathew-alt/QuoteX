@@ -27,7 +27,7 @@ export default function Legal() {
               </Link>
             ))}
           </div>
-          <p style={{ marginTop: 22, fontSize: 11, color: '#94a3b8' }}>{PLACEHOLDER_NOTE}</p>
+          <p style={{ marginTop: 22, fontSize: 11, color: '#94a3b8' }}>Documents marked as drafts are pending final attorney review. The Data Processing Agreement is final and applies automatically to every account.</p>
         </div>
       </div>
     )
@@ -52,9 +52,12 @@ export default function Legal() {
         <Link to="/legal" style={{ fontSize: 12, color: '#3b82f6', textDecoration: 'none' }}>← All policies</Link>
         <h1 style={{ margin: '10px 0 2px', fontSize: 24, color: '#0f172a' }}>{d.title}</h1>
         <p style={{ margin: '0 0 4px', fontSize: 13, color: '#64748b' }}>{d.subtitle} · {companyName}</p>
-        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 14px', margin: '14px 0 22px' }}>
-          <p style={{ margin: 0, fontSize: 12, color: '#92400e' }}>{PLACEHOLDER_NOTE}</p>
-        </div>
+        {d.draft && (
+          <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 14px', margin: '14px 0 22px' }}>
+            <p style={{ margin: 0, fontSize: 12, color: '#92400e' }}>{PLACEHOLDER_NOTE}</p>
+          </div>
+        )}
+        {!d.draft && <div style={{ margin: '14px 0 22px' }} />}
         {sections.map((s, i) => (
           <div key={i} style={{ marginBottom: 18 }}>
             <h2 style={{ margin: '0 0 6px', fontSize: 15, color: '#0f172a' }}>{s.h}</h2>

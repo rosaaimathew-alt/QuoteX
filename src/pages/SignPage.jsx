@@ -524,26 +524,46 @@ export default function SignPage() {
     )
   }
 
-  // Agreement gate — shown on open, BEFORE the document, so the signer accepts the
-  // legally-binding terms up front. Acceptance time is recorded with the signature.
+  // ESIGN/UETA consumer disclosure gate — shown on open, BEFORE the document, as its
+  // own step (as the ESIGN Act requires). The signer must read this and check the
+  // consent box to continue; consent and its time are recorded with the signature.
   if (!agreedAt) {
+    const esign = ESIGN_DISCLOSURE.build(companyName)
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-lg w-full max-w-md p-6 sm:p-8 text-center">
-          <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4">
-            <CheckCircle2 size={22} />
+      <div className="min-h-screen bg-gray-100 flex items-start justify-center p-4 py-8">
+        <div className="bg-white rounded-2xl shadow-lg w-full max-w-2xl p-6 sm:p-8">
+          <div className="flex items-center gap-3 mb-4">
+            {logo ? <img src={logo} alt="logo" className="h-8 object-contain" />
+              : <span className="font-black tracking-widest text-sm">{companyName.toUpperCase()}</span>}
           </div>
-          <h1 className="text-lg font-bold text-gray-900 mb-2">Before you review your document</h1>
-          <p className="text-sm text-gray-600 leading-relaxed mb-5">
-            {AGREEMENT_ACK}{' '}
-            <a href="/legal/terms" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">View terms</a>.
-          </p>
+          <h1 className="text-xl font-bold text-gray-900 mb-1">{ESIGN_DISCLOSURE.title}</h1>
+          <p className="text-sm text-gray-600 leading-relaxed mb-5">{esign.intro}</p>
+
+          <div className="max-h-[46vh] overflow-y-auto pr-2 border border-gray-200 rounded-xl p-4 mb-5 bg-gray-50">
+            {esign.sections.map((s, i) => (
+              <div key={i} className="mb-4 last:mb-0">
+                <h2 className="text-sm font-bold text-gray-900 mb-1">{s.h}</h2>
+                {s.p.map((para, j) => (
+                  <p key={j} className="text-xs text-gray-600 leading-relaxed mb-1.5 last:mb-0">{para}</p>
+                ))}
+              </div>
+            ))}
+          </div>
+
+          <label className="flex items-start gap-2.5 mb-4 cursor-pointer">
+            <input type="checkbox" checked={esignConsent} onChange={e => setEsignConsent(e.target.checked)} className="mt-0.5 shrink-0 w-4 h-4" />
+            <span className="text-sm text-gray-800 leading-snug font-medium">{ESIGN_DISCLOSURE.consentLabel}</span>
+          </label>
+
           <button
-            onClick={() => setAgreedAt(Date.now())}
-            className="w-full bg-gray-900 text-white font-bold py-3 rounded-xl text-sm hover:bg-gray-700 transition-colors">
-            I Agree — Continue to Document
+            onClick={() => { if (esignConsent) setAgreedAt(Date.now()) }}
+            disabled={!esignConsent}
+            className="w-full bg-gray-900 text-white font-bold py-3 rounded-xl text-sm hover:bg-gray-700 disabled:opacity-40 transition-colors">
+            Agree & Continue to Document
           </button>
-          <p className="text-[11px] text-gray-400 mt-3">Your agreement and the time are recorded.</p>
+          <p className="text-[11px] text-gray-400 mt-3 text-center">
+            Your consent and the time are recorded. Prefer paper? Contact {companyName} instead of signing here.
+          </p>
         </div>
       </div>
     )
@@ -963,14 +983,13 @@ export default function SignPage() {
             </div>
           ) : (
             <div>
-              {/* ESIGN / UETA consent — must be agreed before submitting */}
-              <label className="flex items-start gap-2 mb-2 cursor-pointer">
-                <input type="checkbox" checked={esignConsent} onChange={e => setEsignConsent(e.target.checked)} className="mt-0.5 shrink-0" />
-                <span className="text-[11px] text-gray-600 leading-snug">
-                  {ESIGN_DISCLOSURE.body[0]}{' '}
-                  <a href="/legal/terms" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Learn more</a>
-                </span>
-              </label>
+              {/* Binding-agreement reaffirmation. ESIGN/UETA consent was captured at
+                  the disclosure gate on open (esignConsent); this restates the effect
+                  of signing directly above the Submit button. */}
+              <p className="text-[11px] text-gray-600 leading-snug mb-2 border-l-2 border-gray-300 pl-2">
+                {AGREEMENT_ACK}{' '}
+                <a href="/legal/dpa" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Data Processing Agreement</a>
+              </p>
               <div className="flex items-center gap-3">
                 <div className="flex-1">
                   {!isComplete ? (
@@ -978,7 +997,7 @@ export default function SignPage() {
                       {requiredFields.length - signedCount} field{requiredFields.length - signedCount !== 1 ? 's' : ''} remaining — scroll up and tap each blue field to sign
                     </p>
                   ) : (
-                    <p className="text-xs text-emerald-600 font-semibold">All fields signed{esignConsent ? ' — ready to submit' : ' — check the box above to submit'}</p>
+                    <p className="text-xs text-emerald-600 font-semibold">All fields signed — ready to submit</p>
                   )}
                   <div className="flex items-center gap-2 mt-1">
                     <img src={masterSig} alt="sig" className="h-6 object-contain" />
