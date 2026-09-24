@@ -163,9 +163,8 @@ export const ESIGN_DISCLOSURE = {
   consentLabel:
     'I have read and agree to the Consumer Disclosure and Consent to Do Business Electronically above, and I confirm I was able to open and view this document on my device.',
   build: (companyName) => {
-    const C = companyName || 'the Contractor'
     return {
-      intro: `${C} ("Contractor," "we") will send you proposals, contracts, and related documents and collect your signature electronically. Please read this disclosure carefully. You must agree to it before you can review and sign documents electronically.`,
+      intro: `The Contractor ("we") will send you proposals, contracts, and related documents and collect your signature electronically. Please read this disclosure carefully. You must agree to it before you can review and sign documents electronically.`,
       sections: [
         { h: '1. What you are agreeing to', p: [
           'If you agree, Contractor may provide you, electronically, with all documents and notices relating to your project that Contractor would otherwise provide on paper (the "Electronic Records"), including: proposals, estimates, and contracts; change orders; notices required by law, including any notice of your right to cancel the contract; warranty documents; invoices, receipts, and lien waivers; and project updates and completion documents.',
