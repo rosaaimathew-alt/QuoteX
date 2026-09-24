@@ -562,7 +562,7 @@ export default function SignPage() {
             Agree & Continue to Document
           </button>
           <p className="text-[11px] text-gray-400 mt-3 text-center">
-            Your consent and the time are recorded. Prefer paper? Contact {companyName} instead of signing here.
+            Your consent and the time are recorded. Prefer paper? Contact the contractor instead of signing here.
           </p>
         </div>
       </div>

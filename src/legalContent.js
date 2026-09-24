@@ -173,16 +173,16 @@ export const ESIGN_DISCLOSURE = {
           'This consent applies to your project and any change orders, notices, and documents relating to that project, unless you withdraw it.',
         ] },
         { h: '2. You can get paper copies', p: [
-          `You have the right to receive any Electronic Record on paper. To request a paper copy, contact ${C}. There is no charge for paper copies. Requesting a paper copy does not by itself withdraw your consent.`,
+          `You have the right to receive any Electronic Record on paper. To request a paper copy, contact the Contractor. There is no charge for paper copies. Requesting a paper copy does not by itself withdraw your consent.`,
         ] },
         { h: '3. You can choose not to sign electronically', p: [
-          `You are not required to receive documents or sign electronically. If you prefer paper, do not check the box below; instead contact ${C} to arrange to receive and sign paper documents. Choosing paper will not affect the price or terms offered to you.`,
+          `You are not required to receive documents or sign electronically. If you prefer paper, do not check the box below; instead contact the Contractor to arrange to receive and sign paper documents. Choosing paper will not affect the price or terms offered to you.`,
         ] },
         { h: '4. You can withdraw your consent', p: [
-          `You may withdraw your consent to receive Electronic Records at any time by contacting ${C}. If you withdraw consent: documents you already signed electronically remain valid and binding; Contractor will provide future documents and notices on paper to your mailing address; and there are no fees or other consequences. Withdrawal takes effect after Contractor has had a reasonable time to process it.`,
+          `You may withdraw your consent to receive Electronic Records at any time by contacting the Contractor. If you withdraw consent: documents you already signed electronically remain valid and binding; Contractor will provide future documents and notices on paper to your mailing address; and there are no fees or other consequences. Withdrawal takes effect after Contractor has had a reasonable time to process it.`,
         ] },
         { h: '5. Keep your contact information current', p: [
-          `If your email address, phone number, or mailing address changes, tell ${C} so you continue to receive notices.`,
+          `If your email address, phone number, or mailing address changes, tell the Contractor so you continue to receive notices.`,
         ] },
         { h: '6. What you need to access and keep Electronic Records', p: [
           'To access and keep Electronic Records you need: a computer, tablet, or smartphone with an internet connection; a current version of Chrome, Safari, Edge, or Firefox, with JavaScript and cookies enabled; software that can open PDF files (built into most devices and browsers); an active email account that you can access; and the ability to download and save or print PDF files.',
