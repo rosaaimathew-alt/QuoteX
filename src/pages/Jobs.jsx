@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useStore } from '../store'
+import { useStore, contractNumberFor } from '../store'
 import { contractTotalOf, approvedChangeOrderTotal } from '../contractTotal'
 import {
   CheckCircle2, Circle, ChevronDown, ChevronUp, CalendarDays,
@@ -253,7 +253,7 @@ function baseTotalForCO(proposal, existingCo) {
 function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
   const catalog  = useStore(s => s.catalog)
   const branding = useStore(s => s.branding)
-  const contractNum = proposal.contractDraft?.contractNum || `EOL${String(70000 + proposal.id).padStart(6,'0')}`
+  const contractNum = proposal.contractDraft?.contractNum || contractNumberFor(proposal.id)
   const coIndex = existingCo
     ? (proposal.jobData?.changeOrders || []).findIndex(c => c.id === existingCo.id) + 1
     : (proposal.jobData?.changeOrders || []).length + 1
@@ -732,7 +732,7 @@ function ChangeOrdersTab({ proposal }) {
   const [sendingId, setSendingId]     = useState(null)
   const cos   = proposal.jobData?.changeOrders || []
   const approved = cos.filter(c => c.status === 'Approved').reduce((s, c) => s + Number(c.amount || 0), 0)
-  const contractNum = proposal.contractDraft?.contractNum || `EOL${String(70000 + proposal.id).padStart(6,'0')}`
+  const contractNum = proposal.contractDraft?.contractNum || contractNumberFor(proposal.id)
 
   // Auto-check signature status for any CO awaiting sig
   useEffect(() => {
@@ -1206,7 +1206,7 @@ function getPaymentSchedule(proposal) {
 // ── Payment Reminder Modal ───────────────────────────────────────────────────
 function PaymentReminderModal({ proposal, onClose }) {
   const draft        = proposal.contractDraft || {}
-  const contractNum  = draft.contractNum || `EOL${String(70000 + proposal.id).padStart(6, '0')}`
+  const contractNum  = draft.contractNum || contractNumberFor(proposal.id)
   const projectTypes = (draft.projectTypes || []).join(', ') || ''
 
   const schedule       = getPaymentSchedule(proposal)
@@ -1441,7 +1441,7 @@ function PaymentReminderModal({ proposal, onClose }) {
 function CloseOutModal({ proposal, onClose }) {
   const { toggleJobStage, updateJobData, saveJobCosts } = useStore()
   const draft = proposal.contractDraft || {}
-  const contractNum = draft.contractNum || `EOL${String(70000 + proposal.id).padStart(6, '0')}`
+  const contractNum = draft.contractNum || contractNumberFor(proposal.id)
   const projectTypes = (draft.projectTypes || []).join(', ') || ''
 
   // Job revenue (signed contract + approved change orders) — the base for margin.
@@ -1735,7 +1735,7 @@ function ReceiptsTab({ proposal }) {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
   const fileRef = useRef(null)
-  const contractNum = proposal.contractDraft?.contractNum || `EOL${String(70000 + proposal.id).padStart(6, '0')}`
+  const contractNum = proposal.contractDraft?.contractNum || contractNumberFor(proposal.id)
 
   const onFiles = async (e) => {
     const files = [...(e.target.files || [])]
@@ -1836,7 +1836,7 @@ function JobCard({ proposal }) {
   const isClosed = completedStages.includes('closed')
 
   const draft = proposal.contractDraft || {}
-  const contractNum   = draft.contractNum || `EOL${String(70000 + proposal.id).padStart(6, '0')}`
+  const contractNum   = draft.contractNum || contractNumberFor(proposal.id)
   const projectTypes  = (draft.projectTypes || []).join(', ') || 'Not specified'
   const coCount       = (jobData.changeOrders || []).length
   const openWarranty  = (jobData.warrantyItems || []).filter(w => w.status === 'Open').length
@@ -2084,7 +2084,7 @@ export default function Jobs() {
     if (filter === 'closed'      && phase !== 'closed')        return false
     if (query) {
       const q = query.toLowerCase()
-      const contractNum = p.contractDraft?.contractNum || `EOL${String(70000 + p.id).padStart(6, '0')}`
+      const contractNum = p.contractDraft?.contractNum || contractNumberFor(p.id)
       return [p.client, p.address, p.email, contractNum].some(v => v?.toLowerCase().includes(q))
     }
     return true

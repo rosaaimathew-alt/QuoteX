@@ -1,32 +1,21 @@
 import { Navigate } from 'react-router-dom'
 import { DEMO } from '../demo'
+import { getSession, signOut } from '../supabase'
 
-function getToken() {
-  return localStorage.getItem('qx_token')
-}
-
-function isTokenValid(token) {
-  if (!token) return false
-  try {
-    const payload = JSON.parse(atob(token.split('.')[0]))
-    return payload.exp > Date.now()
-  } catch {
-    return false
-  }
-}
-
+// The Supabase session is resolved once in main.jsx (initAuth) before the app
+// renders, so these reads are synchronous.
 export function useAuth() {
-  return isTokenValid(getToken())
+  return DEMO || !!getSession()
 }
 
-export function logout() {
-  try { localStorage.removeItem('qx_token') } catch {}
+export async function logout() {
+  try { await signOut() } catch {}
   window.location.href = '/login'
 }
 
 export default function AuthGuard({ children }) {
   // Demo builds are a public sandbox with no real data — skip the login gate.
   if (DEMO) return children
-  if (!isTokenValid(getToken())) return <Navigate to="/login" replace />
+  if (!getSession()) return <Navigate to="/login" replace />
   return children
 }

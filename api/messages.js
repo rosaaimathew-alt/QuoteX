@@ -3,7 +3,7 @@ import { requireAuth } from './_auth.js'
 import { listRecentInbox } from './_gmail.js'
 
 export default async function handler(req, res) {
-  if (!requireAuth(req, res)) return
+  if (!(await requireAuth(req, res))) return
 
   if (req.method === 'GET') {
     try {

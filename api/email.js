@@ -235,7 +235,7 @@ function buildCloseoutHtml({ client, contractNum, address, projectType, completi
 // ── Main handler ──────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
-  if (!requireAuth(req, res)) return
+  if (!(await requireAuth(req, res))) return
   if (!(await isMailerConfigured())) {
     return res.status(500).json({ error: 'No email account connected. Connect your Google account in Settings (or set GMAIL_USER / GMAIL_APP_PASSWORD).' })
   }

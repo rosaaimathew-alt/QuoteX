@@ -6,7 +6,7 @@ export const config = { api: { bodyParser: { sizeLimit: '25mb' } } }
 const META_KEY = 'drive:backup:meta'
 
 export default async function handler(req, res) {
-  if (!requireAuth(req, res)) return
+  if (!(await requireAuth(req, res))) return
   try {
     const { kv } = await import('@vercel/kv')
 

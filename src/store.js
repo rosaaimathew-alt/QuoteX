@@ -1,338 +1,33 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import { supabase } from './supabase'
+import { supabase, currentUserId, loadOrg, armAdapter, disarmAdapter, reserveIdBlock } from './supabase'
 import { DEMO, DEMO_STORE_KEY, buildDemoSeed } from './demo'
 import { HISTORICAL_JOBS, HISTORICAL_APPTS } from './historicalData'
 
-// Demo builds persist ONLY to the visitor's own browser under a separate key and
-// never touch the backend / Vercel KV — see smartStorage swap in persist config.
+// ── Persistence ───────────────────────────────────────────────────────────────
+// Real data lives in Supabase as one row per record (see src/supabase.js).
+// This store is a live cache of those rows: bootstrapOrg() loads them after
+// sign-in, then the adapter turns every store change into one row write and
+// applies every Realtime row change back into the store. Nothing is merged,
+// and nothing is persisted in this browser — except DEMO builds, which keep a
+// sandbox copy in localStorage under their own key.
 const demoLocalStorage = {
   getItem:    (name) => { try { return localStorage.getItem(name) } catch { return null } },
   setItem:    (name, value) => { try { localStorage.setItem(name, value) } catch { /* ignore */ } },
   removeItem: (name) => { try { localStorage.removeItem(name) } catch { /* ignore */ } },
 }
+// Non-demo builds: the persist middleware is inert (reads nothing, writes nothing).
+const nullStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} }
 
-// Smart storage: the shared server (Vercel KV via /api/store) is the source of
-// truth. Every signed-in write is pushed up automatically, and every read
-// MERGES the server copy with this device's local copy — a union that never
-// drops records — so data can never get stranded on a single device again.
-const STORE_KEY = 'quotex-store'
-let _initial = null // cached promise for the first GET
+export { currentUserEmail } from './supabase'
 
-// Persistence is BLOCKED until the initial load (hydration) completes. This is
-// a hard safety net: before real data arrives the store holds its empty startup
-// state, and without this guard any early write would save that emptiness over
-// the real data in both localStorage and the KV server. Flipped true in
-// persist's onRehydrateStorage callback, which fires after hydration finishes.
-let _hydrated = false
-
-function _token() {
-  try { return localStorage.getItem('qx_token') } catch { return null }
-}
-
-// The email of the signed-in user, decoded from the session token payload.
-// Used to attribute who checked off a shared checklist item. '' when unknown.
-export function currentUserEmail() {
-  try {
-    const t = _token()
-    if (!t) return ''
-    const payload = JSON.parse(atob(t.split('.')[0]))
-    return payload?.email || ''
-  } catch { return '' }
-}
-
-// ── Supabase per-organization data ─────────────────────────────────────────
-// When the user has a Supabase session, their org's data document (org_stores)
-// is the source of truth. Without a session, everything falls back to the
-// legacy KV/localStorage path below — so the app is unchanged until sign-in.
-let _orgIdCache = null
-export function _resetOrgCache() { _orgIdCache = null }
-
-async function _orgContext() {
-  if (!supabase) return null
-  try {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return null
-    if (_orgIdCache) return _orgIdCache
-    const { data } = await supabase.from('memberships').select('org_id').eq('user_id', session.user.id).maybeSingle()
-    _orgIdCache = data?.org_id || null
-    return _orgIdCache
-  } catch {
-    return null
-  }
-}
-function _authHeaders(extra = {}) {
-  const token = _token()
-  return token ? { ...extra, Authorization: `Bearer ${token}` } : { ...extra }
-}
-
-// Fire-and-forget push of the full persisted state to the shared server.
-function _pushToServer(value) {
-  if (!_token()) return // not signed in — nothing to push to
-  fetch('/api/store', {
-    method: 'POST',
-    headers: _authHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ value }),
-  }).catch(() => {})
-}
-
-// Most-recent timestamp on a proposal, used to resolve same-id conflicts.
-function _score(p) {
-  let m = 0
-  for (const k of ['updatedAt', 'closedAt', 'sentAt', 'createdAt']) {
-    const t = p && p[k] ? Date.parse(p[k]) : 0
-    if (t && t > m) m = t
-  }
-  return m
-}
-function _unionById(a = [], b = [], newerWins = false) {
-  const map = new Map()
-  for (const it of (a || [])) if (it && it.id != null) map.set(it.id, it)
-  for (const it of (b || [])) {
-    if (!it || it.id == null) continue
-    const ex = map.get(it.id)
-    if (!ex) { map.set(it.id, it); continue }
-    map.set(it.id, newerWins ? (_score(it) >= _score(ex) ? it : ex) : it)
-  }
-  return [...map.values()]
-}
-
-// How much nested content a proposal carries — used to break merge ties when
-// dates are equal (adding a change order/stage/note doesn't change the top-level
-// date, so without this a stale copy would win and the change wouldn't sync).
-function _richness(p) {
-  const j = p?.jobData || {}
-  return (p?.lines?.length || 0)
-    + (p?.activities?.length || 0)
-    + (p?.reminders?.length || 0)
-    + (j.changeOrders?.length || 0)
-    + (j.completedStages?.length || 0)
-    + (j.dailyLogs?.length || 0)
-    + (j.warrantyItems?.length || 0)
-    + Object.keys(j.stageDates || {}).length
-    + (j.startDate ? 1 : 0) + (j.targetDate ? 1 : 0)
-}
-
-// Merge proposal lists: newest by date wins; on a date tie, the copy with more
-// nested content wins (so change orders, stages and notes propagate reliably).
-// Recency of the editable contract draft (Scope of Work bullets, project types,
-// milestone edits, etc.). Contract-draft edits don't move the proposal's
-// top-level dates, so the score/richness merge can pick a proposal copy that
-// lacks the latest scope edits. This lets us carry the newest draft across.
-function _draftTime(d) {
-  if (!d) return 0
-  const t = Math.max(
-    d.savedAt  ? Date.parse(d.savedAt)  : 0,
-    d.signedAt ? Date.parse(d.signedAt) : 0,
-  )
-  return t || 0
-}
-// Given the proposal copy that won the score/richness merge and the copy that
-// lost, keep the winner's body but preserve whichever contractDraft is newest
-// (and never drop a signed flag). This is what stops a proposal copy without the
-// latest Scope of Work edits from silently erasing them on merge.
-function _keepNewerDraft(winner, loser) {
-  const dw = winner && winner.contractDraft, dl = loser && loser.contractDraft
-  if (!dl) return winner
-  if (!dw) return { ...winner, contractDraft: dl }
-  const tw = _draftTime(dw), tl = _draftTime(dl)
-  const draft = tl > tw ? { ...dl } : { ...dw }
-  const other = tl > tw ? dw : dl
-  if (other.signed && !draft.signed) { draft.signed = true; draft.signedAt = other.signedAt || draft.signedAt }
-  return { ...winner, contractDraft: draft }
-}
-function _mergeProposals(server = [], local = []) {
-  const map = new Map()
-  for (const p of (server || [])) if (p && p.id != null) map.set(p.id, p)
-  for (const p of (local || [])) {
-    if (!p || p.id == null) continue
-    const ex = map.get(p.id)
-    if (!ex) { map.set(p.id, p); continue }
-    const sp = _score(p), se = _score(ex)
-    const localWins = sp > se || (sp === se && _richness(p) >= _richness(ex))
-    map.set(p.id, localWins ? _keepNewerDraft(p, ex) : _keepNewerDraft(ex, p))
-  }
-  return [...map.values()]
-}
-
-// Pick the customized side of a singleton slice (a rate map, a lock flag, a scope
-// string). Prefer the local value when it exists and differs from the factory
-// default; otherwise take the server value if it's been customized; otherwise fall
-// back to whichever value is present (default last). Keeps a second device's
-// untouched defaults from overwriting rates a manager actually set.
-function _preferCustomized(local, server, def) {
-  const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b)
-  if (local !== undefined && !eq(local, def)) return local
-  if (server !== undefined && !eq(server, def)) return server
-  if (local !== undefined) return local
-  if (server !== undefined) return server
-  return def
-}
-
-// Merge two persisted store strings ({state, version}) into one. Union of all
-// record lists (proposals newest-wins), max of id counters. Never loses data.
-export function mergeStoreStrings(serverStr, localStr) {
-  let S, L
-  try { S = JSON.parse(serverStr) } catch { return localStr }
-  try { L = JSON.parse(localStr) } catch { return serverStr }
-  const s = S.state || {}, l = L.state || {}
-  const merged = { ...s, ...l } // local wins for scalar settings (branding, theme…)
-  merged.proposals        = _mergeProposals(s.proposals, l.proposals)
-  merged.catalog          = _unionById(s.catalog, l.catalog)
-  merged.templates        = _unionById(s.templates, l.templates)
-  merged.scopeTemplates   = _unionById(s.scopeTemplates, l.scopeTemplates)
-  merged.paymentSchedules = _unionById(s.paymentSchedules, l.paymentSchedules)
-  merged.subcontractors   = _unionById(s.subcontractors, l.subcontractors)
-  merged.standaloneChangeOrders = _unionById(s.standaloneChangeOrders, l.standaloneChangeOrders, true)
-  merged.todos            = _unionById(s.todos, l.todos, true)
-  merged.checklists       = _unionById(s.checklists, l.checklists, true)
-  merged.plannedProjects  = _unionById(s.plannedProjects, l.plannedProjects, true)
-  merged.emailTemplates   = _unionById(s.emailTemplates, l.emailTemplates)
-  merged.financeCards     = _unionById(s.financeCards, l.financeCards)
-  merged.expenses         = _unionById(s.expenses, l.expenses, true)
-  merged.jobCosts         = { ...(s.jobCosts || {}), ...(l.jobCosts || {}) }
-  // Deletions: a union merge can't represent a removal, so honor tombstones.
-  // Keep every tombstone from both sides, then drop any record they mark as
-  // deleted — this is what makes a delete stick (and propagate) instead of the
-  // server copy resurrecting it on the next sync/refresh.
-  merged.tombstones = [...new Set([...(s.tombstones || []), ...(l.tombstones || [])])]
-  const _dead = new Set(merged.tombstones)
-  merged.proposals  = merged.proposals.filter(p => !_dead.has(`proposal:${p.id}`))
-  merged.todos      = (merged.todos || []).filter(t => !_dead.has(`todo:${t.id}`))
-  merged.checklists = (merged.checklists || []).filter(c => !_dead.has(`checklist:${c.id}`))
-  merged.expenses   = (merged.expenses || []).filter(e => !_dead.has(`expense:${e.id}`))
-  // Manager-set deck/porch pricing. Without these explicit merges the wholesale
-  // {...s, ...l} above lets a second device's untouched defaults win, silently
-  // resetting customized rates on cross-device sync. Union the custom-component
-  // lists by id (keep both devices' lines); for the rate maps, lock flags and
-  // scope strings prefer the customized (non-default) side.
-  merged.deckCustomComponents  = _unionById(s.deckCustomComponents,  l.deckCustomComponents)
-  merged.porchCustomComponents = _unionById(s.porchCustomComponents, l.porchCustomComponents)
-  merged.deckComponentRates  = _preferCustomized(l.deckComponentRates,  s.deckComponentRates,  DECK_COMPONENT_DEFAULTS)
-  merged.porchComponentRates = _preferCustomized(l.porchComponentRates, s.porchComponentRates, PORCH_COMPONENT_DEFAULTS)
-  merged.deckFormulaLocked   = _preferCustomized(l.deckFormulaLocked,   s.deckFormulaLocked,   false)
-  merged.porchFormulaLocked  = _preferCustomized(l.porchFormulaLocked,  s.porchFormulaLocked,  false)
-  merged.deckScopeTemplate   = _preferCustomized(l.deckScopeTemplate,   s.deckScopeTemplate,   DECK_SCOPE_DEFAULT)
-  merged.porchScopeTemplate  = _preferCustomized(l.porchScopeTemplate,  s.porchScopeTemplate,  PORCH_SCOPE_DEFAULT)
-  for (const k of ['nextCatalogId', 'nextProposalId', 'nextTemplateId', 'nextScopeTemplateId', 'nextPaymentScheduleId', 'nextSubId']) {
-    const v = Math.max(Number(s[k]) || 0, Number(l[k]) || 0)
-    if (v) merged[k] = v
-  }
-  return JSON.stringify({ state: merged, version: Math.max(Number(S.version) || 0, Number(L.version) || 0) })
-}
-
-function _proposalCount(str) {
-  try { return (JSON.parse(str).state?.proposals || []).length } catch { return 0 }
-}
-
-function _fetchInitial() {
-  if (!_initial) {
-    _initial = fetch('/api/store', { headers: _authHeaders(), signal: AbortSignal.timeout(6000) })
-      .then(async r => {
-        if (!r.ok) return { reachable: false, data: null } // offline / not signed in
-        const text = await r.text()
-        return { reachable: true, data: (text && text !== 'null') ? text : null }
-      })
-      .catch(() => ({ reachable: false, data: null }))
-  }
-  return _initial
-}
-
-const smartStorage = {
-  getItem: async (name) => {
-    // ── Supabase org path (active only when signed in) ──
-    const orgId = await _orgContext()
-    if (orgId) {
-      try {
-        const { data: row } = await supabase.from('org_stores').select('data').eq('org_id', orgId).maybeSingle()
-        const stored = row?.data
-        if (stored && Object.keys(stored).length > 0) return JSON.stringify(stored)
-        // Org document is empty → one-time migration: seed it from this device's
-        // existing local data (never deletes anything).
-        let seed = null
-        try { seed = localStorage.getItem(name) } catch {}
-        if (seed) {
-          try {
-            const parsed = JSON.parse(seed)
-            if ((parsed?.state?.proposals?.length || 0) > 0) {
-              await supabase.from('org_stores').upsert({ org_id: orgId, data: parsed, updated_at: new Date().toISOString() })
-              return seed
-            }
-          } catch {}
-        }
-        return null // fresh org, nothing to seed yet
-      } catch {
-        // fall through to legacy on transient error
-      }
-    }
-
-    // ── Legacy path (KV + localStorage) ──
-    const { reachable, data: serverStr } = await _fetchInitial()
-    let localStr = null
-    try { localStr = localStorage.getItem(name) } catch {}
-
-    // Couldn't reach or authenticate with the server — use local only, and never
-    // touch the server (we can't tell if it holds data we simply couldn't read).
-    if (!reachable) return localStr
-
-    if (!localStr)  return serverStr                       // nothing local → server wins
-    if (!serverStr) { _pushToServer(localStr); return localStr } // server empty → seed it from local
-
-    // Both have data → merge. The merge keeps the richer/newer copy of every
-    // record, so `merged` is always a superset — pushing it heals the server
-    // whenever this device holds something the server was missing (e.g. a change
-    // order added on another device that hadn't synced up).
-    const merged = mergeStoreStrings(serverStr, localStr)
-    if (merged !== serverStr) _pushToServer(merged)
-    try { localStorage.setItem(name, merged) } catch {}
-    return merged
-  },
-
-  setItem: async (name, value) => {
-    // Never persist before hydration completes — otherwise the empty startup
-    // state could overwrite real data locally and on the server.
-    if (!_hydrated) return
-    try { localStorage.setItem(name, value) } catch {} // fast local cache + offline copy
-    const orgId = await _orgContext()
-    if (orgId) {
-      try {
-        await supabase.from('org_stores').upsert({ org_id: orgId, data: JSON.parse(value), updated_at: new Date().toISOString() })
-        return
-      } catch { /* fall through to legacy */ }
-    }
-    _pushToServer(value) // legacy shared-KV sync
-  },
-
-  removeItem: (name) => localStorage.removeItem(name),
-}
-
-// Manual merge-up used by the Settings "Push to server" button: pulls the
-// current server copy, unions this browser's data into it, and saves the
-// result — so it merges rather than overwrites.
-export async function syncThisDeviceUp() {
-  const token = _token()
-  if (!token) throw new Error('Please sign in first.')
-  let localStr = null
-  try { localStr = localStorage.getItem(STORE_KEY) } catch {}
-  if (!localStr) throw new Error('No data found in this browser to sync.')
-
-  let serverStr = null
-  try {
-    const r = await fetch('/api/store', { headers: { Authorization: `Bearer ${token}` } })
-    if (r.ok) { const t = await r.text(); serverStr = (t && t !== 'null') ? t : null }
-  } catch {}
-
-  const merged = serverStr ? mergeStoreStrings(serverStr, localStr) : localStr
-  const res = await fetch('/api/store', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ value: merged }),
-  })
-  if (!res.ok) {
-    const d = await res.json().catch(() => ({}))
-    throw new Error(d.error || `Server returned ${res.status}. Try signing out and back in.`)
-  }
-  return { count: _proposalCount(merged) }
+// Contract numbers: <prefix> + 6 digits. The prefix is per org
+// (org_settings.contractPrefix, e.g. "DP" → DP071042).
+export function contractNumberFor(id, prefix) {
+  const pre = prefix || useStore.getState().contractPrefix || 'DP'
+  const n = Number(id)
+  const body = Number.isFinite(n) ? String(70000 + n).padStart(6, '0') : String(id)
+  return `${pre}${body}`
 }
 
 const SEED_CATALOG = [
@@ -744,6 +439,8 @@ export const useStore = create(
               id,
               parentId: proposalData.parentId || null,
               version,
+              ownerId: currentUserId(),
+              pmId: null,
               ...proposalData,
               status: 'Draft',
               createdAt: new Date().toISOString(),
@@ -1112,7 +809,7 @@ export const useStore = create(
                 ...p,
                 contractDraft: {
                   ...existing,
-                  contractNum: existing.contractNum || `EOL${String(70000 + p.id).padStart(6, '0')}`,
+                  contractNum: existing.contractNum || contractNumberFor(p.id),
                   signed: true,
                   signedAt: existing.signedAt || now,
                   signedOffPlatform: true,
@@ -1554,312 +1251,38 @@ export const useStore = create(
             ? s.readMessageIds
             : [...s.readMessageIds, id],
         })),
+
+      // ── Org / members (rows architecture) ─────────────────────────────────
+      orgId: null,
+      orgLoaded: false,
+      me: null,                     // { id, role: 'rep'|'pm'|'office'|'admin', displayName, email }
+      members: [],                  // everyone in the org, for the PM picker
+      officeView: 'everyone',       // office/admin: 'everyone' | 'mine'
+      contractPrefix: 'DP',
+      setOfficeView: (v) => set({ officeView: v }),
+      // A rep assigns one of the org's PMs to a deal; that PM then sees the job.
+      setProposalPm: (id, pmId) =>
+        set((s) => ({
+          proposals: s.proposals.map((p) => (p.id === id ? { ...p, pmId: pmId || null } : p)),
+        })),
     }),
     {
       name: DEMO ? DEMO_STORE_KEY : 'quotex-store',
-      storage: createJSONStorage(() => (DEMO ? demoLocalStorage : smartStorage)),
+      storage: createJSONStorage(() => (DEMO ? demoLocalStorage : nullStorage)),
       version: 6,
-      migrate: (persisted) => {
-        const persistedCatalog = persisted?.catalog
-        // Preserve user catalog if it exists; fall back to seed only on fresh install
-        const catalog = Array.isArray(persistedCatalog) && persistedCatalog.length > 0
-          ? persistedCatalog
-          : SEED_CATALOG
-        const maxId = catalog.reduce((m, i) => Math.max(m, i.id || 0), 0)
-
-        // Restore missing proposals
-        const existingProposals = persisted?.proposals || []
-
-        const ginaExists = existingProposals.some(p =>
-          p.id === 'p-restored-gina-reid' ||
-          (p.client === 'Gina Reid' && (p.address || '').includes('8409 Newton'))
-        )
-        const amberExists = existingProposals.some(p =>
-          p.id === 'p-restored-amber-rivera'
-        )
-
-        const restoredProposals = [...existingProposals]
-        if (!ginaExists) restoredProposals.push({
-          id: 'p-restored-gina-reid',
-          client: 'Gina Reid',
-          email: 'ginawarr@gmail.com',
-          phone: '614-270-5143',
-          address: '8409 Newton Ln, Ballantyne, NC 28277, USA',
-          total: 20244,
-          lines: [
-            { id: 'gl1', name: 'Debris Haul-off', qty: 1, unitPrice: 1000, description: 'Load and haul off all job site debris and excess materials.', section: 'General' },
-            { id: 'gl2', name: 'TechoBloc Blu-60 Grande and Valet Paver Patio', qty: 1, unitPrice: 15444, description: 'Design and build new paver patio with TechoBloc Blu-60 Grande smooth slab pavers 24x32 inches and 6x6 inch valet pieces in basket woven pattern, including 4 inches ABC base, 1 inch screening, polymeric sand grout, 6mm weed prevention tarp, and all materials and labor.', section: 'General' },
-            { id: 'gl3', name: 'Pressure Treated Decking Privacy Fence', qty: 1, unitPrice: 3800, description: "Supply and install pressure-treated wood decking privacy fence 16' wide all materials and labor included.", section: 'General' },
-          ],
-          status: 'Sent',
-          createdAt: '2026-06-05T12:00:00.000Z',
-          sentAt: '2026-06-05T12:00:00.000Z',
-          expiration: '2026-07-04',
-          projectTypes: ['Hardscapes'],
-          projectSummary: 'Open Patio and Privacy Fence',
-          isAlaCarte: false,
-        })
-        if (!amberExists) restoredProposals.push({
-          id: 'p-restored-amber-rivera',
-          client: 'Amber Rivera',
-          email: 'anhyde85@yahoo.com',
-          phone: '317-966-6372',
-          address: '4110 Woolcott Avenue Charlotte NC',
-          total: 0,
-          lines: [
-            { id: 'ar1',  name: 'Gable Roof Engineering Letter',                          qty: 1, unitPrice: 900,   description: 'Gable Roof Engineers Report for headers and LVL Ridge Beam. Note: Additional Engineering Costs May Inquire Additional Fees.', section: 'General' },
-            { id: 'ar2',  name: "12'x24' Gable Roof Open Porch",                          qty: 1, unitPrice: 32000, description: "Erect Base structure per plan: Concrete block footings. Purchase and install 6'X6' PT-Wood columns, 2\"x6\" plates, LVL engineered beam for long spans, Wrap Columns and Headers. Purchase and install 2\"x10\" rafters, 1/2\" OSB sheathing and 15# felt. Install ply bead ceiling with 1\"x4\" Trim covering seams. Design Open Gable With Wagon Wheel Trim on Gable. Install shingles, regular gutters and soffit all matching the existing house.", section: 'General' },
-            { id: 'ar3',  name: "12'x24' Cathedral Roof Open Porch",                      qty: 1, unitPrice: 31000, description: "Erect Base structure per plan: Concrete block footings. Purchase and install 6'X6' PT-Wood columns, 2\"x6\" plates, Ridge beam with collar ties. Wrap Columns and Headers. Purchase and install 2\"x10\" rafters, 1/2\" OSB sheathing and 15# felt. Install ply bead ceiling with 1\"x4\" Trim covering seams. Design Open Gable With Wagon Wheel Trim on Gable. Install shingles, regular gutters and soffit all matching the existing house.", section: 'General' },
-            { id: 'ar4',  name: "12'x24' Shed Roof Open Porch",                           qty: 1, unitPrice: 30000, description: "Erect Base structure per plan: Concrete block footings. Purchase and install 6'X6' PT-Wood columns, 2\"x6\" plates, LVL engineered beam for long spans. Wrap Columns and Headers. Purchase and install 2\"x10\" rafters, 1/2\" OSB sheathing and 15# felt. Install ply bead ceiling with 1\"x4\" Trim covering seams. Design Open Gable With Wagon Wheel Trim on Gable. Install shingles, regular gutters and soffit all matching the existing house.", section: 'General' },
-            { id: 'ar5',  name: 'Shiplap and Vinyl Siding TV-Wall (TV Install Included)', qty: 1, unitPrice: 3150,  description: 'Interior Finish: Shiplap. Exterior Finish: Matching Vinyl Siding. Install 1 (one) 120v Outlet. Install Homeowner provided TV mount and TV.', section: 'General' },
-            { id: 'ar6',  name: 'Standard Electrical Package',                             qty: 1, unitPrice: 3810,  description: 'Supply and install electrical wiring package including two ceiling fans and six 6" recessed can lights, one flood light, and one 120v outlet with all associated materials and labor.', section: 'General' },
-            { id: 'ar7',  name: '6000W Innova Heater Electrical Heater Material and Labor',qty: 1, unitPrice: 3500,  description: 'Supply and Install 220V, 6000w Innova electrical heater.', section: 'General' },
-            { id: 'ar8',  name: 'Eze Breeze Windows',                                     qty: 1, unitPrice: 7650,  description: 'Purchase and install 6"x6" Cox laminated columns, 2"x6" vertical 4-track Eze-Breeze single unit windows with frame and vinyl colors, Larson storm doors as needed, and 1/4" tempered glass on gables — all materials and labor included. 54" Max Opening, 105" Max Height.', section: 'General' },
-            { id: 'ar9',  name: '6/12 Electrical Compliance- Eze Breeze Outlets',         qty: 1, unitPrice: 2640,  description: 'Install 120v outlet with box, cover plate, and all labor to adhere to Eze-Breeze electrical code compliance.', section: 'General' },
-            { id: 'ar10', name: 'LVP Floor as Porch Floor',                               qty: 1, unitPrice: 3744,  description: 'Provide and install 3/4" plywood subfloor and underlayment, then install LVP flooring as porch floor with color selection — all materials and labor included.', section: 'General' },
-            { id: 'ar11', name: 'Shiplap Finished Back-wall',                             qty: 1, unitPrice: 4000,  description: 'Demo and Haul Exterior Siding left inside enclosure. Provide and Install Shiplap Finished Porch Back Wall. Provide and Paint Shiplap.', section: 'General' },
-            { id: 'ar12', name: 'TechoBloc Blu-60 Paver Patio',                          qty: 1, unitPrice: 6150,  description: 'Design and Build New Paver Patio. Provide and install 4" ABC, 1" screening, polymeric sand grout, 6mm tarp for weed prevention. Material: Techo-Bloc Blu 60 smooth or slate slab. Standard 3 piece pattern.', section: 'General' },
-            { id: 'ar13', name: 'Keystone Plaza Stone Paver Patio',                       qty: 1, unitPrice: 5740,  description: 'Design and Build New Paver Patio. Provide and install 4" ABC, 1" screening, polymeric sand grout, 6mm tarp for weed prevention. Material: Keystone Plaza Stone Paver. Standard 3 piece pattern.', section: 'General' },
-            { id: 'ar14', name: 'Concrete Paver Patio',                                   qty: 1, unitPrice: 3075,  description: 'Excavate, prepare subgrade, and install brushed concrete extension with all materials and labor included.', section: 'General' },
-            { id: 'ar15', name: 'Fullview 36" Exterior Door Installation',                qty: 1, unitPrice: 6000,  description: '6\' Reliabilt French Full-view Exterior Door and Installation. Purchase and Install 6\' Sliding Glass Door. Remove existing window/door and house siding. Relocate inside outlets or switches if necessary. Build new door frame. Repair siding on House Exterior if necessary. Install french door with associated hardware. Fix House Interior Drywall — Paint NOT included. Install Door trims.', section: 'General' },
-          ],
-          status: 'Sent',
-          createdAt: '2026-06-23T12:00:00.000Z',
-          sentAt: '2026-06-23T12:00:00.000Z',
-          expiration: '2026-07-22',
-          projectTypes: ['Open Porches'],
-          projectSummary: 'Open Porch Options',
-          isAlaCarte: true,
-        })
-
-        const proposals = restoredProposals
-
-        return {
-          catalog,
-          nextCatalogId: Math.max(SEED_CATALOG.length + 1, maxId + 1, persisted?.nextCatalogId || 0),
-          templates:          persisted?.templates          || [],
-          nextTemplateId:     persisted?.nextTemplateId     || 1,
-          scopeTemplates:        persisted?.scopeTemplates        || [],
-          nextScopeTemplateId:   persisted?.nextScopeTemplateId   || 1,
-          paymentSchedules:        persisted?.paymentSchedules        || [],
-          nextPaymentScheduleId:   persisted?.nextPaymentScheduleId   || 1,
-          paymentScheduleLearning: persisted?.paymentScheduleLearning || {},
-          subcontractors:      persisted?.subcontractors      || [],
-          nextSubId:           persisted?.nextSubId           || 1,
-          proposals,
-          nextProposalId:     persisted?.nextProposalId     || 1,
-          readMessageIds:     persisted?.readMessageIds     || [],
-          todos:              persisted?.todos              || [],
-          tombstones:         persisted?.tombstones         || [],
-          checklists:         persisted?.checklists         || [],
-          todoPin:            persisted?.todoPin            || 'off',
-          role:               persisted?.role               || 'manager',
-          plannedProjects:    persisted?.plannedProjects    || [],
-          calendarHiddenJobs: persisted?.calendarHiddenJobs || [],
-          emailTemplates:     persisted?.emailTemplates     || DEFAULT_EMAIL_TEMPLATES,
-          financeCards:       persisted?.financeCards       || [],
-          expenses:           persisted?.expenses           || [],
-          theme:              persisted?.theme              || 'light',
-          branding:           normalizeBranding(persisted?.branding),
-          scopeExamples:      persisted?.scopeExamples      || [],
-          jobCosts:           persisted?.jobCosts           || {},
-          standaloneChangeOrders: persisted?.standaloneChangeOrders || [],
-          // Manager-set deck/porch pricing — carry through so a version bump
-          // never resets customized rates, custom lines, locks, or scope text.
-          deckComponentRates:  persisted?.deckComponentRates  ?? JSON.parse(JSON.stringify(DECK_COMPONENT_DEFAULTS)),
-          porchComponentRates: persisted?.porchComponentRates ?? JSON.parse(JSON.stringify(PORCH_COMPONENT_DEFAULTS)),
-          deckCustomComponents:  persisted?.deckCustomComponents  ?? [],
-          porchCustomComponents: persisted?.porchCustomComponents ?? [],
-          deckFormulaLocked:  persisted?.deckFormulaLocked  ?? false,
-          porchFormulaLocked: persisted?.porchFormulaLocked ?? false,
-          deckScopeTemplate:  persisted?.deckScopeTemplate  ?? DECK_SCOPE_DEFAULT,
-          porchScopeTemplate: persisted?.porchScopeTemplate ?? PORCH_SCOPE_DEFAULT,
-          historyImported:    persisted?.historyImported    || false,
-          catalogCategories:  persisted?.catalogCategories  || [
-            'Fencing','Gates','Demo','Materials','Labor','Framing','Concrete','Electrical',
-            'Plumbing','Roofing','Flooring','Drywall','Painting','HVAC','Windows','Doors',
-            'Tile','Insulation','Siding','General',
-          ],
-          projectTypes: persisted?.projectTypes || [
-            'Open Deck','Screen Porches','Eze-Breeze Porches','Open Porches',
-            'Porch Conversions','Sunrooms','Hardscapes',
-          ],
-        }
-      },
-      merge: (persistedState, currentState) => {
-        // Demo builds are fully isolated — never inject the real restored
-        // proposals; the demo seed populates sample data separately.
-        if (DEMO) {
-          return {
-            ...currentState,
-            ...persistedState,
-            branding: normalizeBranding(persistedState?.branding),
-            catalog: stripDeckItems((persistedState?.catalog?.length > 0)
-              ? persistedState.catalog
-              : currentState.catalog),
-          }
-        }
-        // Always ensure restored proposals are present — runs on every load
-        const stored = persistedState?.proposals || []
-        const ginaExists = stored.some(p =>
-          p.id === 'p-restored-gina-reid' ||
-          (p.client === 'Gina Reid' && (p.address || '').includes('8409 Newton'))
-        )
-        const amberExists = stored.some(p =>
-          p.id === 'p-restored-amber-rivera'
-        )
-        const proposals = [...stored]
-        if (!ginaExists) proposals.push({
-          id: 'p-restored-gina-reid',
-          client: 'Gina Reid',
-          email: 'ginawarr@gmail.com',
-          phone: '614-270-5143',
-          address: '8409 Newton Ln, Ballantyne, NC 28277, USA',
-          total: 20244,
-          lines: [
-            { id: 'gl1', name: 'Debris Haul-off', qty: 1, unitPrice: 1000, description: 'Load and haul off all job site debris and excess materials.', section: 'General' },
-            { id: 'gl2', name: 'TechoBloc Blu-60 Grande and Valet Paver Patio', qty: 1, unitPrice: 15444, description: 'Design and build new paver patio with TechoBloc Blu-60 Grande smooth slab pavers 24x32 inches and 6x6 inch valet pieces in basket woven pattern, including 4 inches ABC base, 1 inch screening, polymeric sand grout, 6mm weed prevention tarp, and all materials and labor.', section: 'General' },
-            { id: 'gl3', name: 'Pressure Treated Decking Privacy Fence', qty: 1, unitPrice: 3800, description: "Supply and install pressure-treated wood decking privacy fence 16' wide all materials and labor included.", section: 'General' },
-          ],
-          status: 'Sent',
-          createdAt: '2026-06-05T12:00:00.000Z',
-          sentAt: '2026-06-05T12:00:00.000Z',
-          expiration: '2026-07-04',
-          projectTypes: ['Hardscapes'],
-          projectSummary: 'Open Patio and Privacy Fence',
-          isAlaCarte: false,
-        })
-        if (!amberExists) proposals.push({
-          id: 'p-restored-amber-rivera',
-          client: 'Amber Rivera',
-          email: 'anhyde85@yahoo.com',
-          phone: '317-966-6372',
-          address: '4110 Woolcott Avenue Charlotte NC',
-          total: 0,
-          lines: [
-            { id: 'ar1',  name: 'Gable Roof Engineering Letter',                          qty: 1, unitPrice: 900,   description: 'Gable Roof Engineers Report for headers and LVL Ridge Beam. Note: Additional Engineering Costs May Inquire Additional Fees.', section: 'General' },
-            { id: 'ar2',  name: "12'x24' Gable Roof Open Porch",                          qty: 1, unitPrice: 32000, description: "Erect Base structure per plan: Concrete block footings. Purchase and install 6'X6' PT-Wood columns, 2\"x6\" plates, LVL engineered beam for long spans, Wrap Columns and Headers. Purchase and install 2\"x10\" rafters, 1/2\" OSB sheathing and 15# felt. Install ply bead ceiling with 1\"x4\" Trim covering seams. Design Open Gable With Wagon Wheel Trim on Gable. Install shingles, regular gutters and soffit all matching the existing house.", section: 'General' },
-            { id: 'ar3',  name: "12'x24' Cathedral Roof Open Porch",                      qty: 1, unitPrice: 31000, description: "Erect Base structure per plan: Concrete block footings. Purchase and install 6'X6' PT-Wood columns, 2\"x6\" plates, Ridge beam with collar ties. Wrap Columns and Headers. Purchase and install 2\"x10\" rafters, 1/2\" OSB sheathing and 15# felt. Install ply bead ceiling with 1\"x4\" Trim covering seams. Design Open Gable With Wagon Wheel Trim on Gable. Install shingles, regular gutters and soffit all matching the existing house.", section: 'General' },
-            { id: 'ar4',  name: "12'x24' Shed Roof Open Porch",                           qty: 1, unitPrice: 30000, description: "Erect Base structure per plan: Concrete block footings. Purchase and install 6'X6' PT-Wood columns, 2\"x6\" plates, LVL engineered beam for long spans. Wrap Columns and Headers. Purchase and install 2\"x10\" rafters, 1/2\" OSB sheathing and 15# felt. Install ply bead ceiling with 1\"x4\" Trim covering seams. Design Open Gable With Wagon Wheel Trim on Gable. Install shingles, regular gutters and soffit all matching the existing house.", section: 'General' },
-            { id: 'ar5',  name: 'Shiplap and Vinyl Siding TV-Wall (TV Install Included)', qty: 1, unitPrice: 3150,  description: 'Interior Finish: Shiplap. Exterior Finish: Matching Vinyl Siding. Install 1 (one) 120v Outlet. Install Homeowner provided TV mount and TV.', section: 'General' },
-            { id: 'ar6',  name: 'Standard Electrical Package',                             qty: 1, unitPrice: 3810,  description: 'Supply and install electrical wiring package including two ceiling fans and six 6" recessed can lights, one flood light, and one 120v outlet with all associated materials and labor.', section: 'General' },
-            { id: 'ar7',  name: '6000W Innova Heater Electrical Heater Material and Labor',qty: 1, unitPrice: 3500,  description: 'Supply and Install 220V, 6000w Innova electrical heater.', section: 'General' },
-            { id: 'ar8',  name: 'Eze Breeze Windows',                                     qty: 1, unitPrice: 7650,  description: 'Purchase and install 6"x6" Cox laminated columns, 2"x6" vertical 4-track Eze-Breeze single unit windows with frame and vinyl colors, Larson storm doors as needed, and 1/4" tempered glass on gables — all materials and labor included. 54" Max Opening, 105" Max Height.', section: 'General' },
-            { id: 'ar9',  name: '6/12 Electrical Compliance- Eze Breeze Outlets',         qty: 1, unitPrice: 2640,  description: 'Install 120v outlet with box, cover plate, and all labor to adhere to Eze-Breeze electrical code compliance.', section: 'General' },
-            { id: 'ar10', name: 'LVP Floor as Porch Floor',                               qty: 1, unitPrice: 3744,  description: 'Provide and install 3/4" plywood subfloor and underlayment, then install LVP flooring as porch floor with color selection — all materials and labor included.', section: 'General' },
-            { id: 'ar11', name: 'Shiplap Finished Back-wall',                             qty: 1, unitPrice: 4000,  description: 'Demo and Haul Exterior Siding left inside enclosure. Provide and Install Shiplap Finished Porch Back Wall. Provide and Paint Shiplap.', section: 'General' },
-            { id: 'ar12', name: 'TechoBloc Blu-60 Paver Patio',                          qty: 1, unitPrice: 6150,  description: 'Design and Build New Paver Patio. Provide and install 4" ABC, 1" screening, polymeric sand grout, 6mm tarp for weed prevention. Material: Techo-Bloc Blu 60 smooth or slate slab. Standard 3 piece pattern.', section: 'General' },
-            { id: 'ar13', name: 'Keystone Plaza Stone Paver Patio',                       qty: 1, unitPrice: 5740,  description: 'Design and Build New Paver Patio. Provide and install 4" ABC, 1" screening, polymeric sand grout, 6mm tarp for weed prevention. Material: Keystone Plaza Stone Paver. Standard 3 piece pattern.', section: 'General' },
-            { id: 'ar14', name: 'Concrete Paver Patio',                                   qty: 1, unitPrice: 3075,  description: 'Excavate, prepare subgrade, and install brushed concrete extension with all materials and labor included.', section: 'General' },
-            { id: 'ar15', name: 'Fullview 36" Exterior Door Installation',                qty: 1, unitPrice: 6000,  description: '6\' Reliabilt French Full-view Exterior Door and Installation. Purchase and Install 6\' Sliding Glass Door. Remove existing window/door and house siding. Relocate inside outlets or switches if necessary. Build new door frame. Repair siding on House Exterior if necessary. Install french door with associated hardware. Fix House Interior Drywall — Paint NOT included. Install Door trims.', section: 'General' },
-          ],
-          status: 'Sent',
-          createdAt: '2026-06-23T12:00:00.000Z',
-          sentAt: '2026-06-23T12:00:00.000Z',
-          expiration: '2026-07-22',
-          projectTypes: ['Open Porches'],
-          projectSummary: 'Open Porch Options',
-          isAlaCarte: true,
-        })
-
-        return {
-          ...currentState,
-          ...persistedState,
-          proposals,
-          branding: normalizeBranding(persistedState?.branding),
-          // Catalog: always prefer stored data; only fall back to seed when truly empty.
-          // Always ensure the editable deck-component defaults are present.
-          catalog: stripDeckItems((persistedState?.catalog?.length > 0)
-            ? persistedState.catalog
-            : currentState.catalog),
-        }
-      },
-      // Storage is async (KV). Mark hydration complete FIRST so writes are now
-      // allowed, then run the stale-Sent → MIA sweep. Fires after hydration
-      // whether it succeeded or errored, so persistence is never permanently
-      // blocked.
-      onRehydrateStorage: () => (state, error) => {
-        // Fail CLOSED: only enable persistence after a clean load. If hydration
-        // threw, the store holds its empty default — leaving writes blocked means
-        // an in-memory-only session (changes won't save this load) rather than
-        // risking the empty default overwriting real data. Non-destructive.
-        if (error) return
-        _hydrated = true
-        try { state?.autoExpireStaleSent?.() } catch {}
-      },
+      // Non-demo builds persist nothing here — the rows adapter is the store's memory.
+      partialize: (s) => (DEMO ? s : {}),
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        ...(persistedState || {}),
+        branding: normalizeBranding(persistedState?.branding),
+        catalog: stripDeckItems((persistedState?.catalog?.length > 0)
+          ? persistedState.catalog
+          : currentState.catalog),
+      }),
     }
   )
 )
-
-// ── Live multi-user sync ──────────────────────────────────────────────────────
-// A cheap fingerprint of the data that matters, so a poll can tell whether the
-// server holds something new (or we hold something the server is missing)
-// WITHOUT diffing the whole blob or re-rendering on every tick. Captures list
-// sizes, the newest proposal timestamp, and total nested richness (so adding a
-// change order / stage / note is detected even though top-level dates don't move).
-function _syncSig(st) {
-  st = st || {}
-  const p = st.proposals || []
-  let maxT = 0, rich = 0
-  for (const x of p) {
-    const t = _score(x); if (t > maxT) maxT = t; rich += _richness(x)
-    // Contract-draft edits (Scope of Work, project types, milestones) don't move
-    // the proposal's dates, so fold their edit time into the fingerprint — else a
-    // teammate's scope edit wouldn't be detected by the live-sync poll.
-    const dt = _draftTime(x && x.contractDraft); if (dt > maxT) maxT = dt
-  }
-  const L = k => (st[k] || []).length
-  return [
-    p.length, rich, maxT,
-    L('catalog'), L('templates'), L('scopeTemplates'), L('paymentSchedules'),
-    L('subcontractors'), L('standaloneChangeOrders'), L('todos'), L('plannedProjects'),
-    L('emailTemplates'), L('financeCards'), L('expenses'),
-    L('tombstones'),   // a deletion changes the signature so it syncs + pushes
-    Object.keys(st.jobCosts || {}).length,
-    L('deckCustomComponents'), L('porchCustomComponents'),
-    // checklists: count lists + total items + checked items so adds AND toggles
-    // by a teammate are picked up by the live-sync poll.
-    L('checklists'),
-    (st.checklists || []).reduce((a, c) => a + (c.items || []).length + (c.items || []).filter(i => i.done).length, 0),
-  ].join('|')
-}
-
-// Pull the shared server state, merge it with what's in memory using the SAME
-// non-destructive merge as hydration, then apply anything new and heal the server
-// with anything it was missing. Safe to call on a timer and on tab focus — a
-// no-op (no setState, no upload) when nothing changed. This is what makes two
-// people on the app see each other's changes within a few seconds.
-let _syncing = false
-export async function syncFromServer() {
-  if (_syncing || !_hydrated || DEMO || !_token()) return
-  _syncing = true
-  try {
-    const r = await fetch('/api/store', { headers: _authHeaders(), signal: AbortSignal.timeout(6000) })
-    if (!r.ok) return
-    const text = await r.text()
-    const serverStr = (text && text !== 'null') ? text : null
-    if (!serverStr) return
-    const cur = useStore.getState()
-    const localStr = JSON.stringify({ state: cur, version: 6 })
-    const merged = mergeStoreStrings(serverStr, localStr)
-    let nextState, serverState
-    try { nextState = JSON.parse(merged).state; serverState = JSON.parse(serverStr).state } catch { return }
-    if (!nextState || typeof nextState !== 'object') return
-    const nextSig = _syncSig(nextState)
-    // Server had something we don't → apply it (functions are preserved because
-    // setState shallow-merges over the current state).
-    if (nextSig !== _syncSig(cur)) {
-      useStore.setState(nextState)
-      try { localStorage.setItem('quotex-store', merged) } catch {}
-    }
-    // We hold something the server is missing → push the superset up.
-    if (nextSig !== _syncSig(serverState)) _pushToServer(merged)
-  } catch {
-    // transient network error — the next tick retries
-  } finally {
-    _syncing = false
-  }
-}
 
 // Demo mode: seed the sandbox with fictional sample data the first time a
 // visitor loads it (i.e. when their browser has no demo data yet).
@@ -1872,4 +1295,57 @@ if (DEMO && typeof window !== 'undefined') {
   }
   if (useStore.persist?.hasHydrated?.()) seedIfEmpty()
   else useStore.persist?.onFinishHydration?.(seedIfEmpty)
+}
+
+
+// ── Org bootstrap (rows architecture) ────────────────────────────────────────
+// After sign-in: load every row this user may see (RLS decides), put it in the
+// store in the store's own shape, then arm the adapter so changes flow both
+// ways. Membership role → app role: rep→sales, pm→pm, office/admin→manager.
+const ROLE_MAP = { rep: 'sales', pm: 'pm', office: 'manager', admin: 'manager' }
+const SETTINGS_DEFAULTS = () => ({
+  projectTypes: ['Open Deck', 'Screen Porches', 'Eze-Breeze Porches', 'Open Porches', 'Porch Conversions', 'Sunrooms', 'Hardscapes'],
+  catalogCategories: ['Fencing', 'Gates', 'Demo', 'Materials', 'Labor', 'Framing', 'Concrete', 'Electrical',
+    'Plumbing', 'Roofing', 'Flooring', 'Drywall', 'Painting', 'HVAC', 'Windows', 'Doors', 'Tile', 'Insulation', 'Siding', 'General'],
+  deckComponentRates:  JSON.parse(JSON.stringify(DECK_COMPONENT_DEFAULTS)),
+  porchComponentRates: JSON.parse(JSON.stringify(PORCH_COMPONENT_DEFAULTS)),
+  deckCustomComponents: [], porchCustomComponents: [],
+  deckFormulaLocked: false, porchFormulaLocked: false,
+  deckScopeTemplate: DECK_SCOPE_DEFAULT, porchScopeTemplate: PORCH_SCOPE_DEFAULT,
+  paymentScheduleLearning: {}, scopeExamples: [], historyImported: false, calendarHiddenJobs: [],
+  contractPrefix: 'DP',
+})
+const ID_COUNTERS = ['nextProposalId', 'nextCatalogId', 'nextTemplateId', 'nextScopeTemplateId', 'nextPaymentScheduleId', 'nextSubId']
+
+let _booting = null
+export function bootstrapOrg() {
+  if (DEMO) return Promise.resolve()
+  if (_booting) return _booting
+  _booting = (async () => {
+    const { orgId, me, members, settings, collections } = await loadOrg()
+    const merged = { ...SETTINGS_DEFAULTS(), ...settings, branding: normalizeBranding(settings.branding) }
+    const cols   = { ...collections, catalog: stripDeckItems(collections.catalog || []) }
+    useStore.setState({ ...cols, ...merged, orgId, me, members, role: ROLE_MAP[me.role] || 'manager', orgLoaded: true })
+    armAdapter(useStore, orgId, settings)
+    // A brand-new org gets the built-in email templates once; the adapter
+    // writes them as rows because they arrive after arming.
+    if (!(collections.emailTemplates || []).length) useStore.setState({ emailTemplates: DEFAULT_EMAIL_TEMPLATES })
+    // Reserve an id block so this session never mints an id another rep has.
+    try {
+      const start = await reserveIdBlock()
+      const s = useStore.getState()
+      const bump = {}
+      for (const k of ID_COUNTERS) bump[k] = Math.max(Number(s[k]) || 0, start)
+      useStore.setState(bump)
+    } catch (e) {
+      console.error('[quotex] could not reserve an id block', e)
+    }
+    try { useStore.getState().autoExpireStaleSent?.() } catch {}
+  })().catch((e) => { _booting = null; throw e })
+  return _booting
+}
+
+export function resetOrg() {
+  _booting = null
+  disarmAdapter()
 }

@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   if (action === 'start' || action === 'status') {
     const header = req.headers.authorization || ''
     const bearer = header.startsWith('Bearer ') ? header.slice(7) : (req.headers['x-qx-token'] || null)
-    if (!verifyToken(bearer)) return res.status(401).json({ error: 'Unauthorized' })
+    if (!(await verifyToken(bearer))) return res.status(401).json({ error: 'Unauthorized' })
   }
 
   if (action === 'start') {

@@ -1,39 +1,26 @@
-import { createHmac, timingSafeEqual } from 'crypto'
+import { createClient } from '@supabase/supabase-js'
 
-// Verifies the HMAC-signed session token minted by api/auth/login.js.
-// Token format: base64(payloadJson) + '.' + hmacSha256(secret, payloadJson)
-export function verifyToken(token) {
+// Verifies the Supabase session token the app sends on every /api/ request.
+// Supabase Auth mints the token; we ask Supabase (with the service key) who it
+// belongs to. Returns { email, sub } or null.
+let _admin = null
+function admin() {
+  if (_admin) return _admin
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_KEY
+  if (!url || !key) return null
+  _admin = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
+  return _admin
+}
+
+export async function verifyToken(token) {
   if (!token || typeof token !== 'string') return null
-  // In production a real SESSION_SECRET is mandatory. If it is missing we must
-  // NEVER fall back to a known/default secret — that would let anyone forge
-  // tokens. Treat the missing-secret case as unauthorized instead.
-  const isProd = process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production'
-  const secret = process.env.SESSION_SECRET || (isProd ? null : 'dev-secret-change-me')
-  if (!secret) return null
-  const dot = token.lastIndexOf('.')
-  if (dot < 1) return null
-  const b64 = token.slice(0, dot)
-  const sig = token.slice(dot + 1)
-
-  let payloadJson
+  const sb = admin()
+  if (!sb) return null   // fail closed: no service key configured → nobody is authorized
   try {
-    payloadJson = Buffer.from(b64, 'base64').toString('utf8')
-  } catch {
-    return null
-  }
-
-  const expected = createHmac('sha256', secret).update(payloadJson).digest('hex')
-  if (sig.length !== expected.length) return null
-  try {
-    if (!timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null
-  } catch {
-    return null
-  }
-
-  try {
-    const payload = JSON.parse(payloadJson)
-    if (!payload.exp || payload.exp < Date.now()) return null
-    return payload
+    const { data, error } = await sb.auth.getUser(token)
+    if (error || !data?.user) return null
+    return { email: data.user.email, sub: data.user.id }
   } catch {
     return null
   }
@@ -41,13 +28,13 @@ export function verifyToken(token) {
 
 // Pulls the bearer token from the request. Returns the decoded payload, or
 // sends a 401 and returns null. Guard every protected handler with:
-//   if (!requireAuth(req, res)) return
-export function requireAuth(req, res) {
+//   if (!(await requireAuth(req, res))) return
+export async function requireAuth(req, res) {
   const header = req.headers?.authorization || ''
   const token = header.startsWith('Bearer ')
     ? header.slice(7)
     : (req.headers?.['x-qx-token'] || null)
-  const payload = verifyToken(token)
+  const payload = await verifyToken(token)
   if (!payload) {
     res.status(401).json({ error: 'Unauthorized — please sign in again.' })
     return null

@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { buildProposalSnapshot } from '../proposalSnapshot'
 import {
   useStore, PROPOSAL_STATUSES, WIN_REASONS, LOSS_REASONS, ACTIVITY_TYPES,
+  contractNumberFor,
 } from '../store'
 import {
   Bell, Trash2, X, CheckCircle, AlertCircle, Clock, TrendingUp,
   DollarSign, FileText, Plus, ChevronDown, ChevronUp, MessageSquare,
   Phone, Mail, Send, Users, BarChart2, Columns, List, Award, ThumbsDown,
   Eye, Copy, GitBranch, FileSignature, ChevronLeft, ChevronRight, ShoppingCart,
-  GitMerge, Unlink, Search, MoreHorizontal, Link2,
+  GitMerge, Unlink, Search, MoreHorizontal, Link2, UserCheck,
 } from 'lucide-react'
 import { getPeriodRange, shiftPeriod, isCurrentPeriod } from '../periodUtils'
 import { wonRevenueOf } from '../contractTotal'
@@ -44,7 +45,7 @@ async function gatherOpenEvents(proposals, groupProposals) {
       const r = await fetch(`/api/sign/pdata-${p.viewToken}`)
       if (!r.ok) return []
       const d = await r.json()
-      const contractNum = p.contractDraft?.contractNum || `EOL${String(70000 + p.id).padStart(6, '0')}`
+      const contractNum = p.contractDraft?.contractNum || contractNumberFor(p.id)
       return (d.opens || []).map(o => ({
         at: o.at,
         proposalId: p.id,
@@ -690,7 +691,7 @@ function bestInGroup(all) {
 const apptDate = (p) => p?.createdAt || p?.sentAt || p?.closedAt || null
 
 function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onOpen, onRevise, onGenerateContract }) {
-  const { deleteProposal, detachProposal, mergeProposalGroups } = useStore()
+  const { deleteProposal, detachProposal, mergeProposalGroups, members, setProposalPm } = useStore()
   const branding = useStore(s => s.branding)
   const setProposalViewToken = useStore(s => s.setProposalViewToken)
 
@@ -814,6 +815,12 @@ function ListView({ proposals, filterStatus, onStatusChange, onReminderOpen, onO
                 { label: 'Merge into client', icon: GitMerge, onClick: onMerge },
                 ...(altCount > 0 ? [{ label: 'Detach', icon: Unlink, onClick: () => onDetach(p.id) }] : []),
                 ...(p.status === 'Won' ? [{ label: 'Generate Contract', icon: FileSignature, onClick: () => onGenerateContract(p) }] : []),
+                // Assign one of the org's PMs to this deal (the PM then sees the job); pick again to unassign.
+                ...(members || []).filter(m => m.role === 'pm').map(m => ({
+                  label: `${p.pmId === m.id ? '✓ ' : ''}PM: ${m.displayName || m.email}`,
+                  icon: UserCheck,
+                  onClick: () => setProposalPm(p.id, p.pmId === m.id ? null : m.id),
+                })),
                 ...((p.status === 'Sent' || p.status === 'Followed Up') && p.email ? [{ label: 'Send Follow-up', icon: Send, onClick: () => setFollowUpProposal(p) }] : []),
                 { label: 'Delete', icon: Trash2, onClick: () => deleteProposal(p.id), danger: true },
               ]} />
@@ -1172,10 +1179,20 @@ function AnalyticsView({ proposals: allProposals }) {
 // ── Main Component ─────────────────────────────────────────────────────────
 export default function ProposalTracker() {
   const {
-    proposals, updateProposalStatus, setWinLossReason,
+    proposals: allProposals, updateProposalStatus, setWinLossReason,
     addReminder, dismissReminder,
   } = useStore()
   const navigate = useNavigate()
+
+  // Who sees what is decided by the database (a rep's store only ever holds
+  // their own deals). The office additionally gets a Mine / Everyone toggle.
+  const role       = useStore(s => s.role || 'manager')
+  const me         = useStore(s => s.me)
+  const officeView = useStore(s => s.officeView || 'everyone')
+  const setOfficeView = useStore(s => s.setOfficeView)
+  const proposals = (role === 'manager' && officeView === 'mine' && me)
+    ? allProposals.filter(p => p.ownerId === me.id)
+    : allProposals
 
   const [tab, setTab] = useState('list')
   const [filterStatus, setFilterStatus] = useState('All')
@@ -1223,7 +1240,7 @@ export default function ProposalTracker() {
   })
 
   const launchContract = (proposal, lines, freshSelection = false) => {
-    const contractNumber = `EOL${String(70000 + proposal.id).padStart(6, '0')}`
+    const contractNumber = contractNumberFor(proposal.id)
     sessionStorage.setItem('contract', JSON.stringify({
       proposalId: proposal.id,
       client: proposal.client,
@@ -1430,6 +1447,16 @@ export default function ProposalTracker() {
             </button>
           ))}
         </div>
+        {role === 'manager' && me && (
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-medium" title="Office view: everyone's deals or only the ones you own">
+            {[['everyone', 'Everyone'], ['mine', 'Mine']].map(([id, label]) => (
+              <button key={id} onClick={() => setOfficeView(id)}
+                className={`px-3 py-1.5 transition-colors ${officeView === id ? 'bg-[var(--brand-600)] text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
         {tab !== 'analytics' && (
           <div className="flex gap-1 flex-wrap">
             {['All', ...PROPOSAL_STATUSES].map(s => (

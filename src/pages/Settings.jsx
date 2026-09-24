@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Upload, Trash2, CheckCircle, RefreshCw, Palette, Building2, Eye, Download, FolderOpen, AlertTriangle, CloudUpload, HardDrive, Wifi, WifiOff, Lock, Sparkles, Mail } from 'lucide-react'
-import { useStore, syncThisDeviceUp } from '../store'
+import { useStore } from '../store'
 import { extractDominantColor, generatePalette, applyBrandStyles, DEFAULT_BRAND_COLOR, FREE_PRIMARY_COLOR, FREE_SIDEBAR_COLOR, BRAND_PRESETS } from '../brand'
 import { canCustomizeBranding, PLAN_ORDER, PLAN_META } from '../plans'
 import { ROLE_ORDER, ROLE_META } from '../roles'
+import { DEMO } from '../demo'
 
 const PRESET_COLORS = [
   { label: 'Sky Blue',    hex: '#0369a1' },
@@ -256,28 +257,6 @@ function DataManagement() {
   const importRef = useRef()
   const [importStatus, setImportStatus] = useState(null) // null | 'ok' | 'error'
   const [importMsg, setImportMsg]       = useState('')
-  const [syncing, setSyncing]           = useState(false)
-  const [syncStatus, setSyncStatus]     = useState(null) // null | 'ok' | 'error'
-  const [syncMsg, setSyncMsg]           = useState('')
-
-  // Merge this browser's data up into the shared server (union, never
-  // overwrites). Normally unnecessary — data syncs automatically — but useful
-  // to reconcile a device that was holding records from before auto-sync.
-  const handlePushToServer = async () => {
-    setSyncing(true)
-    setSyncStatus(null)
-    try {
-      const { count } = await syncThisDeviceUp()
-      setSyncStatus('ok')
-      setSyncMsg(`Synced — the shared account now has ${count} proposals. Other devices will see them after they refresh.`)
-    } catch (err) {
-      setSyncStatus('error')
-      setSyncMsg(err.message)
-    } finally {
-      setSyncing(false)
-      setTimeout(() => setSyncStatus(null), 9000)
-    }
-  }
 
   const handleExport = () => {
     const data = {
@@ -337,32 +316,9 @@ function DataManagement() {
         <h3 className="font-semibold text-gray-800 text-sm">Data Backup &amp; Restore</h3>
       </div>
       <p className="text-xs text-gray-400 mb-4">
-        Export a file backup, or push this browser's data up to the shared server so every device and teammate sees it.
+        Export a file backup of this organization's data. Everything syncs to the shared database automatically.
       </p>
 
-      {/* Push to shared server — the fix for "my data only shows on one device" */}
-      <div className="mb-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5"><CloudUpload size={14} /> Sync this device to the server</p>
-            <p className="text-xs text-gray-500 mt-0.5">Data now syncs automatically. Use this only to merge in older records from a device that has history the server doesn't — it adds, never overwrites.</p>
-          </div>
-          <button
-            onClick={handlePushToServer}
-            disabled={syncing}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors shrink-0"
-          >
-            {syncing ? <RefreshCw size={14} className="animate-spin" /> : <CloudUpload size={14} />}
-            {syncing ? 'Pushing…' : 'Push to server'}
-          </button>
-        </div>
-        {syncStatus && (
-          <div className={`mt-2 flex items-start gap-2 rounded-lg px-3 py-2 text-xs ${syncStatus === 'ok' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-            {syncStatus === 'ok' ? <CheckCircle size={13} className="shrink-0 mt-0.5" /> : <AlertTriangle size={13} className="shrink-0 mt-0.5" />}
-            {syncMsg}
-          </div>
-        )}
-      </div>
 
       <div className="flex gap-3 flex-wrap">
         <button
@@ -670,7 +626,9 @@ export default function Settings() {
           {/* ── Workspace ──────────────────────────────────────────── */}
           <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 pt-4 border-t border-gray-100">Workspace</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Role switcher: demo only — real roles come from the org membership */}
             {/* Role / view */}
+            {DEMO && (
             <div className="bg-white rounded-xl border border-gray-200 p-5">
               <div className="flex items-center gap-2 mb-1">
                 <Building2 size={16} className="text-gray-400" />
@@ -693,6 +651,7 @@ export default function Settings() {
                 })}
               </div>
             </div>
+            )}
 
             {/* Plan / subscription tier */}
             <div className="bg-white rounded-xl border border-gray-200 p-5">

@@ -29,7 +29,7 @@ import Checklists from './pages/Checklists'
 import PublicProposal from './pages/PublicProposal'
 import Legal from './pages/Legal'
 import AuthGuard, { logout } from './components/AuthGuard'
-import { useStore, syncFromServer } from './store'
+import { useStore, bootstrapOrg } from './store'
 import { applyBrandStyles, applyTheme, DEFAULT_BRAND_COLOR } from './brand'
 import { canAccessRoute, landingRoute } from './plans'
 import { canRoleAccess, roleLanding } from './roles'
@@ -184,6 +184,36 @@ function GlobalSearch() {
   )
 }
 
+// Loads the signed-in user's org rows into the store (once) before the shell
+// renders, so every page starts from real data. Demo builds skip it.
+function BootGate({ children }) {
+  const orgLoaded = useStore(s => s.orgLoaded)
+  const [bootError, setBootError] = useState('')
+  useEffect(() => {
+    if (DEMO) return
+    bootstrapOrg().catch(e => setBootError(e?.message || 'Could not load your organization.'))
+  }, [])
+  if (DEMO || orgLoaded) return children
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
+      <div className="text-center max-w-sm">
+        {bootError ? (
+          <>
+            <p className="text-sm font-semibold text-red-700 mb-2">Could not load your data</p>
+            <p className="text-xs text-gray-500 mb-4">{bootError}</p>
+            <button onClick={() => logout()} className="text-xs underline text-gray-500">Sign out</button>
+          </>
+        ) : (
+          <>
+            <div className="w-8 h-8 border-2 border-gray-300 border-t-gray-800 rounded-full animate-spin mx-auto mb-3" />
+            <p className="text-sm text-gray-500">Loading your organization…</p>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // The home screen ('/') depends on role: PMs get the job calendar.
 function RoleHome() {
   const role = useStore(s => s.role || 'manager')
@@ -263,23 +293,8 @@ function AppShell() {
     return () => clearInterval(timer)
   }, [readMessageIds])
 
-  // Live multi-user sync: pull + merge the shared store every few seconds (only
-  // while the tab is visible), and immediately whenever the tab regains focus, so
-  // two people on the app see each other's changes within a few seconds without a
-  // manual refresh. syncFromServer is a no-op when nothing changed.
-  useEffect(() => {
-    const tick = () => { if (document.visibilityState === 'visible') syncFromServer() }
-    const onVisible = () => { if (document.visibilityState === 'visible') syncFromServer() }
-    const timer = setInterval(tick, 4000)
-    document.addEventListener('visibilitychange', onVisible)
-    window.addEventListener('focus', onVisible)
-    syncFromServer()   // sync once on mount too
-    return () => {
-      clearInterval(timer)
-      document.removeEventListener('visibilitychange', onVisible)
-      window.removeEventListener('focus', onVisible)
-    }
-  }, [])
+  // Live sync is Realtime now (see src/supabase.js): every committed row change
+  // is pushed to this device the moment it happens. Nothing to poll.
 
   const companyName = branding?.companyName || 'QUOTEX'
   const logo        = branding?.logo        || null
@@ -497,7 +512,7 @@ export default function App() {
         <Route path="/legal/:doc"  element={<Legal />} />
         <Route path="/co/:token"   element={<SignBoundary><COSignPage /></SignBoundary>} />
         <Route path="/view/:recordId" element={<SignBoundary><ContractViewFull /></SignBoundary>} />
-        <Route path="*"            element={<AuthGuard><AppBoundary><AppShell /></AppBoundary></AuthGuard>} />
+        <Route path="*"            element={<AuthGuard><AppBoundary><BootGate><AppShell /></BootGate></AppBoundary></AuthGuard>} />
       </Routes>
     </BrowserRouter>
   )
