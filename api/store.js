@@ -28,6 +28,24 @@ const _richness = (p) => {
     + (j.warrantyItems?.length || 0) + Object.keys(j.stageDates || {}).length
     + (j.startDate ? 1 : 0) + (j.targetDate ? 1 : 0)
 }
+// Recency of the editable contract draft (Scope of Work, project types, milestone
+// edits). These don't move the proposal's top-level dates, so the score/richness
+// merge can pick a copy lacking the latest edits — carry the newest draft across.
+const _draftTime = (d) => {
+  if (!d) return 0
+  const t = Math.max(d.savedAt ? Date.parse(d.savedAt) : 0, d.signedAt ? Date.parse(d.signedAt) : 0)
+  return t || 0
+}
+function _keepNewerDraft(winner, loser) {
+  const dw = winner && winner.contractDraft, dl = loser && loser.contractDraft
+  if (!dl) return winner
+  if (!dw) return { ...winner, contractDraft: dl }
+  const tw = _draftTime(dw), tl = _draftTime(dl)
+  const draft = tl > tw ? { ...dl } : { ...dw }
+  const other = tl > tw ? dw : dl
+  if (other.signed && !draft.signed) { draft.signed = true; draft.signedAt = other.signedAt || draft.signedAt }
+  return { ...winner, contractDraft: draft }
+}
 function _mergeProposals(a = [], b = []) {
   const map = new Map()
   for (const p of a) if (p && p.id != null) map.set(p.id, p)
@@ -36,8 +54,8 @@ function _mergeProposals(a = [], b = []) {
     const ex = map.get(p.id)
     if (!ex) { map.set(p.id, p); continue }
     const sp = _score(p), se = _score(ex)
-    if (sp > se) map.set(p.id, p)
-    else if (sp === se && _richness(p) >= _richness(ex)) map.set(p.id, p)
+    const incomingWins = sp > se || (sp === se && _richness(p) >= _richness(ex))
+    map.set(p.id, incomingWins ? _keepNewerDraft(p, ex) : _keepNewerDraft(ex, p))
   }
   return [...map.values()]
 }

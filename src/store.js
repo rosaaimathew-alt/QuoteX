@@ -115,6 +115,32 @@ function _richness(p) {
 
 // Merge proposal lists: newest by date wins; on a date tie, the copy with more
 // nested content wins (so change orders, stages and notes propagate reliably).
+// Recency of the editable contract draft (Scope of Work bullets, project types,
+// milestone edits, etc.). Contract-draft edits don't move the proposal's
+// top-level dates, so the score/richness merge can pick a proposal copy that
+// lacks the latest scope edits. This lets us carry the newest draft across.
+function _draftTime(d) {
+  if (!d) return 0
+  const t = Math.max(
+    d.savedAt  ? Date.parse(d.savedAt)  : 0,
+    d.signedAt ? Date.parse(d.signedAt) : 0,
+  )
+  return t || 0
+}
+// Given the proposal copy that won the score/richness merge and the copy that
+// lost, keep the winner's body but preserve whichever contractDraft is newest
+// (and never drop a signed flag). This is what stops a proposal copy without the
+// latest Scope of Work edits from silently erasing them on merge.
+function _keepNewerDraft(winner, loser) {
+  const dw = winner && winner.contractDraft, dl = loser && loser.contractDraft
+  if (!dl) return winner
+  if (!dw) return { ...winner, contractDraft: dl }
+  const tw = _draftTime(dw), tl = _draftTime(dl)
+  const draft = tl > tw ? { ...dl } : { ...dw }
+  const other = tl > tw ? dw : dl
+  if (other.signed && !draft.signed) { draft.signed = true; draft.signedAt = other.signedAt || draft.signedAt }
+  return { ...winner, contractDraft: draft }
+}
 function _mergeProposals(server = [], local = []) {
   const map = new Map()
   for (const p of (server || [])) if (p && p.id != null) map.set(p.id, p)
@@ -123,9 +149,8 @@ function _mergeProposals(server = [], local = []) {
     const ex = map.get(p.id)
     if (!ex) { map.set(p.id, p); continue }
     const sp = _score(p), se = _score(ex)
-    if (sp > se) map.set(p.id, p)
-    else if (sp === se && _richness(p) >= _richness(ex)) map.set(p.id, p)
-    // otherwise keep the existing (server) copy
+    const localWins = sp > se || (sp === se && _richness(p) >= _richness(ex))
+    map.set(p.id, localWins ? _keepNewerDraft(p, ex) : _keepNewerDraft(ex, p))
   }
   return [...map.values()]
 }
@@ -1776,7 +1801,13 @@ function _syncSig(st) {
   st = st || {}
   const p = st.proposals || []
   let maxT = 0, rich = 0
-  for (const x of p) { const t = _score(x); if (t > maxT) maxT = t; rich += _richness(x) }
+  for (const x of p) {
+    const t = _score(x); if (t > maxT) maxT = t; rich += _richness(x)
+    // Contract-draft edits (Scope of Work, project types, milestones) don't move
+    // the proposal's dates, so fold their edit time into the fingerprint — else a
+    // teammate's scope edit wouldn't be detected by the live-sync poll.
+    const dt = _draftTime(x && x.contractDraft); if (dt > maxT) maxT = dt
+  }
   const L = k => (st[k] || []).length
   return [
     p.length, rich, maxT,
