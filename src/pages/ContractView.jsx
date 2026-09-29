@@ -347,6 +347,7 @@ export default function ContractView() {
   const [recessedSize,       setRecessedSize]        = useState('6')
   const [homePhone,          setHomePhone]            = useState('')
   const [cellPhone,          setCellPhone]            = useState('')
+  const [salesperson,        setSalesperson]          = useState('')   // filled in up top, printed on the contract
   const [elecItems,          setElecItems]            = useState([
     { id: 'fan',       label: 'Prewire for homeowner supplied fan',                    qty: '' },
     { id: 'outlets',   label: 'Outlets - 120 Volt',                                    qty: '' },
@@ -441,6 +442,7 @@ export default function ContractView() {
       setRecessedSize(draft.recessedSize ?? '6')
       setHomePhone(draft.homePhone ?? '')
       setCellPhone(draft.cellPhone ?? '')
+      setSalesperson(draft.salesperson ?? d.salesperson ?? '')
       setElecItems(draft.elecItems ?? [
         { id: 'fan',       label: 'Prewire for homeowner supplied fan',                    qty: '' },
         { id: 'outlets',   label: 'Outlets - 120 Volt',                                    qty: '' },
@@ -489,6 +491,7 @@ export default function ContractView() {
     } else {
       // Fresh start
       setContractNum(d.contractNumber || '')
+      setSalesperson(d.salesperson || '')
       const parts = (d.address || '').split(',')
       setCity(parts.length >= 2 ? parts[parts.length - 2]?.trim() : '')
       const templateMs = d.total < 20000 ? PAYMENT_MILESTONES_UNDER20K : PAYMENT_MILESTONES
@@ -534,7 +537,7 @@ export default function ContractView() {
     )
   }
 
-  const { client, email, phone, address, contractNumber, salesperson } = data
+  const { client, email, phone, address, contractNumber, salesperson: proposalSalesperson } = data
   const toggleProjectType = (t) => setProjectTypes(cur => cur.includes(t) ? cur.filter(x => x !== t) : [...cur, t])
   // Contract total = sum of the selected/priced scope items, so an à la carte
   // contract reflects the items actually chosen — not the full proposal value.
@@ -607,6 +610,7 @@ export default function ContractView() {
         scopeLines:        scopeLines,     // full objects w/ prices for pricing table
         payments,
         projectTypes,
+        salesperson: salesperson || data.salesperson || '',   // printed on the contract, PDF and signing page
         // Processing form
         city,
         state,
@@ -667,7 +671,7 @@ export default function ContractView() {
             contractNum, city, state, lotNumber, permitNumber, hoa, permitReq,
             specialInstructions, directions, lumberDrop, power, gateCode,
             paymentMethods, otherTerms, includesElectrical, recessedSize,
-            homePhone, cellPhone, elecItems, projectSummary, scopeLines, projectTypes,
+            homePhone, cellPhone, salesperson, elecItems, projectSummary, scopeLines, projectTypes,
             ceilingFanNote, milestoneLabels, milestonePcts, isHardscape, projectTag, paymentScheduleOverride,
             signRecordId: result.recordId,
             signLinks:    result.links,
@@ -695,7 +699,7 @@ export default function ContractView() {
           contractNum, city, state, lotNumber, permitNumber, hoa, permitReq,
           specialInstructions, directions, lumberDrop, power, gateCode,
           paymentMethods, otherTerms, includesElectrical, recessedSize,
-          homePhone, cellPhone, elecItems, projectSummary, scopeLines, projectTypes,
+          homePhone, cellPhone, salesperson, elecItems, projectSummary, scopeLines, projectTypes,
           ceilingFanNote, milestoneLabels,
           signRecordId: result.recordId,
           signLinks:    result.links,
@@ -946,6 +950,15 @@ export default function ContractView() {
               placeholder="e.g. EOL070308"
             />
           </div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-500 font-medium shrink-0">Salesperson</label>
+            <input
+              className="border border-gray-300 rounded px-2 py-1 text-sm w-44 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              value={salesperson}
+              onChange={e => setSalesperson(e.target.value)}
+              placeholder="Name on the contract"
+            />
+          </div>
         </div>
         <button
           onClick={() => {
@@ -954,7 +967,7 @@ export default function ContractView() {
               contractNum, city, state, lotNumber, permitNumber, hoa, permitReq,
               specialInstructions, directions, lumberDrop, power, gateCode,
               paymentMethods, otherTerms, includesElectrical, recessedSize,
-              homePhone, cellPhone, elecItems, projectSummary, scopeLines, projectTypes,
+              homePhone, cellPhone, salesperson, elecItems, projectSummary, scopeLines, projectTypes,
               ceilingFanNote, milestoneLabels, milestonePcts, isHardscape, projectTag, paymentScheduleOverride,
             })
             // Learn from scope bullets written for this contract
@@ -1698,7 +1711,7 @@ export default function ContractView() {
             <div className="border-b border-gray-400 mb-4" />
             <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm mb-4">
               <div><strong>Date sold:</strong> {todayS}</div>
-              <div><strong>Salesperson:</strong> {salesperson || 'Mathew Rosa'}</div>
+              <div><strong>Salesperson:</strong> {salesperson || proposalSalesperson || 'Mathew Rosa'}</div>
               <div><strong>Job Name:</strong> {client}</div>
               <div><strong>Contract #:</strong> {contractNum}</div>
               <div><strong>Address:</strong> {address}</div>
