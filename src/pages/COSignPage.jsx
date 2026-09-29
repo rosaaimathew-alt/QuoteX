@@ -16,7 +16,7 @@ function renderBold(text) {
 
 const ROLE_LABEL = {
   client:  'Client',
-  builder: 'Builder — Ebony Outdoor Living',
+  builder: 'Builder',
 }
 
 export default function COSignPage() {
@@ -87,7 +87,9 @@ export default function COSignPage() {
 
   const { role, coData: d, signatures = {}, alreadySigned } = record
   const logo        = d?.branding?.logo || null
-  const companyName = d?.branding?.companyName || 'Ebony Outdoor Living'
+  const companyName = d?.branding?.companyName || 'Your Company'
+  const gcName    = d?.branding?.gcName || 'General Contractor'
+  const licenseNo = d?.branding?.licenseNo || ''
   const coNumber    = d?.coNumber || 'CO-1'
   const contractNum = d?.contractNum || ''
   const client      = d?.client || ''

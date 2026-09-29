@@ -35,8 +35,15 @@ Files: `supabase/schema.sql`, `src/supabase.js` (data layer), `src/store.js`
    variables (see `.env.example`):
    - `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (browser)
    - `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` (API functions)
+   - `COMPANY_NAME` (customer emails), `PUBLIC_HOST` (fallback host in signing links)
    - `KV_REST_API_URL`, `KV_REST_API_TOKEN` (public signing / tracked links still use KV)
    - any integrations you use (Anthropic, Google)
+
+   The source is company-neutral: contract templates print the company name,
+   licensed GC and license number from Settings → Branding, customer emails use
+   `COMPANY_NAME`, and no prior company's jobs, prices or contract wording are
+   baked in. Review the warranty and HOA clauses in the contract for your own
+   terms before the first real contract goes out.
 4. **People** — from your machine:
    ```bash
    SUPABASE_URL=... SUPABASE_SERVICE_KEY=... ORG_NAME="New Company" \

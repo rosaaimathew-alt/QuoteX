@@ -43,7 +43,7 @@ export default async function handler(req, res) {
         kv.set(`co-link:${tokens.builder}`, { recordId, role: 'builder' }, { ex: TTL }),
       ])
 
-      const host  = req.headers['x-forwarded-host'] || req.headers.host || 'quotexsolutions.com'
+      const host  = req.headers['x-forwarded-host'] || req.headers.host || process.env.PUBLIC_HOST || 'localhost:5173'
       const proto = host.includes('localhost') ? 'http' : 'https'
       return res.json({
         recordId,

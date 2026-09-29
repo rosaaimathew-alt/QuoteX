@@ -15,7 +15,7 @@ function getSmtpTransporter() {
 
 // Build a From header, preferring the connected account, then the SMTP account.
 function fromHeader(fromName, fromEmail) {
-  const name = fromName || 'Ebony Outdoor Living'
+  const name = fromName || process.env.COMPANY_NAME || 'Your Company'
   const email = fromEmail || process.env.GMAIL_USER
   return email ? `"${name}" <${email}>` : `"${name}"`
 }

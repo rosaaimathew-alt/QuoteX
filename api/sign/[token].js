@@ -63,7 +63,7 @@ export default async function handler(req, res) {
         await kv.set(`sign-by-contract:${contractNum}`, recordId, { ex: ttl })
       }
 
-      const host  = req.headers['x-forwarded-host'] || req.headers.host || 'quotexsolutions.com'
+      const host  = req.headers['x-forwarded-host'] || req.headers.host || process.env.PUBLIC_HOST || 'localhost:5173'
       const proto = host.includes('localhost') ? 'http' : 'https'
       return res.json({
         recordId,
@@ -95,7 +95,7 @@ export default async function handler(req, res) {
         await kv.set(`pview:${viewToken}`, { proposalId: proposalId ?? null, snapshot, opens: [], createdAt: Date.now() })
         if (proposalId != null) await kv.set(`pview-by-proposal:${proposalId}`, viewToken)
       }
-      const host  = req.headers['x-forwarded-host'] || req.headers.host || 'quotexsolutions.com'
+      const host  = req.headers['x-forwarded-host'] || req.headers.host || process.env.PUBLIC_HOST || 'localhost:5173'
       const proto = host.includes('localhost') ? 'http' : 'https'
       // No customer PII in the URL (leaks via logs/history/referrer). Contact info
       // is read separately through the authenticated pdata- lookup by token.
@@ -165,7 +165,7 @@ export default async function handler(req, res) {
       if (!rec) return res.status(404).json({ error: 'Record not found or expired' })
       if (!rec.roleTokens) return res.status(404).json({ error: 'No role tokens stored — this record predates link recovery support' })
 
-      const host  = req.headers['x-forwarded-host'] || req.headers.host || 'quotexsolutions.com'
+      const host  = req.headers['x-forwarded-host'] || req.headers.host || process.env.PUBLIC_HOST || 'localhost:5173'
       const proto = host.includes('localhost') ? 'http' : 'https'
       return res.json({
         recordId,
@@ -189,7 +189,7 @@ export default async function handler(req, res) {
       if (!rec) return res.status(404).json({ error: 'Signing record has expired' })
       if (!rec.roleTokens) return res.status(404).json({ error: 'No role tokens stored in this record' })
 
-      const host  = req.headers['x-forwarded-host'] || req.headers.host || 'quotexsolutions.com'
+      const host  = req.headers['x-forwarded-host'] || req.headers.host || process.env.PUBLIC_HOST || 'localhost:5173'
       const proto = host.includes('localhost') ? 'http' : 'https'
       return res.json({
         recordId,

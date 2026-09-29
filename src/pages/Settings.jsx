@@ -489,6 +489,24 @@ export default function Settings() {
                   placeholder="Smart Contractor Pricing"
                 />
               </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 block mb-1">Licensed General Contractor (named in contracts)</label>
+                <input
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-400)]"
+                  value={gcName}
+                  onChange={e => { setGcName(e.target.value); setSaved(false) }}
+                  placeholder="Leave blank if you are the licensed GC"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 block mb-1">GC License No.</label>
+                <input
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-400)]"
+                  value={licenseNo}
+                  onChange={e => { setLicenseNo(e.target.value); setSaved(false) }}
+                  placeholder="Printed in the client acknowledgment"
+                />
+              </div>
             </div>
           </div>
 

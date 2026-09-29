@@ -353,7 +353,7 @@ function COBuilderModal({ proposal, existingCo, onClose, onSave }) {
       newTotal,
       branding: {
         logo:        branding?.logo || null,
-        companyName: branding?.companyName || 'Ebony Outdoor Living',
+        companyName: branding?.companyName || 'Your Company',
       },
     }, sendForSig)
     } finally {
@@ -828,7 +828,7 @@ function ChangeOrdersTab({ proposal }) {
         newTotal:      co.newTotal != null ? Number(co.newTotal) : coBase + Number(co.amount || 0),
         client:        proposal.client,
         address:       proposal.address,
-        branding:      { logo: branding?.logo || null, companyName: branding?.companyName || 'Ebony Outdoor Living' },
+        branding:      { logo: branding?.logo || null, companyName: branding?.companyName || 'Your Company' },
       }
       const res = await fetch('/api/co/create', {
         method: 'POST',
@@ -1562,7 +1562,7 @@ function CloseOutModal({ proposal, onClose }) {
 }
 
 function buildCloseOutHtml({ client, contractNum, address, projectType, completionDate }) {
-  const company = 'Ebony Outdoor Living'
+  const company = useStore.getState().branding?.companyName || 'Your Company'
   const completionFormatted = completionDate
     ? new Date(completionDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
     : 'recently'

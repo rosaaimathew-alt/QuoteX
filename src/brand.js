@@ -190,7 +190,7 @@ export const FREE_SIDEBAR_COLOR = '#26262b'  // charcoal
 // Curated presets offered to Pro customers in the theme customizer
 export const BRAND_PRESETS = [
   { label: 'Charcoal & Brass', primary: '#b0894f', sidebar: '#26262b' },
-  { label: 'Ebony Blue',       primary: '#0369a1', sidebar: '#075985' },
+  { label: 'Deep Blue',       primary: '#0369a1', sidebar: '#075985' },
   { label: 'Forest',           primary: '#3f7d54', sidebar: '#1f3a2b' },
   { label: 'Terracotta',       primary: '#c0603f', sidebar: '#3a2420' },
   { label: 'Slate',            primary: '#475569', sidebar: '#1e293b' },

@@ -66,7 +66,7 @@ function SignaturesModal({ recordId, onClose }) {
       .catch(err => { setError(err.message); setLoading(false) })
   }, [recordId])
 
-  const ROLE_LABEL = { client: 'Client', builder: 'Builder (Ebony)', gc: 'GC (All-In-One)' }
+  const ROLE_LABEL = { client: 'Client', builder: 'Builder', gc: 'GC' }
   const sigs = record?.signatures || {}
 
   return (
@@ -160,8 +160,8 @@ function LinksModal({ links, onClose }) {
   const [copied, setCopied] = useState('')
   const ROLE = [
     { role: 'client',  label: 'Client',                color: 'bg-blue-50 border-blue-200' },
-    { role: 'builder', label: 'Builder (Ebony)',       color: 'bg-emerald-50 border-emerald-200' },
-    { role: 'gc',      label: 'GC (All-In-One)',       color: 'bg-amber-50 border-amber-200' },
+    { role: 'builder', label: 'Builder',       color: 'bg-emerald-50 border-emerald-200' },
+    { role: 'gc',      label: 'GC',       color: 'bg-amber-50 border-amber-200' },
   ]
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">

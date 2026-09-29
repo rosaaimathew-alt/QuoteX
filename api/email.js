@@ -14,6 +14,9 @@ import { saveMessage } from './_store.js'
 import { sendMail, isMailerConfigured } from './_mailer.js'
 import { requireAuth } from './_auth.js'
 
+// Company name shown in customer emails (per-instance; set COMPANY_NAME in the env).
+const COMPANY = process.env.COMPANY_NAME || 'Your Company'
+
 dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../.env') })
 
 const fmt = (n) =>
@@ -41,7 +44,7 @@ function buildProposalHtml({ client, email, address, expiration, lines, companyN
     ? new Date(expiration + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     : null
   const subtotal = (lines || []).reduce((s, l) => s + (l.qty || 1) * (l.unitPrice || 0), 0)
-  const company  = esc(companyName || 'Ebony Outdoor Living')
+  const company  = esc(companyName || COMPANY)
   const sender   = esc(fromName) || company
   const lineRows = (lines || []).map((l, i) => `
     <tr style="background:${i % 2 === 0 ? '#ffffff' : '#f8fafc'};">
@@ -108,7 +111,7 @@ function buildProposalHtml({ client, email, address, expiration, lines, companyN
 
 // ── Payment reminder HTML ─────────────────────────────────────────────────────
 function buildReminderHtml({ client, amount, milestone, dueDate, contractNum, address, projectType }) {
-  const company = 'Ebony Outdoor Living'
+  const company = COMPANY
   const dueLine = dueDate
     ? new Date(dueDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
     : null
@@ -151,7 +154,7 @@ function buildReminderHtml({ client, amount, milestone, dueDate, contractNum, ad
 
 // ── Follow-up HTML ────────────────────────────────────────────────────────────
 function buildFollowupHtml({ client, total, address, projectType, sentDaysAgo, expiration, contractNum }) {
-  const company  = 'Ebony Outdoor Living'
+  const company  = COMPANY
   const isUrgent = sentDaysAgo >= 14
   const expiryLine = expiration
     ? new Date(expiration + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
@@ -198,7 +201,7 @@ function buildFollowupHtml({ client, total, address, projectType, sentDaysAgo, e
 
 // ── Close-out HTML ────────────────────────────────────────────────────────────
 function buildCloseoutHtml({ client, contractNum, address, projectType, completionDate }) {
-  const company = 'Ebony Outdoor Living'
+  const company = COMPANY
   const completionFormatted = completionDate
     ? new Date(completionDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
     : 'recently'
@@ -246,7 +249,7 @@ export default async function handler(req, res) {
   if (action === 'payment-reminder') {
     const { toEmail, client, amount, milestone, dueDate, contractNum, address, projectType } = body
     if (!toEmail) return res.status(400).json({ error: 'Recipient email is required.' })
-    const subject = `Payment Reminder — ${contractNum || 'Your Project'} · Ebony Outdoor Living`
+    const subject = `Payment Reminder — ${contractNum || 'Your Project'} · ${COMPANY}`
     const result  = await sendMail({ to: toEmail, subject, html: buildReminderHtml({ client, amount, milestone, dueDate, contractNum, address, projectType }) })
     if (result.error) return res.status(500).json({ error: result.error })
     return res.status(200).json({ success: true })
@@ -259,7 +262,7 @@ export default async function handler(req, res) {
     const sentDaysAgo = sentAt ? Math.round((Date.now() - new Date(sentAt)) / 86400000) : 7
     const result = await sendMail({
       to: toEmail,
-      subject: `Following Up — Your Ebony Outdoor Living Proposal`,
+      subject: `Following Up — Your ${COMPANY} Proposal`,
       html: buildFollowupHtml({ client, total, address, projectType, sentDaysAgo, expiration, contractNum }),
     })
     if (result.error) return res.status(500).json({ error: result.error })
@@ -276,7 +279,7 @@ export default async function handler(req, res) {
   <tr><td align="center">
     <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;">
       <tr><td style="background:#0f172a;padding:32px 40px;">
-        <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;">Ebony Outdoor Living</p>
+        <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;">${COMPANY}</p>
         <p style="margin:6px 0 0;font-size:13px;color:#94a3b8;">Change Order · ${esc(coNumber)}</p>
       </td></tr>
       <tr><td style="padding:32px 40px;">
@@ -297,7 +300,7 @@ export default async function handler(req, res) {
         </p>
       </td></tr>
       <tr><td style="background:#f8fafc;padding:20px 40px;text-align:center;">
-        <p style="margin:0;font-size:11px;color:#94a3b8;">Ebony Outdoor Living · Licensed &amp; Insured</p>
+        <p style="margin:0;font-size:11px;color:#94a3b8;">${COMPANY} · Licensed &amp; Insured</p>
       </td></tr>
     </table>
   </td></tr>
@@ -314,7 +317,7 @@ export default async function handler(req, res) {
     if (!toEmail) return res.status(400).json({ error: 'Recipient email is required.' })
     const result = await sendMail({
       to: toEmail,
-      subject: `Your Project is Complete — Thank You! · ${contractNum || 'Ebony Outdoor Living'}`,
+      subject: `Your Project is Complete — Thank You! · ${contractNum || COMPANY}`,
       html: buildCloseoutHtml({ client, contractNum, address, projectType, completionDate }),
     })
     if (result.error) return res.status(500).json({ error: result.error })
@@ -327,7 +330,7 @@ export default async function handler(req, res) {
   if (!recipientEmail) return res.status(400).json({ error: 'Recipient email is required.' })
 
   const isReply = !!replyText
-  const company = esc(proposal?.companyName || 'Ebony Outdoor Living')
+  const company = esc(proposal?.companyName || COMPANY)
   const sender  = esc(fromName) || company
 
   let html, subject

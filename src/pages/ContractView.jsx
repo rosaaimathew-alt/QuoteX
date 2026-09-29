@@ -9,15 +9,9 @@ import { DEMO } from '../demo'
 // partner in a sample contract. These swaps run ONLY when DEMO is true, against
 // the rendered contract node — real contracts are byte-for-byte unchanged.
 const DEMO_SWAPS = DEMO ? [
-  [/Ebony Outdoor Living/g, 'Evergreen Outdoor Living'],
-  [/EBONY OUTDOOR LIVING/g, 'EVERGREEN OUTDOOR LIVING'],
-  [/Ebony O\.L\.?/g, 'Evergreen O.L.'],
-  [/—EBONY—/g, '—EVERGREEN—'],
-  [/ALL IN ONE SOLUTIONS/g, 'SUMMIT GENERAL CONTRACTING'],
-  [/All-In-One Solutions/g, 'Summit General Contracting'],
-  [/All in one Solutions/g, 'Summit General Contracting'],
-  [/All-In-One/g, 'Summit GC'],
-  [/\bEbony\b/g, 'Evergreen'],
+  [/{companyName}/g, 'Evergreen Outdoor Living'],
+  [/{companyName.toUpperCase()}/g, '—EVERGREEN—'],
+  [/{gcName}/g, 'Summit General Contracting'],
 ] : []
 
 function scrubDemoContract(root) {
@@ -190,16 +184,16 @@ function getMilestoneSet(key, projectTag, total) {
 
 // Locked disclosures — never editable
 const GENERAL_NOTES = [
-  { text: 'Ebony To Provide all labor, material sufficient to complete the accepted scope', bold: false },
-  { text: 'Ebony to secure permits and provide owner with any required HOA submission docs', bold: false },
-  { text: 'Ebony to dispose of new construction debris per this scope', bold: false },
+  { text: 'Builder to provide all labor, material sufficient to complete the accepted scope', bold: false },
+  { text: 'Builder to secure permits and provide owner with any required HOA submission docs', bold: false },
+  { text: 'Builder to dispose of new construction debris per this scope', bold: false },
   { text: 'One year craftsmanship warranty on new work; five years on new structure', bold: true },
   { text: "Manufacturer's lifetime warranty on pressure treated wood against rot, termite infestation", bold: true },
-  { text: 'Ebony jobsign to be posted in yard for duration of project', bold: false },
+  { text: 'Builder job sign to be posted in yard for duration of project', bold: false },
   { text: 'Excavation soil will remain on-site to be removed', bold: false },
-  { text: 'Cracks in concrete are normal wear and tear and are not covered by Ebony O.L. warranty', bold: false },
-  { text: 'Ebony is not responsible for any landscaping that needs to be removed to complete work', bold: false },
-  { text: "Ebony is not responsible for hanging swing / daybed's, TVs mounts and or any furniture setup. We'll gladly provide reference a trusted handyman", bold: false },
+  { text: 'Cracks in concrete are normal wear and tear and are not covered by the Builder warranty', bold: false },
+  { text: 'Builder is not responsible for any landscaping that needs to be removed to complete work', bold: false },
+  { text: "Builder is not responsible for hanging swing / daybed's, TVs mounts and or any furniture setup. We'll gladly provide reference a trusted handyman", bold: false },
   { text: 'Addendums: Any change resulting in additional charges must be paid at the time of the change.', bold: false },
   { text: 'If the inspector requires engineering it will result in an additional charge.', bold: false },
   { text: 'Homeowner responsible for obtaining and paying for any required Plot survey requested by county, city, or permitting departments.', bold: false },
@@ -542,7 +536,9 @@ export default function ContractView() {
   const scopeTotal = (scopeLines || []).reduce((s, l) => s + (Number(l.price) || 0), 0)
   const total = scopeTotal > 0 ? scopeTotal : Number(data.total || 0)
   const logo = branding?.logo || null
-  const companyName = branding?.companyName || 'Ebony Outdoor Living'
+  const companyName = branding?.companyName || 'Your Company'
+  const gcName    = branding?.gcName || 'General Contractor'
+  const licenseNo = branding?.licenseNo || ''
   const now    = new Date()
   const today  = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
   const todayS = now.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })
@@ -867,7 +863,7 @@ export default function ContractView() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          system: `You are a professional scope of work writer for Ebony Outdoor Living, an outdoor construction company specializing in decks, porches, pergolas, sunrooms, and outdoor structures. Write clear, professional, complete scope of work bullet points.${projectTag ? ` This is a ${projectTag} project.` : ''}${styleContext}`,
+          system: `You are a professional scope of work writer for an outdoor construction company specializing in decks, porches, pergolas, sunrooms, and outdoor structures. Write clear, professional, complete scope of work bullet points.${projectTag ? ` This is a ${projectTag} project.` : ''}${styleContext}`,
           messages: [
             {
               role: 'user',
@@ -1458,7 +1454,7 @@ export default function ContractView() {
             <div className="border-b-2 border-gray-900 mb-5" />
 
             <p className="mb-4 text-justify">
-              THIS CONTRACT made effective on the <strong>{ordinal(now.getDate())}</strong> day of <strong>{now.toLocaleDateString('en-US',{month:'long'})}, {now.getFullYear()}</strong> In City of <strong>{city || '___________'}</strong> and the State of <strong>{state || 'North Carolina'}</strong> by and Between <strong>{client}</strong> (PURCHASER), At <strong>{address}</strong> and <strong>Ebony Outdoor Living</strong> (BUILDER), for work to be performed at <strong>{address}</strong> (the PREMISES) in accordance with the written terms and specifications of this CONTRACT (the WORK). THE WORK shall include the following:
+              THIS CONTRACT made effective on the <strong>{ordinal(now.getDate())}</strong> day of <strong>{now.toLocaleDateString('en-US',{month:'long'})}, {now.getFullYear()}</strong> In City of <strong>{city || '___________'}</strong> and the State of <strong>{state || 'North Carolina'}</strong> by and Between <strong>{client}</strong> (PURCHASER), At <strong>{address}</strong> and <strong>{companyName}</strong> (BUILDER), for work to be performed at <strong>{address}</strong> (the PREMISES) in accordance with the written terms and specifications of this CONTRACT (the WORK). THE WORK shall include the following:
             </p>
 
             <p className="mb-1 flex flex-wrap gap-x-4 gap-y-1">
@@ -1527,7 +1523,7 @@ export default function ContractView() {
           {/* ── PAGE 2 · Clauses 6-9 + Signature Block 1 ──────────── */}
             <p className="mb-3 text-justify text-sm"><strong>6. a.</strong> The WORK will be warranted by BUILDER. Existing structures to which the WORK may be affixed or interconnected are not part of the WORK and will not be covered under the Warranty. This Warrant is issued to and only applicable to the PURCHASER after payment in full of the TOTAL CONTRACT SUM.</p>
             {!isSmallContract && (
-              <p className="mb-3 text-justify text-sm"><strong>B.</strong> As General contractors we have <strong>All-In-One Solutions</strong> that operate as part of Ebony Outdoor Living team. All-In-One Solutions serves as the licensed General Contractor (License No. 86607) and is responsible for maintaining the applicable licenses and overall legal and regulatory compliance required for the project. All-In-One Solutions also acts as a general supervisor of the project, performing occasional site visits during the progress of the work for purposes of overall oversight and supervision. However, All-In-One Solutions is not involved in the daily management of the job site, operational coordination of crews, or direct execution of the services.</p>
+              <p className="mb-3 text-justify text-sm"><strong>B.</strong> As General contractors we have <strong>{gcName}</strong> that operate as part of the {companyName} team. {gcName} serves as the licensed General Contractor{licenseNo ? ` (License No. ${licenseNo})` : ''} and is responsible for maintaining the applicable licenses and overall legal and regulatory compliance required for the project. {gcName} also acts as a general supervisor of the project, performing occasional site visits during the progress of the work for purposes of overall oversight and supervision. However, {gcName} is not involved in the daily management of the job site, operational coordination of crews, or direct execution of the services.</p>
             )}
             <p className="mb-4 text-sm"><strong>7.</strong> This CONTRACT shall not be effective and binding upon BUILDER until countersigned by BUILDER{!isSmallContract && ' and GENERAL CONTRACTOR'}.</p>
             <p className="text-center font-bold mb-3">ADDITIONAL TERMS ON NEXT PAGE</p>
@@ -1543,7 +1539,7 @@ export default function ContractView() {
                   <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500">(Print Name)</p>
                 </div>
                 <div>
-                  <p className="font-bold underline mb-2">BUILDER: EBONY OUTDOOR LIVING</p>
+                  <p className="font-bold underline mb-2">BUILDER: {companyName.toUpperCase()}</p>
                   <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500 mb-3">(Signature)</p>
                   <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500">(Print Name)</p>
                 </div>
@@ -1557,10 +1553,10 @@ export default function ContractView() {
                   <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500">(Print Name)</p>
                 </div>
                 <div>
-                  <p className="font-bold underline mb-2">BUILDER: EBONY OUTDOOR LIVING</p>
+                  <p className="font-bold underline mb-2">BUILDER: {companyName.toUpperCase()}</p>
                   <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500 mb-3">(Signature)</p>
                   <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500 mb-3">(Print Name)</p>
-                  <p className="font-bold mt-2">GENERAL CONTRACTOR: ALL IN ONE SOLUTIONS</p>
+                  <p className="font-bold mt-2">GENERAL CONTRACTOR: {gcName.toUpperCase()}</p>
                   <div className="border-b border-gray-500 mb-1 pb-5 mt-2" /><p className="text-xs text-gray-500 mb-2">(Signature)</p>
                   <div className="border-b border-gray-500 mb-1 pb-5" /><p className="text-xs text-gray-500">(Print Name)</p>
                 </div>
@@ -1575,7 +1571,7 @@ export default function ContractView() {
 
           {/* ── PAGE 3 · Clauses 10-18 ─────────────────────────────── */}
             {[
-              ['10. a.', "PURCHASER agrees that should BUILDER encounter unforeseen site conditions on the PREMISES (including for example unsound roof shingles, buried storage tanks, solid rock, high water table, unsound house framing, or unsound or uncompacted soil conditions all the footing depth described on the Ebony Outdoor Living Specification Sheet, etc.) which would substantially interfere with BUILDER's completion of the WORK, BUILDER may require that PURCHASER and BUILDER execute an addendum to this CONTRACT describing the additional work that must be performed and setting forth the price at which BUILDER will perform such additional work. BUILDER shall not be obligated to continue the WORK if an addendum is not executed, if, in BUILDER's sole judgment, continuing the WORK as specified herein without any modifications would cause such WORK to not meet applicable local building code requirements or not meet BUILDER's construction standards."],
+              ['10. a.', "PURCHASER agrees that should BUILDER encounter unforeseen site conditions on the PREMISES (including for example unsound roof shingles, buried storage tanks, solid rock, high water table, unsound house framing, or unsound or uncompacted soil conditions all the footing depth described on the Builder Specification Sheet, etc.) which would substantially interfere with BUILDER's completion of the WORK, BUILDER may require that PURCHASER and BUILDER execute an addendum to this CONTRACT describing the additional work that must be performed and setting forth the price at which BUILDER will perform such additional work. BUILDER shall not be obligated to continue the WORK if an addendum is not executed, if, in BUILDER's sole judgment, continuing the WORK as specified herein without any modifications would cause such WORK to not meet applicable local building code requirements or not meet BUILDER's construction standards."],
             ].map(([num, text]) => (
               <p key={num} className="mb-3 text-justify text-sm"><strong>{num}</strong> {text}</p>
             ))}
@@ -1617,10 +1613,10 @@ export default function ContractView() {
           {/* ── PAGE 5 · Scope & Payment Clarification ─────────────── */}
           <div className={bodyPad}>
             <h2 className="text-center font-bold text-base mb-5">SCOPE OF WORK &amp; FINAL PAYMENT CLARIFICATION</h2>
-            <p className="text-sm mb-3">Ebony Outdoor Living and All in one Solutions's aim for customer service as our #1 priority. In order to provide you with the best possible customer experience, we are fully committed to providing you with <strong>everything</strong> written in the scope of work, specifications, and drawing.</p>
+            <p className="text-sm mb-3">{companyName}'s aim for customer service as our #1 priority. In order to provide you with the best possible customer experience, we are fully committed to providing you with <strong>everything</strong> written in the scope of work, specifications, and drawing.</p>
             <ul className="text-sm space-y-2 mb-5 ml-2">
               {[
-                'In the event that the project proposed by Ebony Outdoor Living is not approved by the Homeowners Association (HOA) or local zoning authorities, the deposit paid by the customer shall be returned in full, minus any fees incurred by Ebony Outdoor Living and All in one Solutions related to the processing or submission of the project for approval.',
+                'In the event that the project proposed by Builder is not approved by the Homeowners Association (HOA) or local zoning authorities, the deposit paid by the customer shall be returned in full, minus any fees incurred by Builder related to the processing or submission of the project for approval.',
                 'In the rare case there is a dispute with what we are obligated to provide, both parties agree to revert to only what is written in scope of work, specifications, and/or drawing.',
                 'Any work requested on behalf of the customer that is not covered in the scope of work, specifications, and/or drawing may be added through an addendum at a signed agreed specification form upon additional cost paid at the time of addendum.',
                 'Per your contract, your final payment is due upon Final Inspection and Punchlist completion.',
@@ -1653,7 +1649,7 @@ export default function ContractView() {
                 'The lumber mill will ink stamp the wood as required by law. These stamps will fade over time. We do not recommend spot sanding these stamps, as it will show up differently when stained.',
                 'Pressure-treated wood is outdoor lumber. It is not as stable and consistent as wood used for interior furniture or trim and will have natural imperfections.',
                 'Surface cracks or splits (known as "checking") will develop on pressure-treated wood; this is not cause for alarm. Checking indicates that a pattern has been established to allow each piece of lumber to swell and shrink as nature intended. Large checking may develop on 4x4" and 6x6" post as these are cut from the center of the Southern Yellow Pine Tree, where more moisture is present in the heartwood at the time of milling. These larger cracks develop due to a difference in the rate of movement between the sapwood on the outside of each piece of heartwood. Checking does not affect the structural integrity of posts or decking and does not represent a warrantable concern.',
-                'Should the checking extend through the entire diameter of the wood during the applicable warranty period, it will be addressed by Ebony Outdoor Living.',
+                'Should the checking extend through the entire diameter of the wood during the applicable warranty period, it will be addressed by Builder.',
                 'Checking does not negatively affect the structural integrity of the timber, but instead releases the tension built up internally. The checks will open and close as the outer layers of the timber pick up and shed moisture. It is for this reason that the checks should NOT be filled in with epoxy or something similar.',
                 'Minor cupping of decking boards can occur. This occurs largely due to the evaporation of any moisture left in the board after treatment, e.g. the sun will dry the top of the board while the bottom of the board remains wet. This interaction results in cupping of decking boards and is normal responses as wood weathers. For decades, lumber companies have advised that we disregard the older method of installing decking with rings turned down ( "frown") and instead install the best-looking side up. Sometimes the best side of the board will have the lumber stamp, sometimes it will not. It is impossible to predict which way a board will cup, regardless of the direction of the rings.',
                 'Pressure-treated wood comes from a Southern Yellow Pine Tree where sap/resin is prevalent. It is not uncommon for resin to seep from decking boards, especially during the warmer, sunny months. Sap will typically crystalize and show up as white patches, or can sometimes present as dark, sticky bubbles. The best method to clean sap is to scrape it off with a putty knife and wipe the surface down with turpentine or Goo-be-gone. We use the best pressure-treated lumber available- which is dried after treatment - to minimize this problem; however, sap is an uncontrollable and unpredictable characteristic and is not a warrantable item. If it becomes a nuisance, you may request to have problem board(s) replaced at your cost.',
@@ -1679,7 +1675,7 @@ export default function ContractView() {
                 'Unforeseen load bearing walls','Rotten wood','Insect infested wood','Mold',
                 'Irrigation lines and sprinkler heads','Tree roots',
                 'Subsequent interior damage or exterior brick/siding damage due to construction vibrations or demolition',
-                'New cracks may develop as materials are dropped in your driveway. This is an inherent risk on behalf of the homeowner and Ebony Outdoor Living is not responsible for the repair of your driveway.',
+                'New cracks may develop as materials are dropped in your driveway. This is an inherent risk on behalf of the homeowner and Builder is not responsible for the repair of your driveway.',
                 'Should we need to cut drywall for an inspection to take place or for the specific placement of an electrical box, the drywall repair and subsequent paint touchup will be an additional change to the contract.',
                 'Reconnection of existing cables, wires, internet, security systems etc., due to construction demolition or new door frame.',
                 'Any concrete removal is assumed the concrete is 4" thick or less. If through the course of demolition it is discovered the concrete is thicker than 4", there will be an additional charge to account for the additional labor and haul fees.',
@@ -1745,9 +1741,9 @@ export default function ContractView() {
               <div className={bodyPad}>
                 <h2 className="text-center font-bold text-base mb-5">Client Acknowledgment and Agreement</h2>
                 <div className="text-sm space-y-4">
-                  <p>At <strong>Ebony Outdoor Living</strong>, we are committed to transparency, contractual clarity, and professional communication with our clients. This document is intended to formalize the understanding between the parties regarding the operational structure and distribution of responsibilities related to the contracted project. Ebony Outdoor Living and <strong>All-In-One Solutions</strong> operate collaboratively as part of the same project team. All-In-One Solutions serves as the licensed General Contractor (License No. 86607) and is responsible for maintaining the applicable licenses and overall legal and regulatory compliance required for the project.</p>
-                  <p>Ebony Outdoor Living is solely responsible for the execution and management of the work, including, without limitation, project supervision, scheduling and timeline management, coordination of crews and subcontractors, and daily job site operations. The Client acknowledges and agrees that all communications, requests, clarifications, or questions related to project execution, timelines, scheduling, and operational responsibilities shall be directed exclusively to the official contacts provided to the Client upon receipt of the fully executed contract.</p>
-                  <p>All-In-One Solutions also acts as a general supervisor of the project, performing occasional site visits during the progress of the work for purposes of overall oversight and supervision. However, All-In-One Solutions is not involved in the daily management of the job site, operational coordination of crews, or direct execution of the services.</p>
+                  <p>At <strong>{companyName}</strong>, we are committed to transparency, contractual clarity, and professional communication with our clients. This document is intended to formalize the understanding between the parties regarding the operational structure and distribution of responsibilities related to the contracted project. {companyName} and <strong>{gcName}</strong> operate collaboratively as part of the same project team. {gcName} serves as the licensed General Contractor{licenseNo ? ` (License No. ${licenseNo})` : ''} and is responsible for maintaining the applicable licenses and overall legal and regulatory compliance required for the project.</p>
+                  <p>{companyName} is solely responsible for the execution and management of the work, including, without limitation, project supervision, scheduling and timeline management, coordination of crews and subcontractors, and daily job site operations. The Client acknowledges and agrees that all communications, requests, clarifications, or questions related to project execution, timelines, scheduling, and operational responsibilities shall be directed exclusively to the official contacts provided to the Client upon receipt of the fully executed contract.</p>
+                  <p>{gcName} also acts as a general supervisor of the project, performing occasional site visits during the progress of the work for purposes of overall oversight and supervision. However, {gcName} is not involved in the daily management of the job site, operational coordination of crews, or direct execution of the services.</p>
                   <p>This acknowledgment is supplementary in nature and forms part of the project's contractual documentation, without replacing or modifying the terms and conditions of the primary agreement previously executed between the parties.</p>
                   <p>By signing below, the Client confirms that they have read, understood, and fully agree with the information and distribution of responsibilities described in this document.</p>
                 </div>
@@ -1837,7 +1833,7 @@ export default function ContractView() {
             <textarea
               className="no-print w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 leading-relaxed"
               style={{ minHeight: '14rem', resize: 'vertical' }}
-              placeholder="Use -- to create a bullet point:&#10;&#10;-- Ebony to supply and install 16×16 composite deck with TimberTech Prime Plus decking&#10;-- Ebony to install vinyl privacy railing system on all open sides&#10;&#10;Lines without -- print as plain text (headings, notes, etc.)"
+              placeholder="Use -- to create a bullet point:&#10;&#10;-- Builder to supply and install 16×16 composite deck with TimberTech Prime Plus decking&#10;-- Builder to install vinyl privacy railing system on all open sides&#10;&#10;Lines without -- print as plain text (headings, notes, etc.)"
               value={scopeLines.map(l => l.text).join('\n')}
               onChange={e => {
                 const lines = e.target.value.split('\n')
@@ -2213,7 +2209,7 @@ export default function ContractView() {
             </table>
 
             <p className="text-xs text-gray-600 text-justify mb-10">
-              ** Initial schedule deposit paid as 20% deposit at sign. Ebony O.L. will not drop material or labor on the project until the scheduled deposit is paid in full. Ebony O.L has the rights to hold construction progress if scheduled payments are delayed.
+              ** Initial schedule deposit paid as 20% deposit at sign. Builder will not drop material or labor on the project until the scheduled deposit is paid in full. Builder has the right to hold construction progress if scheduled payments are delayed.
             </p>
 
             <SigBlock label="Client signature" />
@@ -2234,7 +2230,7 @@ export default function ContractView() {
                   {logo
                     ? <img src={logo} alt="logo" className="h-12 object-contain" />
                     : <div style={{ fontFamily: 'Arial, sans-serif' }}>
-                        <div className="text-2xl font-black tracking-widest leading-tight">—EBONY—</div>
+                        <div className="text-2xl font-black tracking-widest leading-tight">{companyName.toUpperCase()}</div>
                         <div className="text-sm font-semibold" style={{ color: '#2563eb' }}>Outdoor Living</div>
                       </div>
                   }
@@ -2333,7 +2329,7 @@ export default function ContractView() {
                     { text: 'The electrical wiring provided may require exposed conduit piping. We will minimize this when possible. If you have any question, please do not hesitate to discuss them with the builder or you may call at (704) 776-2210', red: false },
                     { text: 'Due Breaker capacity plug-in heaters cannot be used. Please discuss if an additional heater circuit is desired.', red: false },
                     { text: 'The Outlets installed are a common household outlet, typically designed to handle 15 or 20 amps of current at 120 volts, yielding a maximum capacity of 1800 or 2400 watts, respectively. This capacity is suitable for most everyday appliances and devices such as lamps, chargers, computers, and TVs. NOT PLUG-IN HEATERS.', red: true },
-                    { text: 'Ebony is not responsible for the cost of reconnecting any cables, security system, alarms, etc in case it was disconnected during the construction process. The homeowner is responsible to inform the builder the existence and location of possible wires prior to starting the work.', red: false },
+                    { text: 'Builder is not responsible for the cost of reconnecting any cables, security system, alarms, etc in case it was disconnected during the construction process. The homeowner is responsible to inform the builder the existence and location of possible wires prior to starting the work.', red: false },
                     { text: 'Due to recent code changes and grossly varying inspector interpretations, some are considering the EzeBreeze system as the same as a traditional window and a year-round usable living space, which falls under the 6/12 outlet spacing code.', red: false },
                     { text: 'Homeowners are responsible for costs of an extra Sub panel if required to perform the work.', red: true },
                   ].map((d, i) => (
@@ -2406,8 +2402,8 @@ export default function ContractView() {
                     <p className="text-sm text-gray-500">Send each link to the right party — they can only sign their own section.</p>
                     {[
                       { role: 'client',  label: 'Client',                color: 'bg-blue-50 border-blue-200' },
-                      { role: 'builder', label: 'Builder (Ebony)',       color: 'bg-emerald-50 border-emerald-200' },
-                      { role: 'gc',      label: 'GC (All-In-One)',       color: 'bg-amber-50 border-amber-200' },
+                      { role: 'builder', label: 'Builder',       color: 'bg-emerald-50 border-emerald-200' },
+                      { role: 'gc',      label: 'GC',       color: 'bg-amber-50 border-amber-200' },
                     ].filter(({ role }) => !(isSmallContract && role === 'gc')).map(({ role, label, color }) => (
                       <div key={role} className={`border rounded-xl p-3 ${color}`}>
                         <div className="flex items-center justify-between mb-2">
