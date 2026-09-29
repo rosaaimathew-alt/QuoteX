@@ -10,7 +10,7 @@ export default async function handler(req, res) {
 
   // Admin actions (create links / look up full record incl. tokens) require a
   // signed-in operator. Client signing via role tokens stays public.
-  const isAdminAction = token === 'create' || token.startsWith('record-')
+  const isAdminAction = token === 'create' || token.startsWith('record-') || token.startsWith('void-')
   if (isAdminAction) {
     const header = req.headers.authorization || ''
     const bearer = header.startsWith('Bearer ') ? header.slice(7) : (req.headers['x-qx-token'] || null)
@@ -54,6 +54,17 @@ export default async function handler(req, res) {
       })
     }
 
+    // ── VOID: /api/co/void-<recordId> (POST, admin) ───────────────────────
+    // A revised change order gets a new record; the old link must stop working.
+    if (token.startsWith('void-')) {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+      const recordId = token.slice('void-'.length)
+      const rec = await kv.get(`co:${recordId}`)
+      if (!rec) return res.json({ ok: true, alreadyGone: true })
+      await kv.set(`co:${recordId}`, { ...rec, status: 'void', voidedAt: Date.now() }, { ex: TTL })
+      return res.json({ ok: true })
+    }
+
     // ── RECORD LOOKUP: /api/co/record-<recordId> ──────────────────────────
     if (token.startsWith('record-') && req.method === 'GET') {
       const recordId = token.slice('record-'.length)
@@ -69,6 +80,9 @@ export default async function handler(req, res) {
 
     const record = await kv.get(`co:${link.recordId}`)
     if (!record) return res.status(404).json({ error: 'Change order record not found' })
+    if (record.status === 'void') {
+      return res.status(410).json({ error: 'This change order was revised. Please use the newest link you were sent.' })
+    }
 
     if (req.method === 'GET') {
       return res.json({

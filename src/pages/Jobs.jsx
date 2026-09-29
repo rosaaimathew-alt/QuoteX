@@ -755,7 +755,20 @@ function ChangeOrdersTab({ proposal }) {
   const handleSave = async (coData, sendForSig) => {
     let coId
     if (editingCo) {
-      updateChangeOrder(proposal.id, editingCo.id, coData)
+      // A revision invalidates any link already sent: clear it (and void the old
+      // record on the server) so a fresh link is generated for the new version.
+      const wasSent = !!editingCo.signLink && editingCo.status !== 'Approved'
+      updateChangeOrder(proposal.id, editingCo.id, {
+        ...coData,
+        ...(wasSent ? {
+          signLink: null, builderSignLink: null, signRecordId: null, signedAt: null,
+          status: 'Pending',
+          supersededRecordIds: [...(editingCo.supersededRecordIds || []), editingCo.signRecordId].filter(Boolean),
+        } : {}),
+      })
+      if (wasSent && editingCo.signRecordId) {
+        fetch(`/api/co/void-${editingCo.signRecordId}`, { method: 'POST' }).catch(() => {})
+      }
       coId = editingCo.id
     } else {
       const id = Date.now()

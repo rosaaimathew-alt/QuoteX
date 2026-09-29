@@ -141,6 +141,30 @@ function _keepNewerDraft(winner, loser) {
   if (other.signed && !draft.signed) { draft.signed = true; draft.signedAt = other.signedAt || draft.signedAt }
   return { ...winner, contractDraft: draft }
 }
+// Change orders live inside jobData. Merge them by id so an edit on one device
+// (a fresh signing link, a revised amount) never loses to a stale copy from
+// another, and the copy with "more" change orders no longer wins by default.
+function _coTime(co) {
+  let m = 0
+  for (const k of ['updatedAt', 'signedAt', 'createdAt']) {
+    const v = co && co[k]
+    const t = typeof v === 'number' ? v : (v ? Date.parse(v) : 0)
+    if (t && t > m) m = t
+  }
+  return m
+}
+function _mergeChangeOrders(winner, loser) {
+  const b = loser?.jobData?.changeOrders
+  if (!b || !b.length) return winner
+  const map = new Map()
+  for (const co of (winner?.jobData?.changeOrders || [])) if (co && co.id != null) map.set(String(co.id), co)
+  for (const co of b) {
+    if (!co || co.id == null) continue
+    const ex = map.get(String(co.id))
+    if (!ex || _coTime(co) > _coTime(ex)) map.set(String(co.id), co)
+  }
+  return { ...winner, jobData: { ...(winner.jobData || {}), changeOrders: [...map.values()] } }
+}
 function _mergeProposals(server = [], local = []) {
   const map = new Map()
   for (const p of (server || [])) if (p && p.id != null) map.set(p.id, p)
@@ -150,7 +174,8 @@ function _mergeProposals(server = [], local = []) {
     if (!ex) { map.set(p.id, p); continue }
     const sp = _score(p), se = _score(ex)
     const localWins = sp > se || (sp === se && _richness(p) >= _richness(ex))
-    map.set(p.id, localWins ? _keepNewerDraft(p, ex) : _keepNewerDraft(ex, p))
+    const winner = localWins ? _keepNewerDraft(p, ex) : _keepNewerDraft(ex, p)
+    map.set(p.id, _mergeChangeOrders(winner, localWins ? ex : p))
   }
   return [...map.values()]
 }
@@ -198,6 +223,13 @@ export function mergeStoreStrings(serverStr, localStr) {
   merged.tombstones = [...new Set([...(s.tombstones || []), ...(l.tombstones || [])])]
   const _dead = new Set(merged.tombstones)
   merged.proposals  = merged.proposals.filter(p => !_dead.has(`proposal:${p.id}`))
+  // Deleted change orders stay deleted (tombstoned as co:<proposalId>:<coId>).
+  merged.proposals  = merged.proposals.map(p => {
+    const cos = p?.jobData?.changeOrders
+    if (!cos || !cos.length) return p
+    const kept = cos.filter(co => !_dead.has(`co:${p.id}:${co.id}`))
+    return kept.length === cos.length ? p : { ...p, jobData: { ...p.jobData, changeOrders: kept } }
+  })
   merged.todos      = (merged.todos || []).filter(t => !_dead.has(`todo:${t.id}`))
   merged.checklists = (merged.checklists || []).filter(c => !_dead.has(`checklist:${c.id}`))
   merged.expenses   = (merged.expenses || []).filter(e => !_dead.has(`expense:${e.id}`))
@@ -1226,7 +1258,9 @@ export const useStore = create(
               jobData: {
                 ...(p.jobData || {}),
                 changeOrders: (p.jobData?.changeOrders || []).map((co) =>
-                  co.id === coId ? { ...co, ...changes } : co
+                  // updatedAt lets the sync merge keep the newest edit of THIS
+                  // change order (e.g. a fresh signing link) over a stale copy.
+                  co.id === coId ? { ...co, ...changes, updatedAt: new Date().toISOString() } : co
                 ),
               },
             }
@@ -1244,6 +1278,9 @@ export const useStore = create(
               },
             }
           ),
+          // Tombstone so the sync merge never brings it back from a copy that
+          // still has it (a copy with more change orders used to "win").
+          tombstones: [...(s.tombstones || []), `co:${proposalId}:${coId}`],
         })),
 
       // ── Standalone Change Orders (for contracts signed outside QuoteX) ────

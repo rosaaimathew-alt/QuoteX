@@ -46,6 +46,29 @@ function _keepNewerDraft(winner, loser) {
   if (other.signed && !draft.signed) { draft.signed = true; draft.signedAt = other.signedAt || draft.signedAt }
   return { ...winner, contractDraft: draft }
 }
+// Change orders live inside jobData: merge them by id (newest edit wins) so a
+// stale copy from another device can't drop a fresh signing link or revision.
+const _coTime = (co) => {
+  let m = 0
+  for (const k of ['updatedAt', 'signedAt', 'createdAt']) {
+    const v = co && co[k]
+    const t = typeof v === 'number' ? v : (v ? Date.parse(v) : 0)
+    if (t && t > m) m = t
+  }
+  return m
+}
+function _mergeChangeOrders(winner, loser) {
+  const b = loser?.jobData?.changeOrders
+  if (!b || !b.length) return winner
+  const map = new Map()
+  for (const co of (winner?.jobData?.changeOrders || [])) if (co && co.id != null) map.set(String(co.id), co)
+  for (const co of b) {
+    if (!co || co.id == null) continue
+    const ex = map.get(String(co.id))
+    if (!ex || _coTime(co) > _coTime(ex)) map.set(String(co.id), co)
+  }
+  return { ...winner, jobData: { ...(winner.jobData || {}), changeOrders: [...map.values()] } }
+}
 function _mergeProposals(a = [], b = []) {
   const map = new Map()
   for (const p of a) if (p && p.id != null) map.set(p.id, p)
@@ -55,7 +78,8 @@ function _mergeProposals(a = [], b = []) {
     if (!ex) { map.set(p.id, p); continue }
     const sp = _score(p), se = _score(ex)
     const incomingWins = sp > se || (sp === se && _richness(p) >= _richness(ex))
-    map.set(p.id, incomingWins ? _keepNewerDraft(p, ex) : _keepNewerDraft(ex, p))
+    const winner = incomingWins ? _keepNewerDraft(p, ex) : _keepNewerDraft(ex, p)
+    map.set(p.id, _mergeChangeOrders(winner, incomingWins ? ex : p))
   }
   return [...map.values()]
 }
@@ -78,6 +102,13 @@ function mergeState(existing, incoming) {
   merged.tombstones = [...new Set([...(a.tombstones || []), ...(b.tombstones || [])])]
   const dead = new Set(merged.tombstones)
   merged.proposals  = merged.proposals.filter(p => !dead.has(`proposal:${p.id}`))
+  // Deleted change orders stay deleted (tombstoned as co:<proposalId>:<coId>).
+  merged.proposals  = merged.proposals.map(p => {
+    const cos = p?.jobData?.changeOrders
+    if (!cos || !cos.length) return p
+    const kept = cos.filter(co => !dead.has(`co:${p.id}:${co.id}`))
+    return kept.length === cos.length ? p : { ...p, jobData: { ...p.jobData, changeOrders: kept } }
+  })
   merged.todos      = (merged.todos || []).filter(t => !dead.has(`todo:${t.id}`))
   merged.checklists = (merged.checklists || []).filter(c => !dead.has(`checklist:${c.id}`))
   merged.expenses   = (merged.expenses || []).filter(e => !dead.has(`expense:${e.id}`))
