@@ -118,6 +118,7 @@ export function normalizeBranding(b) {
   if (!b) {
     return {
       companyName: 'QUOTEX', tagline: 'Smart Contractor Pricing', logo: null,
+      gcName: '', licenseNo: '',
       primaryColor: '#b0894f', sidebarColor: '#26262b', accentColor: null, plan: 'enterprise',
     }
   }
@@ -125,6 +126,8 @@ export function normalizeBranding(b) {
     companyName: b.companyName ?? 'QUOTEX',
     tagline: b.tagline ?? 'Smart Contractor Pricing',
     logo: b.logo ?? null,
+    gcName: b.gcName ?? '',       // licensed General Contractor named in the contract (blank = none)
+    licenseNo: b.licenseNo ?? '', // GC license number printed in the client acknowledgment
     primaryColor: b.primaryColor || '#b0894f',   // brass default when unset (matches charcoal/brass identity)
     sidebarColor: b.sidebarColor || '#26262b',     // charcoal default when unset
     accentColor: b.accentColor ?? null,

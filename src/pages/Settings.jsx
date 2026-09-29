@@ -373,6 +373,8 @@ export default function Settings() {
 
   const [companyName, setCompanyName]   = useState(branding.companyName || '')
   const [tagline, setTagline]           = useState(branding.tagline || '')
+  const [gcName, setGcName]             = useState(branding.gcName || '')
+  const [licenseNo, setLicenseNo]       = useState(branding.licenseNo || '')
   const [logo, setLogo]                 = useState(branding.logo || null)
   const [primaryColor, setPrimaryColor] = useState(branding.primaryColor || DEFAULT_BRAND_COLOR)
   const [sidebarColor, setSidebarColor] = useState(branding.sidebarColor || FREE_SIDEBAR_COLOR)
@@ -407,7 +409,7 @@ export default function Settings() {
   }
 
   const handleSave = () => {
-    updateBranding({ companyName, tagline, logo, primaryColor, sidebarColor, accentColor: accentColor || null })
+    updateBranding({ companyName, tagline, gcName: gcName.trim(), licenseNo: licenseNo.trim(), logo, primaryColor, sidebarColor, accentColor: accentColor || null })
     applyBrandStyles(primaryColor, { sidebar: sidebarColor, accent: accentColor || null })
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
