@@ -13,7 +13,7 @@ export default async function handler(req, res) {
 
   // Admin actions (create links / recover links / look up by contract number)
   // require a signed-in operator. Client signing via role tokens stays public.
-  const isAdminAction = token === 'create' || token === 'pcreate' || token.startsWith('recover-') || token.startsWith('lookup-') || token.startsWith('record-') || token.startsWith('pdata-')
+  const isAdminAction = token === 'create' || token === 'pcreate' || token === 'kvdump' || token === 'kvload' || token.startsWith('recover-') || token.startsWith('lookup-') || token.startsWith('record-') || token.startsWith('pdata-')
   if (isAdminAction) {
     const header = req.headers.authorization || ''
     const bearer = header.startsWith('Bearer ') ? header.slice(7) : (req.headers['x-qx-token'] || null)
@@ -100,6 +100,38 @@ export default async function handler(req, res) {
       // No customer PII in the URL (leaks via logs/history/referrer). Contact info
       // is read separately through the authenticated pdata- lookup by token.
       return res.json({ token: viewToken, url: `${proto}://${host}/p/${viewToken}` })
+    }
+
+    // ── ADMIN: dump / load the signing-related KV records ─────────────
+    // Signing records, role links, tracked proposal views and change-order
+    // records live OUTSIDE the quotex:store blob. The Full Backup pulls them
+    // page by page with kvdump and the Import writes them back with kvload,
+    // so a backup / hand-off carries the signatures too.
+    const KV_PATTERNS = ['sign:*', 'link:*', 'sign-by-contract:*', 'pview:*', 'pview-by-proposal:*', 'co:*', 'co-link:*']
+    if (token === 'kvdump') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+      const { match = 'sign:*', cursor = 0, count = 100 } = req.body || {}
+      if (!KV_PATTERNS.includes(match)) return res.status(400).json({ error: 'Bad pattern' })
+      const [next, keys] = await kv.scan(Number(cursor) || 0, { match, count: Math.min(Number(count) || 100, 200) })
+      const items = []
+      for (const key of keys || []) {
+        const [value, ttl] = await Promise.all([kv.get(key), kv.ttl(key)])
+        if (value !== null && value !== undefined) items.push({ key, value, ttl: ttl > 0 ? ttl : null })
+      }
+      return res.json({ items, cursor: Number(next) || 0 })
+    }
+    if (token === 'kvload') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+      const { items } = req.body || {}
+      if (!Array.isArray(items)) return res.status(400).json({ error: 'Missing items' })
+      const okPrefix = /^(sign|link|sign-by-contract|pview|pview-by-proposal|co|co-link):/
+      let loaded = 0
+      for (const it of items) {
+        if (!it || typeof it.key !== 'string' || !okPrefix.test(it.key)) continue
+        await kv.set(it.key, it.value, it.ttl ? { ex: Number(it.ttl) } : undefined)
+        loaded++
+      }
+      return res.json({ ok: true, loaded })
     }
 
     // ── PUBLIC: open a tracked proposal — records the view ────────────

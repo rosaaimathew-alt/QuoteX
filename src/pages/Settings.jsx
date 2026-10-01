@@ -306,10 +306,31 @@ function DataManagement() {
   // schedules, subcontractors, deck/porch pricing, branding…) in the same
   // {state, version} shape the server stores, so it can be restored whole on
   // a fresh instance (company hand-off / disaster recovery).
-  const handleFullExport = () => {
+  const handleFullExport = async () => {
     const state = {}
     for (const [k, v] of Object.entries(useStore.getState())) if (typeof v !== 'function') state[k] = v
-    const data = { fullBackup: true, exportedAt: new Date().toISOString(), version: 6, state }
+    // Signing records, signature images, signing links, tracked proposal views
+    // and change-order records live OUTSIDE the dataset (separate server keys),
+    // so pull them page by page and include them — otherwise a restore on a
+    // fresh instance has contracts marked signed but no signatures behind them.
+    const signing = []
+    try {
+      for (const match of ['sign:*', 'link:*', 'sign-by-contract:*', 'pview:*', 'pview-by-proposal:*', 'co:*', 'co-link:*']) {
+        let cursor = 0
+        do {
+          const res = await fetch('/api/sign/kvdump', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ match, cursor, count: 100 }),
+          })
+          if (!res.ok) break
+          const d = await res.json()
+          signing.push(...(d.items || []))
+          cursor = d.cursor || 0
+        } while (cursor)
+      }
+    } catch { /* offline or not signed in: the dataset still exports */ }
+    const data = { fullBackup: true, exportedAt: new Date().toISOString(), version: 6, state, signing }
     const blob = new Blob([JSON.stringify(data)], { type: 'application/json' })
     const url  = URL.createObjectURL(blob)
     const a    = document.createElement('a')
@@ -340,8 +361,19 @@ function DataManagement() {
           })
           if (!res.ok) throw new Error('Server rejected the backup — are you signed in?')
           useStore.setState(state)
+          // Signing records / signature images / links travel alongside the dataset.
+          let loaded = 0
+          const signing = Array.isArray(parsed.signing) ? parsed.signing : []
+          for (let i = 0; i < signing.length; i += 40) {
+            const r = await fetch('/api/sign/kvload', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ items: signing.slice(i, i + 40) }),
+            })
+            if (r.ok) loaded += (await r.json()).loaded || 0
+          }
           setImportStatus('ok')
-          setImportMsg(`Full backup restored: ${(state.proposals || []).length} proposals, ${(state.catalog || []).length} catalog items, ${(state.todos || []).length} todos, ${(state.expenses || []).length} expenses. Other devices will see it on their next refresh.`)
+          setImportMsg(`Full backup restored: ${(state.proposals || []).length} proposals, ${(state.catalog || []).length} catalog items, ${(state.todos || []).length} todos, ${(state.expenses || []).length} expenses, ${loaded} signing records. Other devices will see it on their next refresh.`)
           if (importRef.current) importRef.current.value = ''
           setTimeout(() => setImportStatus(null), 8000)
           return
