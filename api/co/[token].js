@@ -19,7 +19,7 @@ export default async function handler(req, res) {
 
   try {
     const { kv } = await import('@vercel/kv')
-    const TTL = 60 * 60 * 24 * 90 // 90 days
+    // Change-order records are legal documents: they never expire.
 
     // ── CREATE ────────────────────────────────────────────────────────────
     if (token === 'create') {
@@ -36,11 +36,11 @@ export default async function handler(req, res) {
         createdAt: Date.now(),
         signatures: {},
         tokens,
-      }, { ex: TTL })
+      })
 
       await Promise.all([
-        kv.set(`co-link:${tokens.client}`,  { recordId, role: 'client' },  { ex: TTL }),
-        kv.set(`co-link:${tokens.builder}`, { recordId, role: 'builder' }, { ex: TTL }),
+        kv.set(`co-link:${tokens.client}`,  { recordId, role: 'client' }),
+        kv.set(`co-link:${tokens.builder}`, { recordId, role: 'builder' }),
       ])
 
       const host  = req.headers['x-forwarded-host'] || req.headers.host || 'quotexsolutions.com'
@@ -61,7 +61,7 @@ export default async function handler(req, res) {
       const recordId = token.slice('void-'.length)
       const rec = await kv.get(`co:${recordId}`)
       if (!rec) return res.json({ ok: true, alreadyGone: true })
-      await kv.set(`co:${recordId}`, { ...rec, status: 'void', voidedAt: Date.now() }, { ex: TTL })
+      await kv.set(`co:${recordId}`, { ...rec, status: 'void', voidedAt: Date.now() })
       return res.json({ ok: true })
     }
 
@@ -80,6 +80,7 @@ export default async function handler(req, res) {
 
     const record = await kv.get(`co:${link.recordId}`)
     if (!record) return res.status(404).json({ error: 'Change order record not found' })
+    Promise.all([kv.persist(`co:${link.recordId}`), kv.persist(`co-link:${token}`)]).catch(() => {})
     if (record.status === 'void') {
       return res.status(410).json({ error: 'This change order was revised. Please use the newest link you were sent.' })
     }
@@ -113,7 +114,7 @@ export default async function handler(req, res) {
         ...record,
         signatures,
         status: allSigned ? 'signed' : 'partial',
-      }, { ex: TTL })
+      })
 
       return res.json({ ok: true, allSigned })
     }

@@ -44,7 +44,7 @@ export default async function handler(req, res) {
         builder: crypto.randomUUID(),
         gc:      crypto.randomUUID(),
       }
-      const ttl = 60 * 60 * 24 * 60
+      // Signing records are legal documents: they never expire.
 
       await kv.set(`sign:${recordId}`, {
         contractData,
@@ -53,14 +53,14 @@ export default async function handler(req, res) {
         createdAt:   Date.now(),
         signatures:  {},
         roleTokens,
-      }, { ex: ttl })
+      })
 
       await Promise.all(ROLES.map(role =>
-        kv.set(`link:${roleTokens[role]}`, { recordId, role }, { ex: ttl })
+        kv.set(`link:${roleTokens[role]}`, { recordId, role })
       ))
 
       if (contractNum) {
-        await kv.set(`sign-by-contract:${contractNum}`, recordId, { ex: ttl })
+        await kv.set(`sign-by-contract:${contractNum}`, recordId)
       }
 
       const host  = req.headers['x-forwarded-host'] || req.headers.host || 'quotexsolutions.com'
@@ -128,7 +128,7 @@ export default async function handler(req, res) {
       let loaded = 0
       for (const it of items) {
         if (!it || typeof it.key !== 'string' || !okPrefix.test(it.key)) continue
-        await kv.set(it.key, it.value, it.ttl ? { ex: Number(it.ttl) } : undefined)
+        await kv.set(it.key, it.value)   // permanent: signing records never expire
         loaded++
       }
       return res.json({ ok: true, loaded })
@@ -180,6 +180,7 @@ export default async function handler(req, res) {
       const recordId = token.slice('record-'.length)
       const rec = await kv.get(`sign:${recordId}`)
       if (!rec) return res.status(404).json({ error: 'Record not found or expired' })
+      kv.persist(`sign:${recordId}`).catch(() => {})
       return res.json({
         recordId,
         contractData: rec.contractData,
@@ -242,6 +243,8 @@ export default async function handler(req, res) {
 
     const record = await kv.get(`sign:${link.recordId}`)
     if (!record) return res.status(404).json({ error: 'Contract record not found' })
+    // Records created before expiry was removed still carry a countdown: clear it on touch.
+    Promise.all([kv.persist(`sign:${link.recordId}`), kv.persist(`link:${token}`)]).catch(() => {})
 
     if (req.method === 'GET') {
       return res.json({
@@ -276,12 +279,11 @@ export default async function handler(req, res) {
 
       const required  = ['client', 'builder']
       const allSigned = required.every(r => signatures[r])
-      const ttl       = 60 * 60 * 24 * 60
       await kv.set(`sign:${link.recordId}`, {
         ...record,
         signatures,
         status: allSigned ? 'signed' : 'partial',
-      }, { ex: ttl })
+      })
 
       let driveResult = null
       if (pdfBase64 && fileName) {
