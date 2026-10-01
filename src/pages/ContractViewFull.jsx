@@ -477,20 +477,71 @@ export default function ContractViewFull() {
             </>
           )}
 
-          {/* Audit trail */}
-          <div className="px-6 sm:px-12 py-6 border-t border-gray-200 bg-gray-50 no-print">
-            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Signature Audit Trail</p>
-            <div className="space-y-2">
-              {['client','builder','gc'].map(r => {
-                const sig = signatures[r]
-                if (!sig) return <div key={r} className="text-xs text-gray-400">{r}: not signed</div>
-                return (
-                  <div key={r} className="text-xs text-gray-600 font-mono bg-white rounded p-2 border border-gray-200">
-                    <span className="font-bold text-gray-800">{r}</span> — {sig.printedName} — {new Date(sig.signedAt).toLocaleString()} — IP: {sig.ip}
-                  </div>
-                )
-              })}
+          {/* Certificate of Completion — the authentication record. Prints as the
+              last page of the PDF so the downloaded contract carries its own
+              audit trail (ESIGN/UETA): who signed, when, from where, and consent. */}
+          <div className="px-6 sm:px-12 py-10 border-t border-gray-200" style={{ pageBreakBefore: 'always', breakBefore: 'page', fontFamily: 'Arial, sans-serif' }}>
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <p className="text-xl font-bold">Certificate of Completion</p>
+                <p className="text-xs text-gray-500 mt-1">Electronic signature record for Contract #{contractNum || '—'}</p>
+              </div>
+              <div className="text-right text-[10px] text-gray-500 font-mono">
+                <div>Record ID: {record.recordId || recordId}</div>
+                <div>Status: {record.status || '—'}</div>
+                <div>Generated: {new Date().toLocaleString()}</div>
+              </div>
             </div>
+            <table className="w-full text-[11px] border-collapse" style={{ fontFamily: 'Arial, sans-serif' }}>
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="text-left p-2 border border-gray-300">Signer</th>
+                  <th className="text-left p-2 border border-gray-300">Signature</th>
+                  <th className="text-left p-2 border border-gray-300">Signed (local time)</th>
+                  <th className="text-left p-2 border border-gray-300">IP address</th>
+                  <th className="text-left p-2 border border-gray-300">Device / browser</th>
+                  <th className="text-left p-2 border border-gray-300">Consent</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[['client', 'Client / Purchaser'], ['builder', 'Builder'], ['gc', 'General Contractor']].map(([r, label]) => {
+                  const sig = signatures[r]
+                  if (!sig) return (
+                    <tr key={r}>
+                      <td className="p-2 border border-gray-300 font-semibold">{label}</td>
+                      <td className="p-2 border border-gray-300 text-gray-400" colSpan={5}>Not signed</td>
+                    </tr>
+                  )
+                  const fmt = (t) => (t ? new Date(t).toLocaleString() : '—')
+                  return (
+                    <tr key={r} style={{ pageBreakInside: 'avoid' }}>
+                      <td className="p-2 border border-gray-300 align-top">
+                        <div className="font-semibold">{label}</div>
+                        <div>{sig.printedName || '—'}</div>
+                      </td>
+                      <td className="p-2 border border-gray-300 align-top">
+                        {sig.signatureDataUrl
+                          ? <img src={sig.signatureDataUrl} alt={`${label} signature`} style={{ height: 36, objectFit: 'contain' }} />
+                          : <span className="text-gray-400">—</span>}
+                        {sig.fields && Object.keys(sig.fields).length > 0 && (
+                          <div className="text-[9px] text-gray-500 mt-1">{Object.keys(sig.fields).length} field{Object.keys(sig.fields).length === 1 ? '' : 's'} signed/initialed</div>
+                        )}
+                      </td>
+                      <td className="p-2 border border-gray-300 align-top font-mono">{fmt(sig.signedAt)}</td>
+                      <td className="p-2 border border-gray-300 align-top font-mono">{sig.ip || '—'}</td>
+                      <td className="p-2 border border-gray-300 align-top break-all" style={{ maxWidth: 180 }}>{sig.userAgent || '—'}</td>
+                      <td className="p-2 border border-gray-300 align-top">
+                        <div>E-sign consent: {sig.esignConsent ? 'Yes' : '—'}{sig.esignConsentAt ? ` (${fmt(sig.esignConsentAt)})` : ''}</div>
+                        <div>Agreement accepted: {sig.agreementAgreedAt ? fmt(sig.agreementAgreedAt) : '—'}</div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+            <p className="text-[9px] text-gray-500 mt-4 leading-relaxed">
+              Each signer accepted the Consumer Disclosure and Consent to Do Business Electronically before viewing the document and signed through a unique, unguessable link sent to them. Timestamps are recorded by the server at the moment of each event; IP address and device information are captured from the signer's connection. This certificate is generated from the stored signing record and forms part of the executed contract.
+            </p>
           </div>
         </div>
       </div>
