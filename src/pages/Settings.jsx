@@ -301,12 +301,51 @@ function DataManagement() {
     URL.revokeObjectURL(url)
   }
 
+  // Full backup: EVERY data key in the store (proposals, contracts, change
+  // orders, catalog, templates, todos, checklists, expenses, job costs,
+  // schedules, subcontractors, deck/porch pricing, branding…) in the same
+  // {state, version} shape the server stores, so it can be restored whole on
+  // a fresh instance (company hand-off / disaster recovery).
+  const handleFullExport = () => {
+    const state = {}
+    for (const [k, v] of Object.entries(useStore.getState())) if (typeof v !== 'function') state[k] = v
+    const data = { fullBackup: true, exportedAt: new Date().toISOString(), version: 6, state }
+    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href     = url
+    a.download = `quotex-full-backup-${new Date().toISOString().slice(0,10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const handleImport = (file) => {
     if (!file) return
     const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const parsed = JSON.parse(e.target.result)
+
+        // Full backup → restore everything and push it to this instance's server.
+        if (parsed.fullBackup && parsed.state && typeof parsed.state === 'object') {
+          const state = parsed.state
+          if (!window.confirm(`Restore a FULL backup from ${parsed.exportedAt?.slice(0, 10) || 'unknown date'}? It will be merged into this account's data (${(state.proposals || []).length} proposals).`)) {
+            if (importRef.current) importRef.current.value = ''
+            return
+          }
+          const res = await fetch('/api/store', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ value: JSON.stringify({ state, version: parsed.version || 6 }) }),
+          })
+          if (!res.ok) throw new Error('Server rejected the backup — are you signed in?')
+          useStore.setState(state)
+          setImportStatus('ok')
+          setImportMsg(`Full backup restored: ${(state.proposals || []).length} proposals, ${(state.catalog || []).length} catalog items, ${(state.todos || []).length} todos, ${(state.expenses || []).length} expenses. Other devices will see it on their next refresh.`)
+          if (importRef.current) importRef.current.value = ''
+          setTimeout(() => setImportStatus(null), 8000)
+          return
+        }
 
         // Support both QuoteX backup format and raw quotex-data.json (zustand) format
         const data = parsed.state ? parsed.state : parsed
@@ -365,6 +404,13 @@ function DataManagement() {
       </div>
 
       <div className="flex gap-3 flex-wrap">
+        <button
+          onClick={handleFullExport}
+          title="Everything in this account, in one file — restore it whole on a fresh QuoteX via Import"
+          className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors"
+        >
+          <HardDrive size={14} /> Full Backup (everything)
+        </button>
         <button
           onClick={handleExport}
           className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-600)] text-white text-sm font-medium rounded-lg hover:bg-[var(--brand-700)] transition-colors"
