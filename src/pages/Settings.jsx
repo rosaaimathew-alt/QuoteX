@@ -362,18 +362,42 @@ function DataManagement() {
           if (!res.ok) throw new Error('Server rejected the backup — are you signed in?')
           useStore.setState(state)
           // Signing records / signature images / links travel alongside the dataset.
-          let loaded = 0
+          // Each record can carry a full contract + logo image, so batch by SIZE
+          // (Vercel rejects request bodies over ~4.5 MB), and retry failures
+          // one record at a time so a single oversized item can't sink a batch.
           const signing = Array.isArray(parsed.signing) ? parsed.signing : []
-          for (let i = 0; i < signing.length; i += 40) {
+          const MAX_BYTES = 1_500_000
+          let loaded = 0, failed = 0
+          const send = async (items) => {
             const r = await fetch('/api/sign/kvload', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ items: signing.slice(i, i + 40) }),
+              body: JSON.stringify({ items }),
             })
-            if (r.ok) loaded += (await r.json()).loaded || 0
+            if (!r.ok) throw new Error(`kvload ${r.status}`)
+            return (await r.json()).loaded || 0
           }
-          setImportStatus('ok')
-          setImportMsg(`Full backup restored: ${(state.proposals || []).length} proposals, ${(state.catalog || []).length} catalog items, ${(state.todos || []).length} todos, ${(state.expenses || []).length} expenses, ${loaded} signing records. Other devices will see it on their next refresh.`)
+          let batch = [], batchBytes = 0
+          const flush = async () => {
+            if (!batch.length) return
+            const items = batch; batch = []; batchBytes = 0
+            try {
+              loaded += await send(items)
+            } catch {
+              for (const it of items) {               // retry singly
+                try { loaded += await send([it]) } catch { failed++ }
+              }
+            }
+          }
+          for (const it of signing) {
+            const bytes = JSON.stringify(it).length
+            if (batch.length && batchBytes + bytes > MAX_BYTES) await flush()
+            batch.push(it); batchBytes += bytes
+            if (batchBytes > MAX_BYTES) await flush()
+          }
+          await flush()
+          setImportStatus(failed ? 'error' : 'ok')
+          setImportMsg(`Full backup restored: ${(state.proposals || []).length} proposals, ${(state.catalog || []).length} catalog items, ${(state.todos || []).length} todos, ${(state.expenses || []).length} expenses, ${loaded} of ${signing.length} signing records${failed ? ` (${failed} failed — try Import again)` : ''}. Other devices will see it on their next refresh.`)
           if (importRef.current) importRef.current.value = ''
           setTimeout(() => setImportStatus(null), 8000)
           return
