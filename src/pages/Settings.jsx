@@ -315,7 +315,7 @@ function DataManagement() {
     // fresh instance has contracts marked signed but no signatures behind them.
     const signing = []
     try {
-      for (const match of ['sign:*', 'link:*', 'sign-by-contract:*', 'pview:*', 'pview-by-proposal:*', 'co:*', 'co-link:*']) {
+      for (const match of ['sign:*', 'sigv:*', 'link:*', 'sign-by-contract:*', 'pview:*', 'pview-by-proposal:*', 'co:*', 'co-link:*']) {
         let cursor = 0
         do {
           const res = await fetch('/api/sign/kvdump', {
@@ -367,15 +367,17 @@ function DataManagement() {
           // one record at a time so a single oversized item can't sink a batch.
           const signing = Array.isArray(parsed.signing) ? parsed.signing : []
           const MAX_BYTES = 1_500_000
-          let loaded = 0, failed = 0
+          let loaded = 0, failed = 0, firstError = ''
           const send = async (items) => {
             const r = await fetch('/api/sign/kvload', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ items }),
             })
-            if (!r.ok) throw new Error(`kvload ${r.status}`)
-            return (await r.json()).loaded || 0
+            if (!r.ok) throw new Error(`server replied ${r.status}`)
+            const d = await r.json()
+            for (const e of d.errors || []) { failed++; if (!firstError) firstError = `${e.key}: ${e.error}` }
+            return d.loaded || 0
           }
           let batch = [], batchBytes = 0
           const flush = async () => {
@@ -385,7 +387,7 @@ function DataManagement() {
               loaded += await send(items)
             } catch {
               for (const it of items) {               // retry singly
-                try { loaded += await send([it]) } catch { failed++ }
+                try { loaded += await send([it]) } catch (e) { failed++; if (!firstError) firstError = `${it.key}: ${e.message}` }
               }
             }
           }
@@ -397,7 +399,7 @@ function DataManagement() {
           }
           await flush()
           setImportStatus(failed ? 'error' : 'ok')
-          setImportMsg(`Full backup restored: ${(state.proposals || []).length} proposals, ${(state.catalog || []).length} catalog items, ${(state.todos || []).length} todos, ${(state.expenses || []).length} expenses, ${loaded} of ${signing.length} signing records${failed ? ` (${failed} failed — try Import again)` : ''}. Other devices will see it on their next refresh.`)
+          setImportMsg(`Full backup restored: ${(state.proposals || []).length} proposals, ${(state.catalog || []).length} catalog items, ${(state.todos || []).length} todos, ${(state.expenses || []).length} expenses, ${loaded} of ${signing.length} signing records${failed ? ` (${failed} failed — first error: ${firstError})` : ''}. Other devices will see it on their next refresh.`)
           if (importRef.current) importRef.current.value = ''
           setTimeout(() => setImportStatus(null), 8000)
           return

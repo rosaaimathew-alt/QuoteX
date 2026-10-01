@@ -6,6 +6,25 @@ export const config = { api: { bodyParser: { sizeLimit: '10mb' } } }
 
 const ROLES = ['client', 'builder', 'gc']
 
+// Signature images (one PNG per initial field, per signer) can push a contract
+// record close to 1 MB, which some Redis plans refuse to store. So each signer's
+// signatures live in their own key (sigv:<recordId>:<role>) and are reassembled
+// on read. Records written before this change may still carry signatures
+// inline; loadRecord honours both.
+async function loadRecord(kv, recordId) {
+  const rec = await kv.get(`sign:${recordId}`)
+  if (!rec) return null
+  const signatures = { ...(rec.signatures || {}) }
+  const parts = await Promise.all(ROLES.map(r => kv.get(`sigv:${recordId}:${r}`)))
+  ROLES.forEach((r, i) => { if (parts[i]) signatures[r] = parts[i] })
+  return { ...rec, signatures }
+}
+async function saveRecord(kv, recordId, rec) {
+  const { signatures = {}, ...rest } = rec || {}
+  await kv.set(`sign:${recordId}`, { ...rest, signatures: {} })
+  await Promise.all(ROLES.filter(r => signatures[r]).map(r => kv.set(`sigv:${recordId}:${r}`, signatures[r])))
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   const token = req.query.token
@@ -107,7 +126,7 @@ export default async function handler(req, res) {
     // records live OUTSIDE the quotex:store blob. The Full Backup pulls them
     // page by page with kvdump and the Import writes them back with kvload,
     // so a backup / hand-off carries the signatures too.
-    const KV_PATTERNS = ['sign:*', 'link:*', 'sign-by-contract:*', 'pview:*', 'pview-by-proposal:*', 'co:*', 'co-link:*']
+    const KV_PATTERNS = ['sign:*', 'sigv:*', 'link:*', 'sign-by-contract:*', 'pview:*', 'pview-by-proposal:*', 'co:*', 'co-link:*']
     if (token === 'kvdump') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
       const { match = 'sign:*', cursor = 0, count = 100 } = req.body || {}
@@ -124,14 +143,25 @@ export default async function handler(req, res) {
       if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
       const { items } = req.body || {}
       if (!Array.isArray(items)) return res.status(400).json({ error: 'Missing items' })
-      const okPrefix = /^(sign|link|sign-by-contract|pview|pview-by-proposal|co|co-link):/
+      const okPrefix = /^(sign|sigv|link|sign-by-contract|pview|pview-by-proposal|co|co-link):/
       let loaded = 0
+      const errors = []
       for (const it of items) {
         if (!it || typeof it.key !== 'string' || !okPrefix.test(it.key)) continue
-        await kv.set(it.key, it.value)   // permanent: signing records never expire
-        loaded++
+        try {
+          // A contract record with inline signatures (older export) is split on
+          // the way in so nothing oversized is ever written. Stored permanently.
+          if (it.key.startsWith('sign:') && it.value && Object.keys(it.value.signatures || {}).length) {
+            await saveRecord(kv, it.key.slice('sign:'.length), it.value)
+          } else {
+            await kv.set(it.key, it.value)
+          }
+          loaded++
+        } catch (e) {
+          errors.push({ key: it.key, error: String(e && e.message || e).slice(0, 200) })
+        }
       }
-      return res.json({ ok: true, loaded })
+      return res.json({ ok: true, loaded, errors })
     }
 
     // ── PUBLIC: open a tracked proposal — records the view ────────────
@@ -178,7 +208,7 @@ export default async function handler(req, res) {
     // ── Admin record lookup: /api/sign/record-<recordId> ─────────────
     if (token.startsWith('record-') && req.method === 'GET') {
       const recordId = token.slice('record-'.length)
-      const rec = await kv.get(`sign:${recordId}`)
+      const rec = await loadRecord(kv, recordId)
       if (!rec) return res.status(404).json({ error: 'Record not found or expired' })
       kv.persist(`sign:${recordId}`).catch(() => {})
       return res.json({
@@ -194,7 +224,7 @@ export default async function handler(req, res) {
     // ── Recover signing links from a record: /api/sign/recover-<recordId> ──
     if (token.startsWith('recover-') && req.method === 'GET') {
       const recordId = token.slice('recover-'.length)
-      const rec = await kv.get(`sign:${recordId}`)
+      const rec = await loadRecord(kv, recordId)
       if (!rec) return res.status(404).json({ error: 'Record not found or expired' })
       if (!rec.roleTokens) return res.status(404).json({ error: 'No role tokens stored — this record predates link recovery support' })
 
@@ -218,7 +248,7 @@ export default async function handler(req, res) {
       const recordId    = await kv.get(`sign-by-contract:${contractNum}`)
       if (!recordId) return res.status(404).json({ error: 'No signing record found for this contract number' })
 
-      const rec = await kv.get(`sign:${recordId}`)
+      const rec = await loadRecord(kv, recordId)
       if (!rec) return res.status(404).json({ error: 'Signing record has expired' })
       if (!rec.roleTokens) return res.status(404).json({ error: 'No role tokens stored in this record' })
 
@@ -241,7 +271,7 @@ export default async function handler(req, res) {
     const link = await kv.get(`link:${token}`)
     if (!link) return res.status(404).json({ error: 'Signing link not found or expired' })
 
-    const record = await kv.get(`sign:${link.recordId}`)
+    const record = await loadRecord(kv, link.recordId)
     if (!record) return res.status(404).json({ error: 'Contract record not found' })
     // Records created before expiry was removed still carry a countdown: clear it on touch.
     Promise.all([kv.persist(`sign:${link.recordId}`), kv.persist(`link:${token}`)]).catch(() => {})
@@ -279,11 +309,7 @@ export default async function handler(req, res) {
 
       const required  = ['client', 'builder']
       const allSigned = required.every(r => signatures[r])
-      await kv.set(`sign:${link.recordId}`, {
-        ...record,
-        signatures,
-        status: allSigned ? 'signed' : 'partial',
-      })
+      await saveRecord(kv, link.recordId, { ...record, signatures, status: allSigned ? 'signed' : 'partial' })
 
       let driveResult = null
       if (pdfBase64 && fileName) {
