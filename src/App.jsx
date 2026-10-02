@@ -270,7 +270,7 @@ function AppShell() {
   useEffect(() => {
     const tick = () => { if (document.visibilityState === 'visible') syncFromServer() }
     const onVisible = () => { if (document.visibilityState === 'visible') syncFromServer() }
-    const timer = setInterval(tick, 4000)
+    const timer = setInterval(tick, 15000)   // cheap revision check; the dataset downloads only when it changed
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('focus', onVisible)
     syncFromServer()   // sync once on mount too

@@ -1,6 +1,7 @@
 import { requireAuth } from './_auth.js'
 
 const KV_KEY = 'quotex:store'
+const REV_KEY = 'quotex:store:rev'   // bumps on every write; polled instead of the blob
 
 async function getKV() {
   const { kv } = await import('@vercel/kv')
@@ -125,8 +126,15 @@ export default async function handler(req, res) {
 
   if (req.method === 'GET') {
     try {
-      const kv   = await getKV()
-      const data = await kv.get(KV_KEY)
+      const kv = await getKV()
+      // Cheap change check: clients poll this (a few bytes) and only download
+      // the multi-MB dataset when the revision actually moved.
+      if (req.query && req.query.rev !== undefined) {
+        const rev = await kv.get(REV_KEY)
+        return res.status(200).json({ rev: Number(rev) || 0 })
+      }
+      const [data, rev] = await Promise.all([kv.get(KV_KEY), kv.get(REV_KEY)])
+      res.setHeader('X-Store-Rev', String(Number(rev) || 0))
       return res.status(200).send(data ? JSON.stringify(data) : 'null')
     } catch (err) {
       return res.status(500).json({ error: err.message })
@@ -152,7 +160,9 @@ export default async function handler(req, res) {
         ? mergeState(existing, parsed)
         : parsed
       await kv.set(KV_KEY, toStore)
-      return res.status(200).json({ ok: true })
+      const rev = Date.now()
+      await kv.set(REV_KEY, rev)
+      return res.status(200).json({ ok: true, rev })
     } catch (err) {
       return res.status(500).json({ error: err.message })
     }

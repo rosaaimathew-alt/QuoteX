@@ -66,14 +66,31 @@ function _authHeaders(extra = {}) {
   return token ? { ...extra, Authorization: `Bearer ${token}` } : { ...extra }
 }
 
-// Fire-and-forget push of the full persisted state to the shared server.
-function _pushToServer(value) {
-  if (!_token()) return // not signed in — nothing to push to
+// Push of the full persisted state to the shared server, DEBOUNCED: a burst of
+// edits (every keystroke in a form changes the store) coalesces into one
+// upload instead of one multi-MB POST per change. The last value wins.
+let _lastRev = null          // server revision this device has seen / produced
+let _pushTimer = null, _pushValue = null
+function _sendNow(value, keepalive = false) {
+  if (!_token()) return
   fetch('/api/store', {
     method: 'POST',
     headers: _authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ value }),
-  }).catch(() => {})
+    keepalive,
+  }).then(r => r.ok ? r.json() : null).then(d => { if (d && d.rev) _lastRev = d.rev }).catch(() => {})
+}
+function _pushToServer(value) {
+  if (!_token()) return // not signed in — nothing to push to
+  _pushValue = value
+  clearTimeout(_pushTimer)
+  _pushTimer = setTimeout(() => { const v = _pushValue; _pushValue = null; _sendNow(v) }, 1500)
+}
+// Don't lose a pending push when the tab closes or goes to the background.
+if (typeof window !== 'undefined') {
+  const flush = () => { if (_pushValue) { clearTimeout(_pushTimer); const v = _pushValue; _pushValue = null; _sendNow(v, true) } }
+  window.addEventListener('pagehide', flush)
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush() })
 }
 
 // Most-recent timestamp on a proposal, used to resolve same-id conflicts.
@@ -262,6 +279,7 @@ function _fetchInitial() {
     _initial = fetch('/api/store', { headers: _authHeaders(), signal: AbortSignal.timeout(6000) })
       .then(async r => {
         if (!r.ok) return { reachable: false, data: null } // offline / not signed in
+        const rev = Number(r.headers.get('X-Store-Rev')); if (rev) _lastRev = rev   // first poll won't re-download
         const text = await r.text()
         return { reachable: true, data: (text && text !== 'null') ? text : null }
       })
@@ -1871,8 +1889,15 @@ export async function syncFromServer() {
   if (_syncing || !_hydrated || DEMO || !_token()) return
   _syncing = true
   try {
-    const r = await fetch('/api/store', { headers: _authHeaders(), signal: AbortSignal.timeout(6000) })
+    // Ask only "did anything change?" (a few bytes). Download the dataset only
+    // when the server revision differs from the one this device last saw.
+    const rr = await fetch('/api/store?rev=1', { headers: _authHeaders(), signal: AbortSignal.timeout(6000) })
+    if (!rr.ok) return
+    const { rev } = await rr.json()
+    if (rev && rev === _lastRev) return
+    const r = await fetch('/api/store', { headers: _authHeaders(), signal: AbortSignal.timeout(15000) })
     if (!r.ok) return
+    const seenRev = Number(r.headers.get('X-Store-Rev')) || rev || null
     const text = await r.text()
     const serverStr = (text && text !== 'null') ? text : null
     if (!serverStr) return
@@ -1891,6 +1916,7 @@ export async function syncFromServer() {
     }
     // We hold something the server is missing → push the superset up.
     if (nextSig !== _syncSig(serverState)) _pushToServer(merged)
+    else if (seenRev) _lastRev = seenRev
   } catch {
     // transient network error — the next tick retries
   } finally {
