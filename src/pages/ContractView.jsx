@@ -242,7 +242,7 @@ function DemoContractDoc({ innerRef, companyName, client, address, contractNum, 
   const fin = Math.max(0, total - dep - prog)
   const lines = scopeLines.filter(Boolean)
   return (
-    <div ref={innerRef} className="bg-white shadow-lg print:shadow-none" style={docStyle}>
+    <div ref={innerRef} className="bg-white shadow-lg print:shadow-none contract-doc" style={docStyle}>
       <div className="bg-amber-50 border-b border-amber-200 text-amber-800 text-center text-xs font-semibold py-2 px-4">
         SAMPLE CONTRACT · FOR DEMONSTRATION ONLY — fictional company &amp; terms, not a binding agreement.
       </div>
@@ -1452,7 +1452,7 @@ export default function ContractView() {
         {DEMO ? (
           <DemoContractDoc innerRef={contractDocRef} companyName={companyName} client={client} address={address} contractNum={contractNum} scopeLines={scopeLines} total={total} docStyle={docStyle} bodyPad={bodyPad} />
         ) : (
-        <div ref={contractDocRef} className="bg-white shadow-lg print:shadow-none" style={docStyle}>
+        <div ref={contractDocRef} className="bg-white shadow-lg print:shadow-none contract-doc" style={docStyle}>
 
           {/* ── PAGE 1 · Contract opening + payment schedule ─────── */}
           <div className={bodyPad}>

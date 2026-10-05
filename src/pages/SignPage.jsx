@@ -606,7 +606,7 @@ export default function SignPage() {
 
       {/* Contract document */}
       <div className="max-w-4xl mx-auto my-4 px-2 sm:px-4">
-        <div className="bg-white shadow-lg rounded-sm overflow-hidden" style={docStyle}>
+        <div className="bg-white shadow-lg rounded-sm overflow-hidden contract-doc" style={docStyle}>
 
           {/* PAGE 1 */}
           <div className="px-6 sm:px-12 py-6">

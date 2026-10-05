@@ -144,3 +144,47 @@
   .rounded-xl  { border-radius: 14px; }
   .rounded-2xl { border-radius: 18px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LEGAL DOCUMENT TEXT — the contract (.contract-doc) is always black ink on
+   white paper, on screen in light OR dark mode and in print. Secondary
+   labels are dark gray, never light. Overrides the app's dark-mode palette
+   and the gray utility classes inside the document only.
+   ══════════════════════════════════════════════════════════════════════════ */
+.contract-doc,
+html.dark .contract-doc {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+.contract-doc p, .contract-doc li, .contract-doc td, .contract-doc th,
+.contract-doc div, .contract-doc span, .contract-doc strong, .contract-doc em,
+.contract-doc h1, .contract-doc h2, .contract-doc h3, .contract-doc h4,
+.contract-doc label {
+  color: inherit;
+}
+.contract-doc .text-gray-900, .contract-doc .text-gray-800, .contract-doc .text-gray-700,
+html.dark .contract-doc .text-gray-900, html.dark .contract-doc .text-gray-800, html.dark .contract-doc .text-gray-700 {
+  color: #000000 !important;
+}
+.contract-doc .text-gray-600, .contract-doc .text-gray-500,
+html.dark .contract-doc .text-gray-600, html.dark .contract-doc .text-gray-500 {
+  color: #333333 !important;
+}
+.contract-doc .text-gray-400, .contract-doc .text-gray-300,
+html.dark .contract-doc .text-gray-400, html.dark .contract-doc .text-gray-300 {
+  color: #555555 !important;
+}
+.contract-doc .bg-gray-50, .contract-doc .bg-gray-100,
+html.dark .contract-doc .bg-gray-50, html.dark .contract-doc .bg-gray-100 {
+  background-color: #f3f3f3 !important;
+}
+.contract-doc .border-gray-200, .contract-doc .border-gray-300, .contract-doc .border-gray-400,
+html.dark .contract-doc .border-gray-200, html.dark .contract-doc .border-gray-300, html.dark .contract-doc .border-gray-400 {
+  border-color: #000000 !important;
+}
+/* Editable fields inside the builder's document stay readable too */
+.contract-doc input, .contract-doc textarea, .contract-doc select,
+html.dark .contract-doc input, html.dark .contract-doc textarea, html.dark .contract-doc select {
+  color: #000000 !important;
+  background-color: #ffffff !important;
+}
