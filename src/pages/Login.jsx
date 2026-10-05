@@ -53,7 +53,10 @@ export default function Login() {
             {loading ? 'Signing in…' : 'Sign In'}
           </button>
         </form>
-        <p className="text-center text-xs text-gray-400 mt-4">
+        <p className="text-center text-xs text-gray-500 mt-4">
+          New here? <a href="/signup" className="text-blue-600 underline">Create your account</a>
+        </p>
+        <p className="text-center text-xs text-gray-400 mt-3">
           <a href="/legal/terms" className="hover:text-gray-600 underline">Terms</a>
           {' · '}
           <a href="/legal/privacy" className="hover:text-gray-600 underline">Privacy</a>

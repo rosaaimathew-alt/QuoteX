@@ -1,3 +1,4 @@
+import { useRole } from '../components/AuthGuard'
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Plus, Trash2, ChevronDown, ChevronUp, Eye, EyeOff, BookTemplate, X, Save, Copy, BookPlus, Check, Calculator, Lock, Sparkles, Loader } from 'lucide-react'
@@ -57,7 +58,7 @@ function DeckAssemblyPanel({ onClose, onAdd, initial }) {
   const customComponents = useStore(s => s.deckCustomComponents) || []
   const formulaLocked    = useStore(s => s.deckFormulaLocked)
   const scopeTemplate    = useStore(s => s.deckScopeTemplate)
-  const isManager        = useStore(s => (s.role || 'manager') === 'manager')
+  const isManager        = useRole() === 'manager'
   // Decking options come straight from the catalog's "… Porch Floor Upgrade" items
   // (priced per LF, full price + cost) so the tool uses your real numbers with no
   // re-entry. DECK_BRANDS are placeholder fallbacks only when the catalog has none.
@@ -524,7 +525,7 @@ function PorchAssemblyPanel({ onClose, onAdd, initial }) {
   const customComponents = useStore(s => s.porchCustomComponents) || []
   const formulaLocked    = useStore(s => s.porchFormulaLocked)
   const scopeTemplate    = useStore(s => s.porchScopeTemplate)
-  const isManager        = useStore(s => (s.role || 'manager') === 'manager')
+  const isManager        = useRole() === 'manager'
   const priceLocked      = formulaLocked && !isManager
   const r = (key) => rates?.[key] || PORCH_COMPONENT_DEFAULTS[key]
   const toCustomComp = (c) => ({ key: `c:${c.id}`, customId: c.id, label: c.label, unit: c.unit, rate: c.rate, cost: c.cost, qty: 0, custom: true })

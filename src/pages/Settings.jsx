@@ -4,6 +4,7 @@ import { useStore, syncThisDeviceUp } from '../store'
 import { extractDominantColor, generatePalette, applyBrandStyles, DEFAULT_BRAND_COLOR, FREE_PRIMARY_COLOR, FREE_SIDEBAR_COLOR, BRAND_PRESETS } from '../brand'
 import { canCustomizeBranding, PLAN_ORDER, PLAN_META } from '../plans'
 import { ROLE_ORDER, ROLE_META } from '../roles'
+import { currentRole, tokenPayload } from '../components/AuthGuard'
 
 const PRESET_COLORS = [
   { label: 'Sky Blue',    hex: '#0369a1' },
@@ -503,6 +504,146 @@ function DataManagement() {
   )
 }
 
+// ── Change password (self-registered logins) ─────────────────────────────────
+function ChangePasswordCard() {
+  const [cur, setCur]         = useState('')
+  const [next, setNext]       = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [msg, setMsg]         = useState(null)   // { ok, text }
+  const [busy, setBusy]       = useState(false)
+
+  const submit = async (e) => {
+    e.preventDefault()
+    setMsg(null)
+    if (next !== confirm) { setMsg({ ok: false, text: 'New passwords do not match.' }); return }
+    setBusy(true)
+    try {
+      const r = await fetch('/api/auth/login?action=change-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword: cur, newPassword: next }),
+      })
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.error || 'Could not change password')
+      setMsg({ ok: true, text: 'Password changed.' })
+      setCur(''); setNext(''); setConfirm('')
+    } catch (err) {
+      setMsg({ ok: false, text: err.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+  const field = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-400)]'
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-5">
+      <div className="flex items-center gap-2 mb-1">
+        <Lock size={16} className="text-gray-400" />
+        <h3 className="font-semibold text-gray-800 text-sm">Change Password</h3>
+      </div>
+      <p className="text-xs text-gray-400 mb-4">Only you know your password. Logins set up in Vercel by the administrator can't be changed here.</p>
+      <form onSubmit={submit} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <input type="password" className={field} placeholder="Current password" value={cur} onChange={e => setCur(e.target.value)} required autoComplete="current-password" />
+        <input type="password" className={field} placeholder="New password (8+ characters)" value={next} onChange={e => setNext(e.target.value)} required minLength={8} autoComplete="new-password" />
+        <input type="password" className={field} placeholder="Confirm new password" value={confirm} onChange={e => setConfirm(e.target.value)} required minLength={8} autoComplete="new-password" />
+        <div className="sm:col-span-3 flex items-center gap-3">
+          <button type="submit" disabled={busy} className="px-4 py-2 bg-[var(--brand-600)] text-white text-sm font-medium rounded-lg hover:bg-[var(--brand-700)] disabled:opacity-50 transition-colors">
+            {busy ? 'Saving…' : 'Update password'}
+          </button>
+          {msg && <span className={`text-xs ${msg.ok ? 'text-green-700' : 'text-red-600'}`}>{msg.text}</span>}
+        </div>
+      </form>
+    </div>
+  )
+}
+
+// ── Team members (managers) ──────────────────────────────────────────────────
+function TeamMembersCard() {
+  const [users, setUsers]       = useState([])
+  const [signupOn, setSignupOn] = useState(true)
+  const [err, setErr]           = useState('')
+  const [loading, setLoading]   = useState(true)
+  const me = (tokenPayload()?.email || '').toLowerCase()
+
+  const load = useCallback(async () => {
+    setLoading(true); setErr('')
+    try {
+      const r = await fetch('/api/auth/login?action=list-users')
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.error || 'Could not load members')
+      setUsers(d.users || []); setSignupOn(!!d.signupEnabled)
+    } catch (e) { setErr(e.message) } finally { setLoading(false) }
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  const post = async (action, body) => {
+    const r = await fetch(`/api/auth/login?action=${action}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    const d = await r.json()
+    if (!r.ok) throw new Error(d.error || 'Request failed')
+    return d
+  }
+  const setRoleFor = async (email, role) => { try { await post('set-role', { email, role }); load() } catch (e) { alert(e.message) } }
+  const remove = async (email) => {
+    if (!window.confirm(`Remove ${email}? They will no longer be able to sign in.`)) return
+    try { await post('remove-user', { email }); load() } catch (e) { alert(e.message) }
+  }
+  const resetPw = async (email) => {
+    const pw = window.prompt(`Temporary password for ${email} (8+ characters). Tell them to change it after signing in.`)
+    if (!pw) return
+    try { await post('reset-password', { email, newPassword: pw }); alert('Temporary password set.') } catch (e) { alert(e.message) }
+  }
+  const signupUrl = `${window.location.origin}/signup`
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-5">
+      <div className="flex items-center justify-between gap-3 mb-1 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Building2 size={16} className="text-gray-400" />
+          <h3 className="font-semibold text-gray-800 text-sm">Team Members</h3>
+        </div>
+        <button onClick={load} className="text-xs text-gray-500 underline">Refresh</button>
+      </div>
+      <p className="text-xs text-gray-400 mb-3">
+        New people create their own login at <span className="font-mono text-gray-600">{signupUrl}</span> using the team code (the <span className="font-mono">SIGNUP_CODE</span> setting in Vercel).{' '}
+        {signupOn ? 'Sign-up is enabled.' : 'Sign-up is OFF — set SIGNUP_CODE in Vercel → Environment Variables and redeploy to enable it.'}
+      </p>
+      {err && <p className="text-xs text-red-600 mb-2">{err}</p>}
+      {loading ? <p className="text-xs text-gray-400">Loading…</p> : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-gray-400">
+                <th className="py-1 pr-3 font-medium">Name</th><th className="py-1 pr-3 font-medium">Email</th><th className="py-1 pr-3 font-medium">Role</th><th className="py-1 pr-3 font-medium">Managed in</th><th className="py-1"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map(u => {
+                const env = u.source === 'env'
+                const self = (u.email || '').toLowerCase() === me
+                return (
+                  <tr key={u.email} className="border-t border-gray-100">
+                    <td className="py-2 pr-3 text-gray-800">{u.name || '—'}{self && <span className="ml-1 text-[10px] text-gray-400">(you)</span>}</td>
+                    <td className="py-2 pr-3 text-gray-600 font-mono text-xs">{u.email}</td>
+                    <td className="py-2 pr-3">
+                      <select value={u.role} disabled={env} onChange={e => setRoleFor(u.email, e.target.value)} className="border border-gray-200 rounded px-2 py-1 text-xs disabled:opacity-60">
+                        {ROLE_ORDER.map(r => <option key={r} value={r}>{ROLE_META[r].label}</option>)}
+                      </select>
+                    </td>
+                    <td className="py-2 pr-3 text-xs text-gray-400">{env ? 'Vercel settings' : 'Self-registered'}</td>
+                    <td className="py-2 text-right whitespace-nowrap">
+                      {!env && <button onClick={() => resetPw(u.email)} className="text-xs text-blue-600 underline mr-3">Temp password</button>}
+                      {!env && !self && <button onClick={() => remove(u.email)} className="text-xs text-red-600 underline">Remove</button>}
+                    </td>
+                  </tr>
+                )
+              })}
+              {!users.length && <tr><td colSpan={5} className="py-3 text-xs text-gray-400">No members yet.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Settings() {
   const { branding, updateBranding } = useStore()
 
@@ -774,13 +915,14 @@ export default function Settings() {
           {/* ── Workspace ──────────────────────────────────────────── */}
           <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 pt-4 border-t border-gray-100">Workspace</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Role / view */}
+            {/* Role / view — legacy shared switch; hidden once the login carries its own role */}
+            {!currentRole() && (
             <div className="bg-white rounded-xl border border-gray-200 p-5">
               <div className="flex items-center gap-2 mb-1">
                 <Building2 size={16} className="text-gray-400" />
                 <h3 className="font-semibold text-gray-800 text-sm">Role &amp; View</h3>
               </div>
-              <p className="text-xs text-gray-400 mb-4">Switches the whole app between the Sales, Project Manager, and Manager experiences.</p>
+              <p className="text-xs text-gray-400 mb-4">Switches the whole app between the Sales, Project Manager, and Manager experiences. (Logins created on the sign-up page carry their own role; managers set it under Team Members.)</p>
               <div className="grid grid-cols-3 gap-2">
                 {ROLE_ORDER.map(key => {
                   const active = role === key
@@ -797,6 +939,7 @@ export default function Settings() {
                 })}
               </div>
             </div>
+            )}
 
             {/* Plan / subscription tier */}
             <div className="bg-white rounded-xl border border-gray-200 p-5">
@@ -831,6 +974,8 @@ export default function Settings() {
 
           {/* Data backup / restore */}
           <DataManagement />
+          <ChangePasswordCard />
+          {(currentRole() === 'manager' || !currentRole()) && <TeamMembersCard />}
         </div>
 
         {/* Right: live preview */}
