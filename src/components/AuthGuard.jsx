@@ -1,21 +1,8 @@
 import { Navigate } from 'react-router-dom'
 import { DEMO } from '../demo'
-import { useStore } from '../store'
 
 function getToken() {
   return localStorage.getItem('qx_token')
-}
-
-// Decoded session payload ({ email, name, role, exp }) or null when signed out.
-export function tokenPayload() {
-  try {
-    const t = getToken()
-    if (!t) return null
-    const payload = JSON.parse(atob(t.split('.')[0]))
-    return payload.exp > Date.now() ? payload : null
-  } catch {
-    return null
-  }
 }
 
 function isTokenValid(token) {
@@ -26,19 +13,6 @@ function isTokenValid(token) {
   } catch {
     return false
   }
-}
-
-// Role carried by the login itself ('manager' | 'sales' | 'pm'), or null for
-// logins issued before roles existed.
-export function currentRole() {
-  return tokenPayload()?.role || null
-}
-
-// The role the app should render for: the login's own role when it has one,
-// otherwise the legacy shared role switch in the store.
-export function useRole() {
-  const storeRole = useStore(s => s.role || 'manager')
-  return currentRole() || storeRole
 }
 
 export function useAuth() {

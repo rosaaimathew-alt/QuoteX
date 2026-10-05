@@ -15,7 +15,6 @@ import ClientList from './pages/ClientList'
 import ContractView from './pages/ContractView'
 import ContractsList from './pages/ContractsList'
 import Login from './pages/Login'
-import Signup from './pages/Signup'
 import Landing from './pages/Landing'
 import PMCalendar from './pages/PMCalendar'
 import Finance from './pages/Finance'
@@ -29,7 +28,7 @@ import Scheduler from './pages/Scheduler'
 import Checklists from './pages/Checklists'
 import PublicProposal from './pages/PublicProposal'
 import Legal from './pages/Legal'
-import AuthGuard, { logout, useRole } from './components/AuthGuard'
+import AuthGuard, { logout } from './components/AuthGuard'
 import { useStore, syncFromServer } from './store'
 import { applyBrandStyles, applyTheme, DEFAULT_BRAND_COLOR } from './brand'
 import { canAccessRoute, landingRoute } from './plans'
@@ -187,14 +186,14 @@ function GlobalSearch() {
 
 // The home screen ('/') depends on role: PMs get the job calendar.
 function RoleHome() {
-  const role = useRole()
+  const role = useStore(s => s.role || 'manager')
   return role === 'pm' ? <PMCalendar /> : <Dashboard />
 }
 
 // Blocks a route the current plan OR role can't reach, redirecting home.
 function Gated({ path, children }) {
   const plan = useStore(s => s.branding?.plan || 'enterprise')
-  const role = useRole()
+  const role = useStore(s => s.role || 'manager')
   if (!canAccessRoute(plan, path)) return <Navigate to={landingRoute(plan)} replace />
   if (!canRoleAccess(role, path))  return <Navigate to={roleLanding(role)} replace />
   return children
@@ -219,7 +218,7 @@ function AppShell() {
   const closeSidebar = () => setSidebarOpen(false)
 
   const plan = branding?.plan || 'enterprise'
-  const role = useRole()
+  const role = useStore(s => s.role || 'manager')
   const autoExpireStaleSent = useStore(s => s.autoExpireStaleSent)
 
   // Flag proposals that have sat in 'Sent' for 90+ days (no new iteration,
@@ -492,7 +491,6 @@ export default function App() {
       <Routes>
         <Route path="/welcome"     element={<Landing />} />
         <Route path="/login"       element={<Login />} />
-        <Route path="/signup"      element={<Signup />} />
         <Route path="/sign/:token" element={<SignBoundary><SignPage /></SignBoundary>} />
         <Route path="/p/:token"    element={<PublicProposal />} />
         <Route path="/legal"       element={<Legal />} />
