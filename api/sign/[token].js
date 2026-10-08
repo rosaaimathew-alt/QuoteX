@@ -57,6 +57,28 @@ export default async function handler(req, res) {
       const { contractData, contractNum } = req.body || {}
       if (!contractData) return res.status(400).json({ error: 'Missing contractData' })
 
+      const host  = req.headers['x-forwarded-host'] || req.headers.host || 'quotexsolutions.com'
+      const proto = host.includes('localhost') ? 'http' : 'https'
+      const linksFor = (tokens) => ({
+        client:  `${proto}://${host}/sign/${tokens.client}`,
+        builder: `${proto}://${host}/sign/${tokens.builder}`,
+        gc:      `${proto}://${host}/sign/${tokens.gc}`,
+      })
+
+      // Re-sending for the same contract must NOT mint a new record while the
+      // existing one is still unsigned — otherwise the customer signs the link
+      // they were sent while the app watches a newer, empty record and shows
+      // "not signed". Update the unsigned record in place and hand back the
+      // same links. Once anything is signed, a new record (revision) is made.
+      if (contractNum) {
+        const existingId = await kv.get(`sign-by-contract:${contractNum}`)
+        const existing   = existingId ? await loadRecord(kv, existingId) : null
+        if (existing && existing.roleTokens && !Object.keys(existing.signatures || {}).length) {
+          await kv.set(`sign:${existingId}`, { ...existing, signatures: {}, contractData, updatedAt: Date.now() })
+          return res.json({ recordId: existingId, reused: true, links: linksFor(existing.roleTokens) })
+        }
+      }
+
       const recordId    = crypto.randomUUID()
       const roleTokens  = {
         client:  crypto.randomUUID(),
@@ -80,18 +102,10 @@ export default async function handler(req, res) {
 
       if (contractNum) {
         await kv.set(`sign-by-contract:${contractNum}`, recordId)
+        await kv.sadd(`sign-records:${contractNum}`, recordId)   // every record ever made for this contract
       }
 
-      const host  = req.headers['x-forwarded-host'] || req.headers.host || 'quotexsolutions.com'
-      const proto = host.includes('localhost') ? 'http' : 'https'
-      return res.json({
-        recordId,
-        links: {
-          client:  `${proto}://${host}/sign/${roleTokens.client}`,
-          builder: `${proto}://${host}/sign/${roleTokens.builder}`,
-          gc:      `${proto}://${host}/sign/${roleTokens.gc}`,
-        },
-      })
+      return res.json({ recordId, links: linksFor(roleTokens) })
     }
 
     // ── CREATE a tracked proposal-view link (auth) ───────────────────
@@ -245,11 +259,32 @@ export default async function handler(req, res) {
     // ── Lookup by contract number: /api/sign/lookup-<contractNum> ────────────
     if (token.startsWith('lookup-') && req.method === 'GET') {
       const contractNum = decodeURIComponent(token.slice('lookup-'.length))
-      const recordId    = await kv.get(`sign-by-contract:${contractNum}`)
-      if (!recordId) return res.status(404).json({ error: 'No signing record found for this contract number' })
-
-      const rec = await loadRecord(kv, recordId)
-      if (!rec) return res.status(404).json({ error: 'Signing record has expired' })
+      // A contract can have several records (links re-sent over time). Return
+      // the one that matters: fully signed > client-signed > newest.
+      const ids = new Set()
+      const latest = await kv.get(`sign-by-contract:${contractNum}`)
+      if (latest) ids.add(latest)
+      for (const id of (await kv.smembers(`sign-records:${contractNum}`)) || []) ids.add(id)
+      let candidates = (await Promise.all([...ids].map(id => loadRecord(kv, id).then(r => r && { id, r })))).filter(Boolean)
+      // Records made before the index existed: find them by contract number.
+      if (!candidates.some(c => c.r.signatures && c.r.signatures.client)) {
+        let cursor = 0
+        do {
+          const [next, keys] = await kv.scan(cursor, { match: 'sign:*', count: 200 })
+          for (const key of keys || []) {
+            const id = key.slice('sign:'.length)
+            if (ids.has(id)) continue
+            const r = await loadRecord(kv, id)
+            if (r && String(r.contractNum || '') === String(contractNum)) { ids.add(id); candidates.push({ id, r }) }
+          }
+          cursor = Number(next) || 0
+        } while (cursor)
+      }
+      if (!candidates.length) return res.status(404).json({ error: 'No signing record found for this contract number' })
+      const score = (r) => (r.status === 'signed' ? 3 : 0) + (r.signatures && r.signatures.client ? 2 : 0)
+      candidates.sort((a, b) => (score(b.r) - score(a.r)) || ((b.r.createdAt || 0) - (a.r.createdAt || 0)))
+      const recordId = candidates[0].id
+      const rec = candidates[0].r
       if (!rec.roleTokens) return res.status(404).json({ error: 'No role tokens stored in this record' })
 
       const host  = req.headers['x-forwarded-host'] || req.headers.host || 'quotexsolutions.com'
