@@ -237,7 +237,15 @@ export function mergeStoreStrings(serverStr, localStr) {
   // Keep every tombstone from both sides, then drop any record they mark as
   // deleted — this is what makes a delete stick (and propagate) instead of the
   // server copy resurrecting it on the next sync/refresh.
-  merged.tombstones = [...new Set([...(s.tombstones || []), ...(l.tombstones || [])])]
+  // Deletion markers carry an epoch. A repair (Settings → Repair: forget
+  // deletion markers) bumps tombstonesResetAt on the server; any copy holding
+  // an older epoch drops its own markers before merging, so a restored dataset
+  // can't be re-deleted by a stale device syncing up.
+  const sEpoch = Number(s.tombstonesResetAt) || 0, lEpoch = Number(l.tombstonesResetAt) || 0
+  const sTomb = sEpoch >= lEpoch ? (s.tombstones || []) : []
+  const lTomb = lEpoch >= sEpoch ? (l.tombstones || []) : []
+  merged.tombstonesResetAt = Math.max(sEpoch, lEpoch)
+  merged.tombstones = [...new Set([...sTomb, ...lTomb])]
   const _dead = new Set(merged.tombstones)
   merged.proposals  = merged.proposals.filter(p => !_dead.has(`proposal:${p.id}`))
   // Deleted change orders stay deleted (tombstoned as co:<proposalId>:<coId>).

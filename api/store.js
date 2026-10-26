@@ -100,7 +100,13 @@ function mergeState(existing, incoming) {
     merged[k] = _union(a[k], b[k])
   }
   merged.jobCosts = { ...(a.jobCosts || {}), ...(b.jobCosts || {}) }
-  merged.tombstones = [...new Set([...(a.tombstones || []), ...(b.tombstones || [])])]
+  // Deletion-marker epoch (see src/store.js): the newer epoch wins; a copy with
+  // an older epoch contributes no markers.
+  const aEpoch = Number(a.tombstonesResetAt) || 0, bEpoch = Number(b.tombstonesResetAt) || 0
+  const aTomb = aEpoch >= bEpoch ? (a.tombstones || []) : []
+  const bTomb = bEpoch >= aEpoch ? (b.tombstones || []) : []
+  merged.tombstonesResetAt = Math.max(aEpoch, bEpoch)
+  merged.tombstones = [...new Set([...aTomb, ...bTomb])]
   const dead = new Set(merged.tombstones)
   merged.proposals  = merged.proposals.filter(p => !dead.has(`proposal:${p.id}`))
   // Deleted change orders stay deleted (tombstoned as co:<proposalId>:<coId>).
@@ -133,6 +139,21 @@ export default async function handler(req, res) {
         const rev = await kv.get(REV_KEY)
         return res.status(200).json({ rev: Number(rev) || 0 })
       }
+      // Diagnostics: what the server holds, as counts only (no customer data).
+      if (req.query && req.query.stats !== undefined) {
+        const data = await kv.get(KV_KEY)
+        const st = (data && data.state) || {}
+        const count = (k) => Array.isArray(st[k]) ? st[k].length : 0
+        const tomb = st.tombstones || []
+        const byType = {}
+        for (const t of tomb) { const k = String(t).split(':')[0]; byType[k] = (byType[k] || 0) + 1 }
+        return res.status(200).json({
+          present: !!data, proposals: count('proposals'), catalog: count('catalog'), templates: count('templates'),
+          todos: count('todos'), checklists: count('checklists'), expenses: count('expenses'),
+          tombstones: tomb.length, tombstonesByType: byType, tombstonesResetAt: st.tombstonesResetAt || 0,
+          sizeBytes: data ? JSON.stringify(data).length : 0,
+        })
+      }
       const [data, rev] = await Promise.all([kv.get(KV_KEY), kv.get(REV_KEY)])
       res.setHeader('X-Store-Rev', String(Number(rev) || 0))
       return res.status(200).send(data ? JSON.stringify(data) : 'null')
@@ -143,6 +164,18 @@ export default async function handler(req, res) {
 
   if (req.method === 'POST') {
     try {
+      // Repair: forget every deletion marker so a restore (Import) sticks.
+      // Nothing is deleted; it only stops old markers from re-deleting
+      // restored records. Bumps the epoch so stale devices drop theirs too.
+      if (req.query && req.query.action === 'clear-tombstones') {
+        const kv = await getKV()
+        const existing = await kv.get(KV_KEY)
+        if (!existing || !existing.state) return res.status(404).json({ error: 'No dataset on the server yet' })
+        const resetAt = Date.now()
+        await kv.set(KV_KEY, { ...existing, state: { ...existing.state, tombstones: [], tombstonesResetAt: resetAt } })
+        await kv.set(REV_KEY, resetAt)
+        return res.status(200).json({ ok: true, resetAt, removed: (existing.state.tombstones || []).length })
+      }
       const { value } = req.body || {}
       if (typeof value !== 'string') return res.status(400).json({ error: 'Invalid payload' })
       let parsed

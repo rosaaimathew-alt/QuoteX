@@ -470,6 +470,26 @@ function DataManagement() {
           <HardDrive size={14} /> Full Backup (everything)
         </button>
         <button
+          onClick={async () => {
+            if (!window.confirm('Forget all deletion markers on the server?\n\nUse this only when records have vanished and you are about to restore a backup. Nothing is deleted; it stops old deletion markers from re-deleting restored records.')) return
+            try {
+              const r = await fetch('/api/store?action=clear-tombstones', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+              const d = await r.json()
+              if (!r.ok) throw new Error(d.error || 'Repair failed')
+              useStore.setState({ tombstones: [], tombstonesResetAt: d.resetAt })
+              setImportStatus('ok')
+              setImportMsg(`Deletion markers cleared (${d.removed}). Now use Import with your backup file to restore.`)
+            } catch (e) {
+              setImportStatus('error'); setImportMsg(e.message)
+            }
+            setTimeout(() => setImportStatus(null), 12000)
+          }}
+          title="Only when restoring after data went missing"
+          className="flex items-center gap-2 px-4 py-2 border border-amber-300 text-amber-800 bg-amber-50 text-sm font-medium rounded-lg hover:bg-amber-100 transition-colors"
+        >
+          <AlertTriangle size={14} /> Repair: forget deletion markers
+        </button>
+        <button
           onClick={handleExport}
           className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-600)] text-white text-sm font-medium rounded-lg hover:bg-[var(--brand-700)] transition-colors"
         >
