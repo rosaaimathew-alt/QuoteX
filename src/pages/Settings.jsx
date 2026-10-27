@@ -188,9 +188,17 @@ function DriveBackupCard() {
   const connectDrive = async () => {
     const origin   = window.location.origin
     const returnTo = '/settings'
-    const res = await fetch(`/api/google-auth/start?origin=${encodeURIComponent(origin)}&returnTo=${encodeURIComponent(returnTo)}`)
-    const { url } = await res.json()
-    window.location.href = url
+    let data = {}
+    try {
+      const res = await fetch(`/api/google-auth/start?origin=${encodeURIComponent(origin)}&returnTo=${encodeURIComponent(returnTo)}`)
+      data = await res.json()
+    } catch (err) { data = { error: err.message } }
+    if (data.url) { window.location.href = data.url; return }
+    // No URL means the server can't start Google sign-in (usually the Google
+    // OAuth credentials aren't configured). Say so instead of navigating nowhere.
+    setResult('error')
+    setMsg(`Could not start Google sign-in: ${data.error || 'no response from server'}. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in the hosting environment and redeploy.`)
+    setTimeout(() => setResult(null), 12000)
   }
 
   const fmtTime = ts => {
